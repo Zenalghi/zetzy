@@ -1,0 +1,97 @@
+name: zetzy
+description: "Zetzy — Tactile Minimalist Cross-Platform Arcade & Strategy Suite."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^3.5.0
+  drift: ^2.35.4
+  drift_flutter: ^0.3.1
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  supabase_flutter: ^2.18.3
+  flutter_svg: ^2.4.0
+  bishop: ^1.4.4
+  confetti: ^0.8.0
+  audioplayers: ^6.8.1
+  wakelock_plus: ^1.8.2
+  shared_preferences: ^2.5.6
+  image_picker: ^1.2.4
+  image: ^4.13.0
+  connectivity_plus: ^7.3.2
+  share_plus: ^13.3.1
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  drift_dev: ^2.35.3
+  build_runner: ^2.17.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/ico.jpeg"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0D0D0D"
+  adaptive_icon_foreground: "assets/images/ico.jpeg"
+  web:
+    generate: true
+    image_path: "assets/images/ico.jpeg"
+    background_color: "#0D0D0D"
+    theme_color: "#0D0D0D"
+  windows:
+    generate: true
+    image_path: "assets/images/ico.jpeg"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/images/ico.jpeg"
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+  assets:
+    - assets/images/ico.jpeg
+    - assets/images/badge/
+    - assets/images/minesweeper/
+    - assets/images/snake/
+    - assets/icons/platforms/
+    - assets/icons/chess/cburnett/
+    - assets/icons/chess/cburnett-v2/
+    - assets/icons/chess/tatiana/
+
+  fonts:
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-2.304/fonts/ttf/JetBrainsMono-Bold.ttf
+          weight: 700
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/Plus_Jakarta_Sans/static/PlusJakartaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Plus_Jakarta_Sans/static/PlusJakartaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Plus_Jakarta_Sans/static/PlusJakartaSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Plus_Jakarta_Sans/static/PlusJakartaSans-Bold.ttf
+          weight: 700

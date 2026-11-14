@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Zetzy
+Comment=Tactile Minimalist Arcade & Strategy Suite
+Exec=zetzy
+Icon=zetzy
+Terminal=false
+Type=Application
+Categories=Game;LogicGame;BoardGame;
