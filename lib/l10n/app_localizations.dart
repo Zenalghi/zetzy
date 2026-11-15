@@ -957,6 +957,12 @@ abstract class AppLocalizations {
   /// **'Change Password'**
   String get profileChangePassword;
 
+  /// No description provided for @profileConfigureAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Account'**
+  String get profileConfigureAccount;
+
   /// No description provided for @profileUploadAvatar.
   ///
   /// In en, this message translates to:

@@ -116,6 +116,8 @@ abstract final class AssetPaths {
   static const String snakeWall = 'assets/images/snake/wall_brick.png';
 
   // Platform SVG icons
+  static const String chessPawn = 'assets/icons/chess/cburnett/bP.svg';
+
   static String platformIcon(String platform) => switch (platform) {
     'android' => 'assets/icons/platforms/ic_platform_android.svg',
     'web' => 'assets/icons/platforms/ic_platform_web.svg',

@@ -174,6 +174,81 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  void _showConfigureAccountDialog(AppLocalizations l10n) {
+    final p = context.palette;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: p.border),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.manage_accounts_rounded, color: p.accent, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.profileConfigureAccount,
+                style: TextStyle(
+                  color: p.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _showChangeUsernameDialog();
+                },
+                icon: const Icon(Icons.badge_outlined, size: 18),
+                label: Text(l10n.profileChangeUsername),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _showChangePasswordDialog();
+                },
+                icon: const Icon(Icons.lock_reset_rounded, size: 18),
+                label: Text(l10n.profileChangePassword),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: p.danger,
+                  side: BorderSide(color: p.danger.withValues(alpha: 0.45)),
+                ),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  ref.read(authProvider.notifier).signOut();
+                },
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: Text(l10n.profileSignOut),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -330,24 +405,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ],
                     ] else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          OutlinedButton(
-                            onPressed: _showChangeUsernameDialog,
-                            child: Text(l10n.profileChangeUsername),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showConfigureAccountDialog(l10n),
+                          icon: const Icon(
+                            Icons.manage_accounts_rounded,
+                            size: 18,
                           ),
-                          OutlinedButton(
-                            onPressed: _showChangePasswordDialog,
-                            child: Text(l10n.profileChangePassword),
-                          ),
-                          OutlinedButton(
-                            onPressed: () =>
-                                ref.read(authProvider.notifier).signOut(),
-                            child: Text(l10n.profileSignOut),
-                          ),
-                        ],
+                          label: Text(l10n.profileConfigureAccount),
+                        ),
                       ),
                     if (!user.isGuest) ...[
                       const Divider(height: 22),

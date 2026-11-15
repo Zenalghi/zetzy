@@ -469,6 +469,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileChangePassword => 'Change Password';
 
   @override
+  String get profileConfigureAccount => 'Configure Account';
+
+  @override
   String get profileUploadAvatar => 'Upload Avatar';
 
   @override

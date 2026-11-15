@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/app.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/routing/app_router.dart';
+import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
@@ -23,7 +25,9 @@ import 'package:zetzy/data/remote/supabase_service.dart';
 import 'package:zetzy/features/games/chess/chess_screen.dart';
 import 'package:zetzy/features/games/minesweeper/minesweeper_screen.dart';
 import 'package:zetzy/features/games/sudoku/sudoku_screen.dart';
+import 'package:zetzy/features/home/home_screen.dart';
 import 'package:zetzy/features/leaderboard/leaderboard_screen.dart';
+import 'package:zetzy/features/shell/main_shell.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -56,6 +60,9 @@ class _FakeAvailableSupabaseService extends SupabaseService {
     lastUploadedBytes = rawBytes;
     return 'https://example.supabase.co/storage/v1/object/public/avatars/u-1/avatar.png';
   }
+
+  @override
+  Future<void> signOut() async {}
 }
 
 class _FakeAvatarPickerService extends AvatarPickerService {
@@ -588,7 +595,7 @@ void main() {
           theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const ZetzyApp(),
+          home: const MainShell(),
         ),
       ),
     );
@@ -638,6 +645,129 @@ void main() {
     );
     expect(myAvatarRect.right, lessThan(myNameRect.left));
     expect(myBadgeRect.left, greaterThan(myNameRect.right));
+  });
+
+  testWidgets('ProfileScreen collapses account actions into Configure Account dialog', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = _FakeAvailableSupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const MainShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Create Account'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(0), 'cfg_user');
+    await tester.enterText(fields.at(1), 'secret123');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Account'));
+    await tester.pumpAndSettle();
+
+    // Only single Configure Account button is shown inline; the 3 actions are inside its dialog.
+    expect(find.text('Configure Account'), findsOneWidget);
+    expect(find.text('Change Username'), findsNothing);
+    expect(find.text('Change Password'), findsNothing);
+    expect(find.text('Sign Out'), findsNothing);
+
+    await tester.tap(find.text('Configure Account'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Change Username'), findsOneWidget);
+    expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Sign Out'), findsOneWidget);
+
+    await tester.tap(find.text('Sign Out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign In'), findsOneWidget);
+  });
+
+  testWidgets('Home and Leaderboard use themed bP SVG icon for Chess', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.draculaNeon),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const MainShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Home dashboard uses bP SVG tinted with active theme's accentSecondary
+    final homePawnSvg = tester.widget<SvgPicture>(
+      find.descendant(
+        of: find.byType(HomeScreen),
+        matching: find.byType(SvgPicture),
+      ),
+    );
+    expect(
+      (homePawnSvg.bytesLoader as SvgAssetLoader).assetName,
+      equals(AssetPaths.chessPawn),
+    );
+    expect(
+      homePawnSvg.colorFilter,
+      equals(
+        ColorFilter.mode(
+          ZetzyThemes.paletteFor(ZetzyThemeMode.draculaNeon).accentSecondary,
+          BlendMode.srcIn,
+        ),
+      ),
+    );
+    expect(find.byIcon(Icons.castle_rounded), findsNothing);
+
+    // Leaderboard tab renders themed bP SVG in both Chess ELO segment and Chess chip
+    await tester.tap(find.text('Leaderboard'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(LeaderboardScreen),
+        matching: find.byWidgetPredicate(
+          (w) => w is GameTypeIcon && w.game == GameType.chess,
+        ),
+      ),
+      findsNWidgets(2),
+    );
+    expect(find.byIcon(Icons.castle_rounded), findsNothing);
   });
 }
 

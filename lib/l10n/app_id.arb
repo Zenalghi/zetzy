@@ -182,6 +182,7 @@
   "profileRecoveryDesc": "Memungkinkan reset password tanpa email lewat frasa rahasia ter-hash.",
   "profileChangeUsername": "Ganti Username",
   "profileChangePassword": "Ganti Password",
+  "profileConfigureAccount": "Atur Akun",
   "profileUploadAvatar": "Unggah Foto Profil",
   "profileAvatarUpdated": "Foto profil berhasil diperbarui!",
   "profileAvatarSignInRequired": "Masuk atau daftar akun untuk mengunggah foto profil.",

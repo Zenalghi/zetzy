@@ -5,6 +5,7 @@ import 'package:zetzy/core/routing/app_router.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/difficulty_selector_sheet.dart';
+import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
@@ -270,7 +271,11 @@ class _GameBentoCard extends StatelessWidget {
 
   Widget _gamePreviewIcon(ZetzyPalette p) => switch (game) {
     GameType.sudoku => Icon(Icons.grid_on_rounded, size: 32, color: p.accent),
-    GameType.chess => Icon(Icons.castle_rounded, size: 32, color: p.accentSecondary),
+    GameType.chess => GameTypeIcon(
+      game: GameType.chess,
+      size: 32,
+      color: p.accentSecondary,
+    ),
     GameType.minesweeper => Image.asset(
       AssetPaths.mineNormal,
       width: 32,

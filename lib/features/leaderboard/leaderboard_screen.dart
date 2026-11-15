@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
+import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/widgets/platform_badge.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/core/widgets/user_avatar.dart';
@@ -62,7 +63,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                     ButtonSegment(
                       value: 2,
                       label: Text(l10n.leaderboardChessElo),
-                      icon: const Icon(Icons.castle_rounded, size: 18),
+                      icon: const GameTypeIcon(game: GameType.chess, size: 18),
                     ),
                   ],
                 ),
@@ -78,7 +79,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                             child: ChoiceChip(
                               selected: _game == g,
                               onSelected: (_) => setState(() => _game = g),
-                              avatar: Icon(g.icon, size: 16),
+                              avatar: GameTypeIcon(game: g, size: 16),
                               label: Text(g.localizedTitle(l10n)),
                             ),
                           ),

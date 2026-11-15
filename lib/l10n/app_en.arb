@@ -202,6 +202,7 @@
   "profileRecoveryDesc": "Allows password reset without email via hashed recovery phrase.",
   "profileChangeUsername": "Change Username",
   "profileChangePassword": "Change Password",
+  "profileConfigureAccount": "Configure Account",
   "profileUploadAvatar": "Upload Avatar",
   "profileAvatarUpdated": "Profile photo updated!",
   "profileAvatarSignInRequired": "Sign in or create an account to upload a profile photo.",

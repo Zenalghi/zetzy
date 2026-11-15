@@ -467,6 +467,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get profileChangePassword => 'Ganti Password';
 
   @override
+  String get profileConfigureAccount => 'Atur Akun';
+
+  @override
   String get profileUploadAvatar => 'Unggah Foto Profil';
 
   @override
