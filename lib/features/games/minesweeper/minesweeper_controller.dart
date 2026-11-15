@@ -135,9 +135,15 @@ class MinesweeperController extends ChangeNotifier {
   final void Function(AutoSaveSlot slot) onAutoSave;
 
   Timer? _timer;
+  bool _quickChord = true;
   final List<_MineSnapshot> _practiceHistory = [];
   late MinesweeperGameState _state;
   MinesweeperGameState get state => _state;
+
+  /// Controls whether tapping a revealed numbered cell chords surrounding flags.
+  void setQuickChord(bool enabled) {
+    _quickChord = enabled;
+  }
 
   void startNew({
     required DifficultyLevel difficulty,
@@ -228,7 +234,7 @@ class MinesweeperController extends ChangeNotifier {
 
     // Chording if tapping an already revealed numbered cell
     if (cell.isRevealed) {
-      if (cell.adjacentMines > 0) {
+      if (cell.adjacentMines > 0 && _quickChord) {
         _chord(r, c);
       }
       return;

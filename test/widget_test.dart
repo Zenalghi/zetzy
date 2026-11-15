@@ -20,6 +20,7 @@ import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/settings_repository.dart';
+import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/data/models/game_record.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_service.dart';
@@ -1093,6 +1094,181 @@ void main() {
     await tester.tap(find.widgetWithText(OutlinedButton, 'View Result'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(OutlinedButton, 'View Board'), findsOneWidget);
+  });
+
+  testWidgets('ProfileScreen groups game settings into per-game cards and updates Auto-Finish threshold', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const MainShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    // Verify per-game cards & new toggles
+    Future<void> scrollTo(Finder finder) async {
+      await tester.scrollUntilVisible(
+        finder,
+        220,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+    }
+
+    await scrollTo(find.text('Auto-Finish Endgame'));
+    expect(find.text('Auto-Finish Endgame'), findsOneWidget);
+    expect(find.text('5 Cells'), findsOneWidget);
+    expect(find.text('7 Cells'), findsOneWidget);
+    await tester.tap(find.text('7 Cells'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().sudokuAutoFinishThreshold, equals(7));
+
+    await scrollTo(find.text('Show Board Coordinates'));
+    expect(find.text('Show Legal Move Hints'), findsOneWidget);
+    expect(find.text('Show Board Coordinates'), findsOneWidget);
+
+    await scrollTo(find.text('Tap Number to Chord'));
+    expect(find.text('Tap Number to Chord'), findsOneWidget);
+
+    await scrollTo(find.text('Show Arena Grid Lines'));
+    expect(find.text('Show Arena Grid Lines'), findsOneWidget);
+
+    await scrollTo(find.text('Practice Mode'));
+    expect(find.text('Practice Mode'), findsOneWidget);
+  });
+
+  testWidgets('SudokuScreen opens mid-game Quick Settings safely and shows Auto-Finish with bolt icon', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    const solution = <int>[
+      5, 3, 4, 6, 7, 8, 9, 1, 2,
+      6, 7, 2, 1, 9, 5, 3, 4, 8,
+      1, 9, 8, 3, 4, 2, 5, 6, 7,
+      8, 5, 9, 7, 6, 1, 4, 2, 3,
+      4, 2, 6, 8, 5, 3, 7, 9, 1,
+      7, 1, 3, 9, 2, 4, 8, 5, 6,
+      9, 6, 1, 5, 3, 7, 2, 8, 4,
+      2, 8, 7, 4, 1, 9, 6, 3, 5,
+      3, 4, 5, 2, 8, 6, 1, 7, 9,
+    ];
+    final board = List<int>.from(solution);
+    for (final i in const [0, 1, 10, 20, 30]) {
+      board[i] = 0;
+    }
+
+    final slot = AutoSaveSlot(
+      gameType: GameType.sudoku,
+      difficulty: DifficultyLevel.pro.level,
+      elapsedMs: 15000,
+      updatedAt: DateTime(2026, 11, 15),
+      stateJson: {
+        'isPractice': false,
+        'givens': board,
+        'values': List<int>.from(board),
+        'solution': solution,
+        'notes': List.generate(81, (_) => const <int>[]),
+        'errorCells': const <int>[],
+        'livesLeft': 3,
+        'mistakes': 0,
+        'hintsLeft': 3,
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SudokuScreen(
+            difficulty: DifficultyLevel.pro,
+            resumeSlot: slot,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Resumed slot starts paused -> resume to play.
+    await tester.tap(find.text('Resume'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Auto-Finish (5) with left thunder icon is visible.
+    expect(find.text('Auto-Finish (5)'), findsOneWidget);
+    expect(find.byIcon(Icons.bolt_rounded), findsOneWidget);
+
+    // Open mid-game Quick Settings from AppBar gear icon.
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quick Settings • Sudoku'), findsOneWidget);
+    expect(find.text('Auto-Finish Endgame'), findsOneWidget);
+    expect(find.text('Highlight Matching Digits'), findsOneWidget);
+
+    // Non-live / unrelated controls must not be exposed mid-game.
+    expect(find.text('Practice Mode'), findsNothing);
+    expect(find.text('Tap Number to Chord'), findsNothing);
+    expect(find.text('Show Arena Grid Lines'), findsNothing);
+    expect(find.text('Reset All Statistics'), findsNothing);
+
+    // Toggle Highlight Matching Digits inside sheet and close.
+    await tester.tap(find.text('Highlight Matching Digits'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(settingsRepo.load().sudokuHighlightSameDigits, isFalse);
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 450));
+    expect(find.text('Quick Settings • Sudoku'), findsNothing);
+
+    // Trigger Auto-Finish with 5 empty cells remaining -> stops timer, shows dialog.
+    // Note: ConfettiWidget on WinResultDialog keeps an active physics ticker while mounted,
+    // so pump explicit durations instead of pumpAndSettle().
+    await tester.tap(find.text('Auto-Finish (5)'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump();
+
+    expect(find.text('View Board'), findsOneWidget);
+    expect(find.text('Play Again'), findsWidgets);
   });
 }
 

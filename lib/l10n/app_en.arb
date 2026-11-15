@@ -358,5 +358,34 @@
   "snakeDeathObstacle": "Crashed into an obstacle block.",
   "snakeDeathSelf": "Collided with your own body.",
   "snakeDeathStarvation": "Energy ran out before reaching food.",
-  "snakeAllCleared": "Cleared the arena!"
+  "snakeAllCleared": "Cleared the arena!",
+  "settingsInGameTitle": "Quick Settings",
+  "settingsInGameSubtitle": "Safe to adjust during an active match",
+  "settingsSudokuAutoFinish": "Auto-Finish Endgame",
+  "settingsSudokuAutoFinishDesc": "Show Auto-Finish button when only a few cells remain.",
+  "settingsSudokuAutoFinishThreshold": "Remaining Empty Cells",
+  "sudokuRemainingCellsOption": "{count} Cells",
+  "@sudokuRemainingCellsOption": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuAutoFinishAction": "Auto-Finish ({count})",
+  "@sudokuAutoFinishAction": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSudokuHighlightSame": "Highlight Matching Digits",
+  "settingsSudokuAutoClearNotes": "Auto-Clear Peer Notes",
+  "settingsChessLegalMoves": "Show Legal Move Hints",
+  "settingsChessCoordinates": "Show Board Coordinates",
+  "settingsMinesweeperQuickChord": "Tap Number to Chord",
+  "settingsMinesweeperQuickChordDesc": "Open adjacent tiles when surrounding flags match.",
+  "settingsSnakeGridLines": "Show Arena Grid Lines",
+  "settingsPracticeSection": "Practice Mode"
 }

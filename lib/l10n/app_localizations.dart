@@ -1442,6 +1442,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cleared the arena!'**
   String get snakeAllCleared;
+
+  /// No description provided for @settingsInGameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Settings'**
+  String get settingsInGameTitle;
+
+  /// No description provided for @settingsInGameSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe to adjust during an active match'**
+  String get settingsInGameSubtitle;
+
+  /// No description provided for @settingsSudokuAutoFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Finish Endgame'**
+  String get settingsSudokuAutoFinish;
+
+  /// No description provided for @settingsSudokuAutoFinishDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Auto-Finish button when only a few cells remain.'**
+  String get settingsSudokuAutoFinishDesc;
+
+  /// No description provided for @settingsSudokuAutoFinishThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining Empty Cells'**
+  String get settingsSudokuAutoFinishThreshold;
+
+  /// No description provided for @sudokuRemainingCellsOption.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Cells'**
+  String sudokuRemainingCellsOption(int count);
+
+  /// No description provided for @sudokuAutoFinishAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Finish ({count})'**
+  String sudokuAutoFinishAction(int count);
+
+  /// No description provided for @settingsSudokuHighlightSame.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight Matching Digits'**
+  String get settingsSudokuHighlightSame;
+
+  /// No description provided for @settingsSudokuAutoClearNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Clear Peer Notes'**
+  String get settingsSudokuAutoClearNotes;
+
+  /// No description provided for @settingsChessLegalMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Legal Move Hints'**
+  String get settingsChessLegalMoves;
+
+  /// No description provided for @settingsChessCoordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Board Coordinates'**
+  String get settingsChessCoordinates;
+
+  /// No description provided for @settingsMinesweeperQuickChord.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Number to Chord'**
+  String get settingsMinesweeperQuickChord;
+
+  /// No description provided for @settingsMinesweeperQuickChordDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open adjacent tiles when surrounding flags match.'**
+  String get settingsMinesweeperQuickChordDesc;
+
+  /// No description provided for @settingsSnakeGridLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Arena Grid Lines'**
+  String get settingsSnakeGridLines;
+
+  /// No description provided for @settingsPracticeSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Mode'**
+  String get settingsPracticeSection;
 }
 
 class _AppLocalizationsDelegate

@@ -13,8 +13,16 @@ class AppSettings {
     this.hapticsEnabled = true,
     this.wakelockEnabled = true,
     this.snakeControlMode = SnakeControlMode.swipe,
+    this.snakeShowGridLines = true,
     this.chessPieceSet = ChessPieceSet.cburnett,
     this.chessAutoQueen = true,
+    this.chessShowLegalMoves = true,
+    this.chessShowCoordinates = true,
+    this.sudokuAutoFinish = true,
+    this.sudokuAutoFinishThreshold = 5,
+    this.sudokuHighlightSameDigits = true,
+    this.sudokuAutoClearNotes = true,
+    this.minesweeperQuickChord = true,
     this.practiceRewindOnLoss = true,
     this.practiceRewindSteps = 2,
     this.guestChessElo = 1000,
@@ -33,8 +41,16 @@ class AppSettings {
   final bool hapticsEnabled;
   final bool wakelockEnabled;
   final SnakeControlMode snakeControlMode;
+  final bool snakeShowGridLines;
   final ChessPieceSet chessPieceSet;
   final bool chessAutoQueen;
+  final bool chessShowLegalMoves;
+  final bool chessShowCoordinates;
+  final bool sudokuAutoFinish;
+  final int sudokuAutoFinishThreshold;
+  final bool sudokuHighlightSameDigits;
+  final bool sudokuAutoClearNotes;
+  final bool minesweeperQuickChord;
   final bool practiceRewindOnLoss;
   final int practiceRewindSteps;
   final int guestChessElo;
@@ -48,13 +64,23 @@ class AppSettings {
     bool? hapticsEnabled,
     bool? wakelockEnabled,
     SnakeControlMode? snakeControlMode,
+    bool? snakeShowGridLines,
     ChessPieceSet? chessPieceSet,
     bool? chessAutoQueen,
+    bool? chessShowLegalMoves,
+    bool? chessShowCoordinates,
+    bool? sudokuAutoFinish,
+    int? sudokuAutoFinishThreshold,
+    bool? sudokuHighlightSameDigits,
+    bool? sudokuAutoClearNotes,
+    bool? minesweeperQuickChord,
     bool? practiceRewindOnLoss,
     int? practiceRewindSteps,
     int? guestChessElo,
     Map<GameType, int>? guestUnlockedLevels,
   }) {
+    final rawThreshold =
+        sudokuAutoFinishThreshold ?? this.sudokuAutoFinishThreshold;
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
       localeCode: localeCode ?? this.localeCode,
@@ -63,8 +89,18 @@ class AppSettings {
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
       wakelockEnabled: wakelockEnabled ?? this.wakelockEnabled,
       snakeControlMode: snakeControlMode ?? this.snakeControlMode,
+      snakeShowGridLines: snakeShowGridLines ?? this.snakeShowGridLines,
       chessPieceSet: chessPieceSet ?? this.chessPieceSet,
       chessAutoQueen: chessAutoQueen ?? this.chessAutoQueen,
+      chessShowLegalMoves: chessShowLegalMoves ?? this.chessShowLegalMoves,
+      chessShowCoordinates: chessShowCoordinates ?? this.chessShowCoordinates,
+      sudokuAutoFinish: sudokuAutoFinish ?? this.sudokuAutoFinish,
+      sudokuAutoFinishThreshold: rawThreshold >= 7 ? 7 : 5,
+      sudokuHighlightSameDigits:
+          sudokuHighlightSameDigits ?? this.sudokuHighlightSameDigits,
+      sudokuAutoClearNotes: sudokuAutoClearNotes ?? this.sudokuAutoClearNotes,
+      minesweeperQuickChord:
+          minesweeperQuickChord ?? this.minesweeperQuickChord,
       practiceRewindOnLoss: practiceRewindOnLoss ?? this.practiceRewindOnLoss,
       practiceRewindSteps:
           (practiceRewindSteps ?? this.practiceRewindSteps).clamp(1, 3),
@@ -85,8 +121,17 @@ class SettingsRepository {
   static const _kHaptics = 'zetzy_haptics';
   static const _kWakelock = 'zetzy_wakelock';
   static const _kSnakeCtrl = 'zetzy_snake_ctrl';
+  static const _kSnakeGrid = 'zetzy_snake_grid';
   static const _kChessPieces = 'zetzy_chess_pieces';
   static const _kChessAutoQueen = 'zetzy_chess_auto_queen';
+  static const _kChessLegalMoves = 'zetzy_chess_legal_moves';
+  static const _kChessCoordinates = 'zetzy_chess_coordinates';
+  static const _kSudokuAutoFinish = 'zetzy_sudoku_auto_finish';
+  static const _kSudokuAutoFinishThreshold =
+      'zetzy_sudoku_auto_finish_threshold';
+  static const _kSudokuHighlightSame = 'zetzy_sudoku_highlight_same';
+  static const _kSudokuAutoClearNotes = 'zetzy_sudoku_auto_clear_notes';
+  static const _kMinesweeperQuickChord = 'zetzy_minesweeper_quick_chord';
   static const _kPracticeRewindOnLoss = 'zetzy_practice_rewind_on_loss';
   static const _kPracticeRewindSteps = 'zetzy_practice_rewind_steps';
   static const _kGuestElo = 'zetzy_guest_elo';
@@ -109,6 +154,7 @@ class SettingsRepository {
       } catch (_) {}
     }
 
+    final savedThreshold = _prefs.getInt(_kSudokuAutoFinishThreshold) ?? 5;
     return AppSettings(
       themeMode: ZetzyThemeMode.fromId(
         _prefs.getString(_kTheme) ?? ZetzyThemeMode.oledMidnight.id,
@@ -122,11 +168,21 @@ class SettingsRepository {
         (m) => m.name == _prefs.getString(_kSnakeCtrl),
         orElse: () => SnakeControlMode.swipe,
       ),
+      snakeShowGridLines: _prefs.getBool(_kSnakeGrid) ?? true,
       chessPieceSet: ChessPieceSet.values.firstWhere(
         (s) => s.folder == _prefs.getString(_kChessPieces),
         orElse: () => ChessPieceSet.cburnett,
       ),
       chessAutoQueen: _prefs.getBool(_kChessAutoQueen) ?? true,
+      chessShowLegalMoves: _prefs.getBool(_kChessLegalMoves) ?? true,
+      chessShowCoordinates: _prefs.getBool(_kChessCoordinates) ?? true,
+      sudokuAutoFinish: _prefs.getBool(_kSudokuAutoFinish) ?? true,
+      sudokuAutoFinishThreshold: savedThreshold >= 7 ? 7 : 5,
+      sudokuHighlightSameDigits:
+          _prefs.getBool(_kSudokuHighlightSame) ?? true,
+      sudokuAutoClearNotes: _prefs.getBool(_kSudokuAutoClearNotes) ?? true,
+      minesweeperQuickChord:
+          _prefs.getBool(_kMinesweeperQuickChord) ?? true,
       practiceRewindOnLoss: _prefs.getBool(_kPracticeRewindOnLoss) ?? true,
       practiceRewindSteps: (_prefs.getInt(_kPracticeRewindSteps) ?? 2).clamp(
         1,
@@ -146,8 +202,16 @@ class SettingsRepository {
       _prefs.setBool(_kHaptics, s.hapticsEnabled),
       _prefs.setBool(_kWakelock, s.wakelockEnabled),
       _prefs.setString(_kSnakeCtrl, s.snakeControlMode.name),
+      _prefs.setBool(_kSnakeGrid, s.snakeShowGridLines),
       _prefs.setString(_kChessPieces, s.chessPieceSet.folder),
       _prefs.setBool(_kChessAutoQueen, s.chessAutoQueen),
+      _prefs.setBool(_kChessLegalMoves, s.chessShowLegalMoves),
+      _prefs.setBool(_kChessCoordinates, s.chessShowCoordinates),
+      _prefs.setBool(_kSudokuAutoFinish, s.sudokuAutoFinish),
+      _prefs.setInt(_kSudokuAutoFinishThreshold, s.sudokuAutoFinishThreshold),
+      _prefs.setBool(_kSudokuHighlightSame, s.sudokuHighlightSameDigits),
+      _prefs.setBool(_kSudokuAutoClearNotes, s.sudokuAutoClearNotes),
+      _prefs.setBool(_kMinesweeperQuickChord, s.minesweeperQuickChord),
       _prefs.setBool(_kPracticeRewindOnLoss, s.practiceRewindOnLoss),
       _prefs.setInt(_kPracticeRewindSteps, s.practiceRewindSteps.clamp(1, 3)),
       _prefs.setInt(_kGuestElo, s.guestChessElo),

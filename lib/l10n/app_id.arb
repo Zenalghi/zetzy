@@ -290,5 +290,34 @@
   "snakeDeathObstacle": "Menabrak blok rintangan.",
   "snakeDeathSelf": "Menabrak tubuh sendiri.",
   "snakeDeathStarvation": "Energi habis sebelum mencapai makanan.",
-  "snakeAllCleared": "Arena berhasil diselesaikan!"
+  "snakeAllCleared": "Arena berhasil diselesaikan!",
+  "settingsInGameTitle": "Pengaturan Cepat",
+  "settingsInGameSubtitle": "Aman diubah tanpa mengulang permainan",
+  "settingsSudokuAutoFinish": "Selesai Otomatis",
+  "settingsSudokuAutoFinishDesc": "Tampilkan tombol Selesai Otomatis saat hanya sedikit kotak tersisa.",
+  "settingsSudokuAutoFinishThreshold": "Batas Sisa Kotak",
+  "sudokuRemainingCellsOption": "{count} Kotak",
+  "@sudokuRemainingCellsOption": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuAutoFinishAction": "Selesai Otomatis ({count})",
+  "@sudokuAutoFinishAction": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSudokuHighlightSame": "Sorot Angka yang Sama",
+  "settingsSudokuAutoClearNotes": "Hapus Catatan Otomatis",
+  "settingsChessLegalMoves": "Tampilkan Titik Langkah Legal",
+  "settingsChessCoordinates": "Tampilkan Koordinat Papan",
+  "settingsMinesweeperQuickChord": "Ketuk Angka untuk Chord",
+  "settingsMinesweeperQuickChordDesc": "Buka kotak sekitar saat jumlah bendera sudah sesuai.",
+  "settingsSnakeGridLines": "Tampilkan Garis Grid Arena",
+  "settingsPracticeSection": "Mode Latihan"
 }

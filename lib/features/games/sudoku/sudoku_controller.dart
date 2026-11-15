@@ -33,6 +33,8 @@ class SudokuGameState {
     required this.canUndoNote,
     this.canUndoPractice = false,
     this.showSolutionInReview = false,
+    this.completionWaveId = 0,
+    this.completionWaveSteps = const {},
   });
 
   final DifficultyLevel difficulty;
@@ -57,9 +59,33 @@ class SudokuGameState {
   final bool canUndoNote;
   final bool canUndoPractice;
   final bool showSolutionInReview;
+  final int completionWaveId;
+  final Map<int, int> completionWaveSteps;
 
   bool get unlimitedLives => isPractice || maxLives == 0;
   bool get checksAnswerKeyImmediately => difficulty.level <= 4;
+
+  /// Number of cells still blank on the board.
+  int get remainingEmptyCount {
+    var count = 0;
+    for (final v in values) {
+      if (v == 0) count++;
+    }
+    return count;
+  }
+
+  /// True when remaining blanks are within [threshold] and all filled digits
+  /// match the valid solution key.
+  bool canAutoFinish(int threshold) {
+    if (isLoading || isPaused || isGameOver) return false;
+    final remaining = remainingEmptyCount;
+    if (remaining <= 0 || remaining > threshold) return false;
+    for (var i = 0; i < 81; i++) {
+      final v = values[i];
+      if (v != 0 && v != solution[i]) return false;
+    }
+    return true;
+  }
 
   /// Cells that are given clues, or already answered correctly in levels 1–4,
   /// cannot be overwritten or erased.
@@ -103,6 +129,8 @@ class SudokuGameState {
     bool? canUndoNote,
     bool? canUndoPractice,
     bool? showSolutionInReview,
+    int? completionWaveId,
+    Map<int, int>? completionWaveSteps,
   }) {
     return SudokuGameState(
       difficulty: difficulty,
@@ -128,6 +156,8 @@ class SudokuGameState {
       canUndoPractice: canUndoPractice ?? this.canUndoPractice,
       showSolutionInReview:
           showSolutionInReview ?? this.showSolutionInReview,
+      completionWaveId: completionWaveId ?? this.completionWaveId,
+      completionWaveSteps: completionWaveSteps ?? this.completionWaveSteps,
     );
   }
 }
@@ -166,10 +196,16 @@ class SudokuController extends ChangeNotifier {
   final void Function(AutoSaveSlot slot) onAutoSave;
 
   Timer? _timer;
+  bool _autoClearNotes = true;
   final List<List<Set<int>>> _notesUndoStack = [];
   final List<_SudokuSnapshot> _practiceHistory = [];
   late SudokuGameState _state;
   SudokuGameState get state => _state;
+
+  /// Controls whether valid placements clear matching notes in peer row/col/box.
+  void setAutoClearNotes(bool enabled) {
+    _autoClearNotes = enabled;
+  }
 
   static int maxLivesFor(DifficultyLevel diff, bool isPractice) {
     if (isPractice || diff.level == 1) return 0; // Unlimited
@@ -492,14 +528,13 @@ class SudokuController extends ChangeNotifier {
         }
       } else {
         nextErrors.remove(index);
-        _removePeerNotes(nextNotes, index, digit);
+        if (_autoClearNotes) _removePeerNotes(nextNotes, index, digit);
         _audio.playSfx(ZetzySfx.sudokuTap);
         _haptics.light();
       }
     } else {
       // Level 5-7: conflict-only detection (PRD 30C)
       _recomputeConflicts(nextValues, nextErrors);
-      _removePeerNotes(nextNotes, index, digit);
       if (nextErrors.contains(index)) {
         nextMistakes++;
         _audio.playSfx(ZetzySfx.errorBuzz);
@@ -508,10 +543,15 @@ class SudokuController extends ChangeNotifier {
           nextLives--;
         }
       } else {
+        if (_autoClearNotes) _removePeerNotes(nextNotes, index, digit);
         _audio.playSfx(ZetzySfx.sudokuTap);
         _haptics.light();
       }
     }
+
+    final waveSteps = nextErrors.contains(index)
+        ? const <int, int>{}
+        : _computeCompletionWave(nextValues, index);
 
     _state = _state.copyWith(
       values: nextValues,
@@ -520,6 +560,8 @@ class SudokuController extends ChangeNotifier {
       livesLeft: nextLives,
       mistakes: nextMistakes,
       canUndoPractice: _practiceHistory.isNotEmpty,
+      completionWaveId: waveSteps.isEmpty ? null : _state.completionWaveId + 1,
+      completionWaveSteps: waveSteps.isEmpty ? null : waveSteps,
     );
 
     if (!_state.unlimitedLives && nextLives <= 0) {
@@ -646,14 +688,19 @@ class SudokuController extends ChangeNotifier {
     final nextErrors = Set<int>.from(_state.errorCells)..remove(target);
     final nextNotes = _cloneNotes(_state.notes);
     nextNotes[target].clear();
-    _removePeerNotes(nextNotes, target, digit);
-
     if (!_state.checksAnswerKeyImmediately) {
       _recomputeConflicts(nextValues, nextErrors);
+    }
+    if (_autoClearNotes && !nextErrors.contains(target)) {
+      _removePeerNotes(nextNotes, target, digit);
     }
 
     _audio.playSfx(ZetzySfx.sudokuTap);
     _haptics.medium();
+
+    final waveSteps = nextErrors.contains(target)
+        ? const <int, int>{}
+        : _computeCompletionWave(nextValues, target);
 
     _state = _state.copyWith(
       values: nextValues,
@@ -662,8 +709,100 @@ class SudokuController extends ChangeNotifier {
       selectedCell: target,
       hintsLeft: _state.hintsLeft - 1,
       canUndoPractice: _practiceHistory.isNotEmpty,
+      completionWaveId: waveSteps.isEmpty ? null : _state.completionWaveId + 1,
+      completionWaveSteps: waveSteps.isEmpty ? null : waveSteps,
     );
     _checkCompletion();
+  }
+
+  /// Auto-fills remaining blank cells from the solution when eligible.
+  void autoFinish({int maxRemaining = 7}) {
+    if (!_state.canAutoFinish(maxRemaining)) return;
+
+    _pushPracticeUndo();
+    final nextValues = List<int>.generate(
+      81,
+      (i) => _state.values[i] == 0 ? _state.solution[i] : _state.values[i],
+      growable: false,
+    );
+    final nextNotes = List<Set<int>>.generate(81, (_) => <int>{});
+    final origin = _state.selectedCell ?? 40;
+    final r0 = origin ~/ 9;
+    final c0 = origin % 9;
+    final waveSteps = <int, int>{
+      for (var i = 0; i < 81; i++)
+        i: max((i ~/ 9 - r0).abs(), (i % 9 - c0).abs()),
+    };
+
+    _state = _state.copyWith(
+      values: nextValues,
+      notes: nextNotes,
+      errorCells: const <int>{},
+      canUndoPractice: _practiceHistory.isNotEmpty,
+      completionWaveId: _state.completionWaveId + 1,
+      completionWaveSteps: waveSteps,
+    );
+    _endGame(won: true);
+  }
+
+  Map<int, int> _computeCompletionWave(List<int> values, int originIdx) {
+    final steps = <int, int>{};
+    final r0 = originIdx ~/ 9;
+    final c0 = originIdx % 9;
+
+    void addStep(int idx, int step) {
+      final prev = steps[idx];
+      if (prev == null || step < prev) {
+        steps[idx] = step;
+      }
+    }
+
+    bool isUnitComplete(List<int> indices) {
+      var mask = 0;
+      for (final idx in indices) {
+        final v = values[idx];
+        if (v < 1 || v > 9) return false;
+        final bit = 1 << (v - 1);
+        if ((mask & bit) != 0) return false;
+        mask |= bit;
+        if (_state.checksAnswerKeyImmediately &&
+            v != _state.solution[idx]) {
+          return false;
+        }
+        if (SudokuEngine.hasConflict(values, idx)) return false;
+      }
+      return mask == 0x1FF;
+    }
+
+    final rowIndices = [for (var c = 0; c < 9; c++) r0 * 9 + c];
+    if (isUnitComplete(rowIndices)) {
+      for (var c = 0; c < 9; c++) {
+        addStep(r0 * 9 + c, (c - c0).abs());
+      }
+    }
+
+    final colIndices = [for (var r = 0; r < 9; r++) r * 9 + c0];
+    if (isUnitComplete(colIndices)) {
+      for (var r = 0; r < 9; r++) {
+        addStep(r * 9 + c0, (r - r0).abs());
+      }
+    }
+
+    final br = (r0 ~/ 3) * 3;
+    final bc = (c0 ~/ 3) * 3;
+    final boxIndices = [
+      for (var r = br; r < br + 3; r++)
+        for (var c = bc; c < bc + 3; c++) r * 9 + c,
+    ];
+    if (isUnitComplete(boxIndices)) {
+      for (final idx in boxIndices) {
+        final r = idx ~/ 9;
+        final c = idx % 9;
+        addStep(idx, max((r - r0).abs(), (c - c0).abs()));
+      }
+    }
+
+    return steps;
   }
 
   void _checkCompletion() {

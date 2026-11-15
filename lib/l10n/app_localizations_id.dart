@@ -747,4 +747,55 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get snakeAllCleared => 'Arena berhasil diselesaikan!';
+
+  @override
+  String get settingsInGameTitle => 'Pengaturan Cepat';
+
+  @override
+  String get settingsInGameSubtitle => 'Aman diubah tanpa mengulang permainan';
+
+  @override
+  String get settingsSudokuAutoFinish => 'Selesai Otomatis';
+
+  @override
+  String get settingsSudokuAutoFinishDesc =>
+      'Tampilkan tombol Selesai Otomatis saat hanya sedikit kotak tersisa.';
+
+  @override
+  String get settingsSudokuAutoFinishThreshold => 'Batas Sisa Kotak';
+
+  @override
+  String sudokuRemainingCellsOption(int count) {
+    return '$count Kotak';
+  }
+
+  @override
+  String sudokuAutoFinishAction(int count) {
+    return 'Selesai Otomatis ($count)';
+  }
+
+  @override
+  String get settingsSudokuHighlightSame => 'Sorot Angka yang Sama';
+
+  @override
+  String get settingsSudokuAutoClearNotes => 'Hapus Catatan Otomatis';
+
+  @override
+  String get settingsChessLegalMoves => 'Tampilkan Titik Langkah Legal';
+
+  @override
+  String get settingsChessCoordinates => 'Tampilkan Koordinat Papan';
+
+  @override
+  String get settingsMinesweeperQuickChord => 'Ketuk Angka untuk Chord';
+
+  @override
+  String get settingsMinesweeperQuickChordDesc =>
+      'Buka kotak sekitar saat jumlah bendera sudah sesuai.';
+
+  @override
+  String get settingsSnakeGridLines => 'Tampilkan Garis Grid Arena';
+
+  @override
+  String get settingsPracticeSection => 'Mode Latihan';
 }

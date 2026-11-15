@@ -8,6 +8,7 @@ import 'package:zetzy/core/utils/platform_detector.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
 import 'package:zetzy/core/widgets/game_lifecycle_guard.dart';
 import 'package:zetzy/core/widgets/game_timer_badge.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/features/games/minesweeper/minesweeper_controller.dart';
@@ -176,10 +177,31 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
     _transformCtrl.value = matrix * current;
   }
 
+  Future<void> _openInGameSettings() async {
+    final wasRunning =
+        _controller.state.hasStarted &&
+        !_controller.state.isPaused &&
+        !_controller.state.isGameOver;
+    if (wasRunning) {
+      _controller.pause(save: false);
+    }
+    await showInGameSettingsSheet(
+      context: context,
+      gameType: GameType.minesweeper,
+    );
+    if (!mounted) return;
+    if (wasRunning) {
+      _controller.resume();
+    }
+    _focusNode.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.watch(settingsProvider);
+    _controller.setQuickChord(settings.minesweeperQuickChord);
 
     return GameLifecycleGuard(
       onAutoPause: () => _controller.pause(),
@@ -200,12 +222,20 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
               ListenableBuilder(
                 listenable: _controller,
                 builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     GameTimerBadge(
                       elapsedMs: _controller.state.elapsedMs,
                       isPaused: _controller.state.isPaused,
                     ),
                     IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: l10n.settingsInGameTitle,
+                      onPressed: _openInGameSettings,
+                      icon: const Icon(Icons.settings_outlined, size: 21),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();

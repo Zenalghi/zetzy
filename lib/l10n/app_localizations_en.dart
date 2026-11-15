@@ -754,4 +754,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get snakeAllCleared => 'Cleared the arena!';
+
+  @override
+  String get settingsInGameTitle => 'Quick Settings';
+
+  @override
+  String get settingsInGameSubtitle => 'Safe to adjust during an active match';
+
+  @override
+  String get settingsSudokuAutoFinish => 'Auto-Finish Endgame';
+
+  @override
+  String get settingsSudokuAutoFinishDesc =>
+      'Show Auto-Finish button when only a few cells remain.';
+
+  @override
+  String get settingsSudokuAutoFinishThreshold => 'Remaining Empty Cells';
+
+  @override
+  String sudokuRemainingCellsOption(int count) {
+    return '$count Cells';
+  }
+
+  @override
+  String sudokuAutoFinishAction(int count) {
+    return 'Auto-Finish ($count)';
+  }
+
+  @override
+  String get settingsSudokuHighlightSame => 'Highlight Matching Digits';
+
+  @override
+  String get settingsSudokuAutoClearNotes => 'Auto-Clear Peer Notes';
+
+  @override
+  String get settingsChessLegalMoves => 'Show Legal Move Hints';
+
+  @override
+  String get settingsChessCoordinates => 'Show Board Coordinates';
+
+  @override
+  String get settingsMinesweeperQuickChord => 'Tap Number to Chord';
+
+  @override
+  String get settingsMinesweeperQuickChordDesc =>
+      'Open adjacent tiles when surrounding flags match.';
+
+  @override
+  String get settingsSnakeGridLines => 'Show Arena Grid Lines';
+
+  @override
+  String get settingsPracticeSection => 'Practice Mode';
 }

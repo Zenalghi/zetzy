@@ -103,11 +103,35 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setSnakeControl(SnakeControlMode mode) =>
       _commit(state.copyWith(snakeControlMode: mode));
 
+  Future<void> setSnakeShowGridLines(bool enabled) =>
+      _commit(state.copyWith(snakeShowGridLines: enabled));
+
   Future<void> setChessPieceSet(ChessPieceSet pieceSet) =>
       _commit(state.copyWith(chessPieceSet: pieceSet));
 
   Future<void> setChessAutoQueen(bool autoQueen) =>
       _commit(state.copyWith(chessAutoQueen: autoQueen));
+
+  Future<void> setChessShowLegalMoves(bool enabled) =>
+      _commit(state.copyWith(chessShowLegalMoves: enabled));
+
+  Future<void> setChessShowCoordinates(bool enabled) =>
+      _commit(state.copyWith(chessShowCoordinates: enabled));
+
+  Future<void> setSudokuAutoFinish(bool enabled) =>
+      _commit(state.copyWith(sudokuAutoFinish: enabled));
+
+  Future<void> setSudokuAutoFinishThreshold(int cells) =>
+      _commit(state.copyWith(sudokuAutoFinishThreshold: cells >= 7 ? 7 : 5));
+
+  Future<void> setSudokuHighlightSameDigits(bool enabled) =>
+      _commit(state.copyWith(sudokuHighlightSameDigits: enabled));
+
+  Future<void> setSudokuAutoClearNotes(bool enabled) =>
+      _commit(state.copyWith(sudokuAutoClearNotes: enabled));
+
+  Future<void> setMinesweeperQuickChord(bool enabled) =>
+      _commit(state.copyWith(minesweeperQuickChord: enabled));
 
   Future<void> setPracticeRewindOnLoss(bool enabled) =>
       _commit(state.copyWith(practiceRewindOnLoss: enabled));

@@ -11,6 +11,7 @@ import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
 import 'package:zetzy/core/widgets/game_lifecycle_guard.dart';
 import 'package:zetzy/core/widgets/game_timer_badge.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
@@ -350,6 +351,25 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     super.dispose();
   }
 
+  Future<void> _openInGameSettings() async {
+    final canAutoPause =
+        !_inLobby &&
+        !_controller.state.mode.isOnlineMultiplayer &&
+        !_controller.state.isPaused &&
+        !_controller.state.isGameOver;
+    if (canAutoPause) {
+      _controller.pause(save: false);
+    }
+    await showInGameSettingsSheet(
+      context: context,
+      gameType: GameType.chess,
+    );
+    if (!mounted) return;
+    if (canAutoPause) {
+      _controller.resume();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -379,13 +399,21 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
             ListenableBuilder(
               listenable: _controller,
               builder: (context, _) => Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   GameTimerBadge(
                     elapsedMs: _controller.state.elapsedMs,
                     isPaused: _controller.state.isPaused,
                   ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: l10n.settingsInGameTitle,
+                    onPressed: _openInGameSettings,
+                    icon: const Icon(Icons.settings_outlined, size: 21),
+                  ),
                   if (!_controller.state.mode.isOnlineMultiplayer)
                     IconButton(
+                      visualDensity: VisualDensity.compact,
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();
@@ -424,6 +452,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                                   s,
                                   p,
                                   settings.chessPieceSet,
+                                  showLegalMoves: settings.chessShowLegalMoves,
+                                  showCoordinates:
+                                      settings.chessShowCoordinates,
                                 ),
                               ),
                             ),
@@ -468,6 +499,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                                   s,
                                   p,
                                   settings.chessPieceSet,
+                                  showLegalMoves: settings.chessShowLegalMoves,
+                                  showCoordinates:
+                                      settings.chessShowCoordinates,
                                 ),
                               ),
                             ),
@@ -1285,7 +1319,13 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     );
   }
 
-  Widget _buildBoard(ChessUiState s, ZetzyPalette p, ChessPieceSet pieceSet) {
+  Widget _buildBoard(
+    ChessUiState s,
+    ZetzyPalette p,
+    ChessPieceSet pieceSet, {
+    required bool showLegalMoves,
+    required bool showCoordinates,
+  }) {
     final game = _controller.game;
 
     return AspectRatio(
@@ -1312,6 +1352,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                           game: game,
                           rank: s.flipped ? visualRow : 7 - visualRow,
                           file: s.flipped ? 7 - visualCol : visualCol,
+                          showRankLabel: showCoordinates && visualCol == 0,
+                          showFileLabel: showCoordinates && visualRow == 7,
+                          showLegalMoves: showLegalMoves,
                         ),
                     ],
                   ),
@@ -1330,6 +1373,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     required Game game,
     required int rank,
     required int file,
+    required bool showRankLabel,
+    required bool showFileLabel,
+    required bool showLegalMoves,
   }) {
     final sqIdx = game.size.square(file, rank);
     final sq = game.board[sqIdx];
@@ -1359,6 +1405,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       final pieceCode = game.variant.pieces[sq.type].symbol.toUpperCase();
       pieceAsset = pieceSet.pieceAsset(colorPrefix, pieceCode);
     }
+    final coordColor = (isLight ? p.boardDark : p.boardLight).withValues(
+      alpha: 0.85,
+    );
 
     return Expanded(
       child: GestureDetector(
@@ -1368,12 +1417,42 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
           child: Stack(
             alignment: Alignment.center,
             children: [
+              if (showRankLabel)
+                Positioned(
+                  left: 3,
+                  top: 1.5,
+                  child: IgnorePointer(
+                    child: Text(
+                      '${rank + 1}',
+                      style: ZetzyThemes.monoStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: coordColor,
+                      ).copyWith(height: 1.0),
+                    ),
+                  ),
+                ),
+              if (showFileLabel)
+                Positioned(
+                  right: 3,
+                  bottom: 1.5,
+                  child: IgnorePointer(
+                    child: Text(
+                      String.fromCharCode('a'.codeUnitAt(0) + file),
+                      style: ZetzyThemes.monoStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: coordColor,
+                      ).copyWith(height: 1.0),
+                    ),
+                  ),
+                ),
               if (pieceAsset != null)
                 Padding(
                   padding: const EdgeInsets.all(3),
                   child: SvgPicture.asset(pieceAsset),
                 ),
-              if (isTarget)
+              if (showLegalMoves && isTarget)
                 Container(
                   width: sq.isNotEmpty ? 42 : 14,
                   height: sq.isNotEmpty ? 42 : 14,

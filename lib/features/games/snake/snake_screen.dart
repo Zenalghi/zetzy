@@ -9,6 +9,7 @@ import 'package:zetzy/core/utils/platform_detector.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
 import 'package:zetzy/core/widgets/game_lifecycle_guard.dart';
 import 'package:zetzy/core/widgets/game_timer_badge.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/features/games/snake/snake_controller.dart';
@@ -213,6 +214,23 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
     super.dispose();
   }
 
+  Future<void> _openInGameSettings() async {
+    final wasRunning =
+        !_controller.state.isPaused && !_controller.state.isGameOver;
+    if (wasRunning) {
+      _controller.pause(save: false);
+    }
+    await showInGameSettingsSheet(
+      context: context,
+      gameType: GameType.snake,
+    );
+    if (!mounted) return;
+    if (wasRunning) {
+      _controller.resume();
+    }
+    _focusNode.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -234,9 +252,11 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
               ListenableBuilder(
                 listenable: _controller,
                 builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_controller.state.isPractice)
                       IconButton(
+                        visualDensity: VisualDensity.compact,
                         tooltip: l10n.practiceUndo,
                         onPressed:
                             _controller.state.canPracticeUndo &&
@@ -250,6 +270,13 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                       isPaused: _controller.state.isPaused,
                     ),
                     IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: l10n.settingsInGameTitle,
+                      onPressed: _openInGameSettings,
+                      icon: const Icon(Icons.settings_outlined, size: 21),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();
@@ -288,6 +315,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                     s,
                                     p,
                                     settings.snakeControlMode,
+                                    showGridLines: settings.snakeShowGridLines,
                                   ),
                                 ),
                               ),
@@ -321,6 +349,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                   s,
                                   p,
                                   settings.snakeControlMode,
+                                  showGridLines: settings.snakeShowGridLines,
                                 ),
                               ),
                             ),
@@ -578,8 +607,9 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   Widget _buildArena(
     SnakeGameState s,
     ZetzyPalette p,
-    SnakeControlMode controlMode,
-  ) {
+    SnakeControlMode controlMode, {
+    required bool showGridLines,
+  }) {
     Widget board = AspectRatio(
       aspectRatio: 1,
       child: Container(
@@ -596,6 +626,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
           painter: _SnakeBoardPainter(
             state: s,
             palette: p,
+            showGridLines: showGridLines,
             appleImg: _appleImg,
             goldenImg: _goldenImg,
             scissorsImg: _scissorsImg,
@@ -704,6 +735,7 @@ class _SnakeBoardPainter extends CustomPainter {
   _SnakeBoardPainter({
     required this.state,
     required this.palette,
+    this.showGridLines = false,
     this.appleImg,
     this.goldenImg,
     this.scissorsImg,
@@ -713,6 +745,7 @@ class _SnakeBoardPainter extends CustomPainter {
 
   final SnakeGameState state;
   final ZetzyPalette palette;
+  final bool showGridLines;
   final ui.Image? appleImg;
   final ui.Image? goldenImg;
   final ui.Image? scissorsImg;
@@ -734,6 +767,18 @@ class _SnakeBoardPainter extends CustomPainter {
             lightPaint,
           );
         }
+      }
+    }
+
+    if (showGridLines) {
+      final gridPaint = Paint()
+        ..color = palette.border.withValues(alpha: 0.28)
+        ..strokeWidth = 0.7;
+      for (var i = 1; i < state.gridSize; i++) {
+        final dx = i * cellW;
+        final dy = i * cellH;
+        canvas.drawLine(Offset(dx, 0), Offset(dx, size.height), gridPaint);
+        canvas.drawLine(Offset(0, dy), Offset(size.width, dy), gridPaint);
       }
     }
 
