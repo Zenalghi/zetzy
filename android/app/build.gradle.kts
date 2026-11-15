@@ -1,7 +1,55 @@
+import groovy.json.JsonSlurper
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Auto-inject SUPABASE_URL / SUPABASE_ANON_KEY from root `supabase.json` for local Android
+// builds/runs when `--dart-define` / `--dart-define-from-file` was omitted (e.g. plain CLI or IDE).
+run {
+    val supabaseFile = rootProject.file("../supabase.json")
+    if (supabaseFile.isFile) {
+        val rawDefines = project.findProperty("dart-defines")?.toString().orEmpty()
+        val encodedDefines = rawDefines
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toMutableList()
+
+        val decodedKeys = encodedDefines.mapNotNull { encoded ->
+            try {
+                String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)
+                    .substringBefore("=")
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+        }.toSet()
+
+        @Suppress("UNCHECKED_CAST")
+        val parsed = JsonSlurper().parse(supabaseFile) as? Map<String, Any?>
+        if (parsed != null) {
+            val encoder = Base64.getEncoder()
+            var changed = false
+            for (key in listOf("SUPABASE_URL", "SUPABASE_ANON_KEY")) {
+                if (key !in decodedKeys) {
+                    val value = (parsed[key] as? String)?.trim().orEmpty()
+                    if (value.isNotEmpty()) {
+                        val define = "$key=$value".toByteArray(StandardCharsets.UTF_8)
+                        encodedDefines.add(encoder.encodeToString(define))
+                        changed = true
+                    }
+                }
+            }
+            if (changed) {
+                project.extensions.extraProperties["dart-defines"] =
+                    encodedDefines.joinToString(",")
+            }
+        }
+    }
 }
 
 android {

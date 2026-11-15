@@ -261,7 +261,8 @@ Jika menjalankan lewat tombol Run/Debug di `.vscode/launch.json`, tambahkan `too
 }
 ```
 
-> Untuk development di Desktop (Windows/macOS/Linux) dalam mode Debug/Profile, aplikasi juga otomatis membaca file `supabase.json` di root project apabila flag `--dart-define` belum diteruskan oleh IDE.
+> `.vscode/settings.json` juga sudah dikonfigurasi dengan `dart.flutterRunAdditionalArgs` (`--dart-define-from-file=supabase.json`) agar tombol **Run Without Debugging** / CodeLens di VS Code/Antigravity meneruskan kredensial Supabase ke semua platform (Android, iOS, Web, Windows, Linux, macOS).
+> Untuk Android, `android/app/build.gradle.kts` otomatis membaca `supabase.json` saat build jika flag `--dart-define` belum diteruskan. Untuk Desktop (Windows/Linux) mode Debug/Profile, aplikasi juga memiliki fallback runtime ke `supabase.json`. Jika ingin menjalankan mode offline murni tanpa `supabase.json`, cukup isi `{}` pada `supabase.json` atau hapus flag tersebut dari `.vscode/settings.json`.
 
 ---
 

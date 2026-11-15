@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
@@ -394,6 +395,13 @@ class ScoreSyncController {
       try {
         await supa.uploadGameRecord(item);
         await storage.removeQueuedScore(item.id);
+      } on PostgrestException catch (e) {
+        if (e.code == '23505') {
+          await storage.removeQueuedScore(item.id);
+          continue;
+        }
+        debugPrint('Offline score flush deferred: $e');
+        break;
       } catch (e) {
         debugPrint('Offline score flush deferred: $e');
         break;

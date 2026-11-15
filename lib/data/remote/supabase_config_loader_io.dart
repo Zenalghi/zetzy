@@ -12,8 +12,21 @@ import 'package:zetzy/core/constants/supabase_schema.dart';
   if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) return null;
   if (Platform.environment.containsKey('FLUTTER_TEST')) return null;
 
-  var dir = Directory.current;
-  for (var i = 0; i < 6; i++) {
+  final startDirs = <Directory>[
+    Directory.current,
+    File(Platform.resolvedExecutable).parent,
+  ];
+
+  for (final startDir in startDirs) {
+    final loaded = _searchUpForSupabaseJson(startDir);
+    if (loaded != null) return loaded;
+  }
+  return null;
+}
+
+({String url, String anonKey})? _searchUpForSupabaseJson(Directory startDir) {
+  var dir = startDir;
+  for (var i = 0; i < 10; i++) {
     final candidate = File(p.join(dir.path, 'supabase.json'));
     if (candidate.existsSync()) {
       try {
@@ -34,7 +47,7 @@ import 'package:zetzy/core/constants/supabase_schema.dart';
       return null;
     }
 
-    // Stop walking up once we hit or pass pubspec.yaml, or reach filesystem root.
+    // Stop walking up once we hit the repo root (`pubspec.yaml`) or filesystem root.
     if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) break;
     final parent = dir.parent;
     if (parent.path == dir.path) break;
