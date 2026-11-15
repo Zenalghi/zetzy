@@ -384,8 +384,12 @@ class SudokuController extends ChangeNotifier {
       _recomputeConflicts(nextValues, nextErrors);
       _removePeerNotes(nextNotes, index, digit);
       if (nextErrors.contains(index)) {
+        nextMistakes++;
         _audio.playSfx(ZetzySfx.errorBuzz);
         _haptics.medium();
+        if (!_state.unlimitedLives) {
+          nextLives--;
+        }
       } else {
         _audio.playSfx(ZetzySfx.sudokuTap);
         _haptics.light();

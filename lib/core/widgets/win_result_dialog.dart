@@ -158,9 +158,10 @@ class _GameResultDialogState extends State<_GameResultDialog> {
           backgroundColor: Colors.transparent,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 RepaintBoundary(
                   key: _cardKey,
                   child: Container(
@@ -217,7 +218,10 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                         Text(
                           title,
                           style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: p.textPrimary,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -289,6 +293,8 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           backgroundColor: p.surface,
+                          foregroundColor: p.textPrimary,
+                          side: BorderSide(color: p.border),
                         ),
                         onPressed: () => _shareScoreCard(l10n),
                         icon: const Icon(Icons.share_rounded, size: 18),
@@ -308,15 +314,25 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    widget.onExit();
-                  },
-                  child: Text(l10n.backToHome),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: p.surface,
+                      foregroundColor: p.textPrimary,
+                      side: BorderSide(color: p.border),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      widget.onExit();
+                    },
+                    icon: const Icon(Icons.home_rounded, size: 18),
+                    label: Text(l10n.backToHome),
+                  ),
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

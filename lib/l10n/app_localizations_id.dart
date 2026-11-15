@@ -180,6 +180,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get sudokuConflictOnlyNote => 'Mode PRO+: Hanya deteksi konflik';
 
   @override
+  String get sudokuConflictGuideTitle => 'Mode PRO+ Deteksi Konflik';
+
+  @override
+  String get sudokuConflictGuideBody =>
+      '• Chill – High (Level 1–4): Angka langsung dicek ke kunci jawaban. Angka salah langsung mengurangi 1 nyawa, dan kotak benar terkunci.\n• PRO – God (Level 5–7): Kunci jawaban tidak dibocorkan sehingga Anda bebas mengisi dan mengganti angka tebakan.\n• Cara Nyawa Berkurang di PRO+: Mengisi angka kembar yang berkonflik di baris, kolom, atau blok 3×3 yang sama akan mengurangi 1 nyawa (PRO: 3, Nightmare: 2, God: 1 Sudden Death).\n• Menang / Kalah: Jika nyawa habis maka Game Over. Mengisi semua 81 kotak tanpa konflik berarti Menang.';
+
+  @override
   String get chessModeVsAi => 'Lawan AI';
 
   @override
@@ -260,6 +267,54 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get chessOnlineRequiresAuth =>
       'Masuk ke akun Anda untuk bermain Multiplayer Online.';
+
+  @override
+  String get chessTapForDetails => 'Ketuk untuk info ELO, skor & panduan main';
+
+  @override
+  String get chessModeGuideTitle => 'Aturan Pertandingan & Skor';
+
+  @override
+  String get chessPracticeDisabledNote =>
+      'Mode Latihan aktif: ELO, Papan Skor, XP, dan pembukaan level dinonaktifkan untuk laga ini.';
+
+  @override
+  String chessTimeControlRule(String timeLabel) {
+    return 'Kontrol Waktu ($timeLabel) hanya mengatur batas waktu tiap pemain. Bullet, Blitz, Rapid, dan Tanpa Waktu memberi ELO serta XP yang sama (durasi lebih cepat hanya unggul saat skor seri di Papan Skor).';
+  }
+
+  @override
+  String get chessInfoSummaryVsAi => 'Ranked • ELO lawan AI & Papan Skor';
+
+  @override
+  String get chessInfoSummaryPassPlay => '2 Pemain Lokal • Tanpa ELO & Skor';
+
+  @override
+  String get chessInfoSummaryOnline => 'Online 1v1 • ELO Aktif via Kode Ruang';
+
+  @override
+  String get chessInfoSummaryPractice => 'Mode Latihan • Tanpa ELO & Skor';
+
+  @override
+  String chessInfoDetailVsAi(String level, String rating, String xp) {
+    return '• Kekuatan Lawan: AI Level $level (Rating $rating).\n• ELO Catur & Papan Skor: Menang, seri, atau kalah mengubah ELO Catur Anda (rumus K=32). Selisih ELO dicatat sebagai skor, dan kemenangan masuk Papan Skor serta memberi +$xp XP.\n• Buka Level: Menang di PRO membuka Nightmare, dan menang di Nightmare membuka Are U a God?.';
+  }
+
+  @override
+  String get chessInfoDetailPassPlay =>
+      '• Cara Bermain: Anda dan teman bergantian melangkah Putih lalu Hitam pada satu perangkat yang sama.\n• Skor & ELO: Dihitung sebagai laga lokal santai (seperti Mode Latihan). Tidak mengubah ELO Catur, tidak masuk Papan Skor, dan tidak memberi XP maupun membuka level.';
+
+  @override
+  String get chessInfoDetailOnline =>
+      '• Konsep: Duel 1v1 real-time yang terhubung langsung lewat Supabase Realtime.\n• Host (Buat Ruang): Masuk ke akun dulu, pilih Kontrol Waktu, lalu tekan Buat Ruang. Bagikan Kode Ruang 6 karakter yang muncul di layar ke teman Anda.\n• Teman (Gabung Ruang): Masuk ke akun, pilih Ruang Online, ketik Kode Ruang tersebut, lalu tekan Gabung Ruang. Laga otomatis dimulai saat terhubung.\n• Skor & ELO: Memperbarui ELO Catur serta mencatat kemenangan di Papan Skor + XP kesulitan (kecuali Mode Latihan aktif).';
+
+  @override
+  String get chessCopyCode => 'Salin';
+
+  @override
+  String chessRoomCodeCopied(String code) {
+    return 'Kode ruang disalin: $code';
+  }
 
   @override
   String get mineRemaining => 'Ranjau';

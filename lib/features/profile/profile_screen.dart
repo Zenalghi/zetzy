@@ -7,6 +7,7 @@ import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
+import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -211,26 +212,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              CircleAvatar(
+                              UserAvatar(
+                                avatarUrl: user.avatarUrl,
+                                username: user.username,
                                 radius: 28,
-                                backgroundColor: p.surfaceElevated,
-                                backgroundImage: user.avatarUrl != null
-                                    ? NetworkImage(user.avatarUrl!)
-                                    : null,
-                                onBackgroundImageError: user.avatarUrl != null
-                                    ? (_, _) {}
-                                    : null,
-                                child: user.avatarUrl == null
-                                    ? Text(
-                                        user.username
-                                            .substring(0, 1)
-                                            .toUpperCase(),
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      )
-                                    : null,
+                                fontSize: 22,
                               ),
                               if (_uploadingAvatar)
                                 Container(

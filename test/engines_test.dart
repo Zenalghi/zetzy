@@ -14,7 +14,9 @@ import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/zetzy_database.dart' hide AutoSaveSlot;
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/data/models/game_record.dart';
+import 'package:zetzy/data/remote/supabase_service.dart';
 import 'package:zetzy/features/games/chess/chess_ai.dart';
+import 'package:zetzy/features/games/chess/chess_controller.dart';
 import 'package:zetzy/features/games/minesweeper/minesweeper_controller.dart';
 import 'package:zetzy/features/games/minesweeper/minesweeper_engine.dart';
 import 'package:zetzy/features/games/snake/snake_controller.dart';
@@ -211,6 +213,93 @@ void main() {
       expect(ctrl.state.values[emptyIdx], equals(correctDigit));
       ctrl.dispose();
     });
+
+    test('SudokuController PRO mode keeps lives on non-conflicting guesses and loses lives on conflicts', () async {
+      var finished = false;
+      late SudokuGameState finalState;
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (s) {
+          finished = true;
+          finalState = s;
+        },
+        onAutoSave: (_) {},
+      );
+
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.pro,
+        isPractice: false,
+      );
+      expect(ctrl.state.checksAnswerKeyImmediately, isFalse);
+      expect(ctrl.state.livesLeft, equals(3));
+
+      // Find an empty cell that has both a non-conflicting wrong digit and a conflicting peer digit.
+      int? targetCell;
+      int? nonConflictingWrong;
+      int? conflictingDigit;
+      for (var i = 0; i < 81; i++) {
+        if (ctrl.state.givens[i] != 0) continue;
+        final row = i ~/ 9;
+        final col = i % 9;
+        final br = (row ~/ 3) * 3;
+        final bc = (col ~/ 3) * 3;
+        final peers = <int>{};
+        for (var k = 0; k < 9; k++) {
+          final rv = ctrl.state.givens[row * 9 + k];
+          final cv = ctrl.state.givens[k * 9 + col];
+          if (rv != 0) peers.add(rv);
+          if (cv != 0) peers.add(cv);
+        }
+        for (var r = 0; r < 3; r++) {
+          for (var c = 0; c < 3; c++) {
+            final bv = ctrl.state.givens[(br + r) * 9 + (bc + c)];
+            if (bv != 0) peers.add(bv);
+          }
+        }
+        if (peers.isEmpty) continue;
+        final candidateWrong = [1, 2, 3, 4, 5, 6, 7, 8, 9].cast<int?>().firstWhere(
+          (d) => d != ctrl.state.solution[i] && !peers.contains(d),
+          orElse: () => null,
+        );
+        if (candidateWrong != null) {
+          targetCell = i;
+          nonConflictingWrong = candidateWrong;
+          conflictingDigit = peers.first;
+          break;
+        }
+      }
+
+      expect(targetCell, isNotNull);
+      ctrl.selectCell(targetCell!);
+
+      // Wrong guess with NO duplicate conflict must not consume lives in PRO+ mode.
+      ctrl.onDigitTap(nonConflictingWrong!);
+      expect(ctrl.state.values[targetCell], equals(nonConflictingWrong));
+      expect(ctrl.state.livesLeft, equals(3));
+      expect(ctrl.state.mistakes, equals(0));
+      expect(ctrl.state.isGameOver, isFalse);
+
+      // Duplicate conflicts deduct 1 life per conflict until Game Over (3 -> 2 -> 1 -> 0).
+      ctrl.onDigitTap(conflictingDigit!);
+      expect(ctrl.state.livesLeft, equals(2));
+      expect(ctrl.state.mistakes, equals(1));
+      ctrl.eraseSelected();
+
+      ctrl.onDigitTap(conflictingDigit);
+      expect(ctrl.state.livesLeft, equals(1));
+      ctrl.eraseSelected();
+
+      ctrl.onDigitTap(conflictingDigit);
+      expect(ctrl.state.livesLeft, equals(0));
+      expect(ctrl.state.mistakes, equals(3));
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(finished, isTrue);
+      expect(finalState.livesLeft, equals(0));
+
+      ctrl.dispose();
+    });
   });
 
   group('Minesweeper Engine & Controller', () {
@@ -289,6 +378,40 @@ void main() {
         score: 1.0,
       );
       expect(nextElo, greaterThan(1000));
+    });
+
+    test('tapping an already selected piece deselects it and clears legal markers', () {
+      final ctrl = ChessController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        supabase: SupabaseService(),
+        autoQueen: true,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(
+        difficulty: DifficultyLevel.easy,
+        isPractice: false,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+
+      final firstMove = ctrl.game.generateLegalMoves().first;
+      ctrl.onSquareTap(firstMove.from);
+      expect(ctrl.state.selectedSquare, equals(firstMove.from));
+      expect(ctrl.state.legalTargets, isNotEmpty);
+
+      // Tapping the same square again clears selection & move guides
+      ctrl.onSquareTap(firstMove.from);
+      expect(ctrl.state.selectedSquare, isNull);
+      expect(ctrl.state.legalTargets, isEmpty);
+
+      // Re-selecting after deselect still works properly
+      ctrl.onSquareTap(firstMove.from);
+      expect(ctrl.state.selectedSquare, equals(firstMove.from));
+      expect(ctrl.state.legalTargets, contains(firstMove.to));
+      ctrl.dispose();
     });
   });
 

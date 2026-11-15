@@ -417,6 +417,18 @@ abstract class AppLocalizations {
   /// **'PRO+ mode: Conflict check only'**
   String get sudokuConflictOnlyNote;
 
+  /// No description provided for @sudokuConflictGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PRO+ Conflict Check Mode'**
+  String get sudokuConflictGuideTitle;
+
+  /// No description provided for @sudokuConflictGuideBody.
+  ///
+  /// In en, this message translates to:
+  /// **'• Chill – High (Levels 1–4): Digits are checked immediately against the solution key. Any wrong entry costs 1 life, and correct cells lock.\n• PRO – God (Levels 5–7): The hidden solution is not spoiled, so you can test and change guesses freely.\n• How Lives Decrease in PRO+: Placing a duplicate conflict in the same row, column, or 3×3 box costs 1 life (PRO: 3, Nightmare: 2, God: 1 Sudden Death).\n• Win / Lose: Running out of lives ends the game. Completing all 81 cells with zero conflicts wins.'**
+  String get sudokuConflictGuideBody;
+
   /// No description provided for @chessModeVsAi.
   ///
   /// In en, this message translates to:
@@ -578,6 +590,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign in to your account to play Online Multiplayer.'**
   String get chessOnlineRequiresAuth;
+
+  /// No description provided for @chessTapForDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap for ELO, scoring & setup guide'**
+  String get chessTapForDetails;
+
+  /// No description provided for @chessModeGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match Rules & Scoring'**
+  String get chessModeGuideTitle;
+
+  /// No description provided for @chessPracticeDisabledNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Mode is active: ELO, Leaderboard, XP, and level unlocks are turned off for this match.'**
+  String get chessPracticeDisabledNote;
+
+  /// No description provided for @chessTimeControlRule.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Control ({timeLabel}) sets the countdown clock for each player only. Bullet, Blitz, Rapid, and Untimed all give the same ELO and XP (faster wins only break Leaderboard ties).'**
+  String chessTimeControlRule(String timeLabel);
+
+  /// No description provided for @chessInfoSummaryVsAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked • ELO vs AI & Leaderboard'**
+  String get chessInfoSummaryVsAi;
+
+  /// No description provided for @chessInfoSummaryPassPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Local 2-Player • Unrated (No ELO/Score)'**
+  String get chessInfoSummaryPassPlay;
+
+  /// No description provided for @chessInfoSummaryOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online 1v1 • Rated ELO via Room Code'**
+  String get chessInfoSummaryOnline;
+
+  /// No description provided for @chessInfoSummaryPractice.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Mode • Unrated (No ELO/Score)'**
+  String get chessInfoSummaryPractice;
+
+  /// No description provided for @chessInfoDetailVsAi.
+  ///
+  /// In en, this message translates to:
+  /// **'• Opponent Strength: AI Level {level} (Rating {rating}).\n• Chess ELO & Leaderboard: Wins, draws, and losses update your Chess ELO (K=32 formula). Your ELO delta is saved as score, and wins appear on the Leaderboard plus grant +{xp} XP.\n• Level Unlocks: Winning PRO unlocks Nightmare, and winning Nightmare unlocks Are U a God?.'**
+  String chessInfoDetailVsAi(String level, String rating, String xp);
+
+  /// No description provided for @chessInfoDetailPassPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'• How to Play: Take turns playing White and Black on this same device — hand the device over after each move.\n• Score & ELO: Treated as a casual local match (same as Practice Mode). It does NOT change Chess ELO, does NOT save to Leaderboard, and does NOT award XP or unlock levels.'**
+  String get chessInfoDetailPassPlay;
+
+  /// No description provided for @chessInfoDetailOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'• Concept: Real-time 1v1 match connected directly via Supabase Realtime.\n• Host (Create Room): Sign in first, pick Time Control, then tap Create Room. Share the 6-character Room Code shown on screen with your friend.\n• Friend (Join Room): Sign in, pick Online Room, enter the Room Code, and tap Join Room. The game starts automatically once connected.\n• Score & ELO: Updates Chess ELO and saves wins to Leaderboard + difficulty XP (unless Practice Mode is on).'**
+  String get chessInfoDetailOnline;
+
+  /// No description provided for @chessCopyCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get chessCopyCode;
+
+  /// No description provided for @chessRoomCodeCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Room code copied: {code}'**
+  String chessRoomCodeCopied(String code);
 
   /// No description provided for @mineRemaining.
   ///

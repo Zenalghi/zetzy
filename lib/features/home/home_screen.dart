@@ -6,6 +6,7 @@ import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/difficulty_selector_sheet.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
+import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
@@ -116,37 +117,48 @@ class HomeScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: p.surfaceElevated,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: p.border),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  user.isGuest
-                                      ? Icons.offline_bolt_rounded
-                                      : Icons.verified_user_rounded,
-                                  size: 16,
-                                  color: user.isGuest ? p.warning : p.accent,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  user.isGuest
-                                      ? l10n.profileGuest
-                                      : '@${user.username}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(6, 5, 11, 5),
+                              decoration: BoxDecoration(
+                                color: p.surfaceElevated,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: p.border),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  UserAvatar(
+                                    avatarUrl: user.avatarUrl,
+                                    username: user.isGuest
+                                        ? l10n.profileGuest
+                                        : user.username,
+                                    radius: 13,
+                                    backgroundColor: user.isGuest
+                                        ? p.warning.withValues(alpha: 0.16)
+                                        : p.accent.withValues(alpha: 0.18),
+                                    foregroundColor:
+                                        user.isGuest ? p.warning : p.accent,
+                                    fallbackIcon: user.isGuest
+                                        ? Icons.person_outline_rounded
+                                        : null,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      user.isGuest
+                                          ? l10n.profileGuest
+                                          : '@${user.username}',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],

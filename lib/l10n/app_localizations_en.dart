@@ -180,6 +180,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sudokuConflictOnlyNote => 'PRO+ mode: Conflict check only';
 
   @override
+  String get sudokuConflictGuideTitle => 'PRO+ Conflict Check Mode';
+
+  @override
+  String get sudokuConflictGuideBody =>
+      '• Chill – High (Levels 1–4): Digits are checked immediately against the solution key. Any wrong entry costs 1 life, and correct cells lock.\n• PRO – God (Levels 5–7): The hidden solution is not spoiled, so you can test and change guesses freely.\n• How Lives Decrease in PRO+: Placing a duplicate conflict in the same row, column, or 3×3 box costs 1 life (PRO: 3, Nightmare: 2, God: 1 Sudden Death).\n• Win / Lose: Running out of lives ends the game. Completing all 81 cells with zero conflicts wins.';
+
+  @override
   String get chessModeVsAi => 'Vs AI';
 
   @override
@@ -260,6 +267,56 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chessOnlineRequiresAuth =>
       'Sign in to your account to play Online Multiplayer.';
+
+  @override
+  String get chessTapForDetails => 'Tap for ELO, scoring & setup guide';
+
+  @override
+  String get chessModeGuideTitle => 'Match Rules & Scoring';
+
+  @override
+  String get chessPracticeDisabledNote =>
+      'Practice Mode is active: ELO, Leaderboard, XP, and level unlocks are turned off for this match.';
+
+  @override
+  String chessTimeControlRule(String timeLabel) {
+    return 'Time Control ($timeLabel) sets the countdown clock for each player only. Bullet, Blitz, Rapid, and Untimed all give the same ELO and XP (faster wins only break Leaderboard ties).';
+  }
+
+  @override
+  String get chessInfoSummaryVsAi => 'Ranked • ELO vs AI & Leaderboard';
+
+  @override
+  String get chessInfoSummaryPassPlay =>
+      'Local 2-Player • Unrated (No ELO/Score)';
+
+  @override
+  String get chessInfoSummaryOnline => 'Online 1v1 • Rated ELO via Room Code';
+
+  @override
+  String get chessInfoSummaryPractice =>
+      'Practice Mode • Unrated (No ELO/Score)';
+
+  @override
+  String chessInfoDetailVsAi(String level, String rating, String xp) {
+    return '• Opponent Strength: AI Level $level (Rating $rating).\n• Chess ELO & Leaderboard: Wins, draws, and losses update your Chess ELO (K=32 formula). Your ELO delta is saved as score, and wins appear on the Leaderboard plus grant +$xp XP.\n• Level Unlocks: Winning PRO unlocks Nightmare, and winning Nightmare unlocks Are U a God?.';
+  }
+
+  @override
+  String get chessInfoDetailPassPlay =>
+      '• How to Play: Take turns playing White and Black on this same device — hand the device over after each move.\n• Score & ELO: Treated as a casual local match (same as Practice Mode). It does NOT change Chess ELO, does NOT save to Leaderboard, and does NOT award XP or unlock levels.';
+
+  @override
+  String get chessInfoDetailOnline =>
+      '• Concept: Real-time 1v1 match connected directly via Supabase Realtime.\n• Host (Create Room): Sign in first, pick Time Control, then tap Create Room. Share the 6-character Room Code shown on screen with your friend.\n• Friend (Join Room): Sign in, pick Online Room, enter the Room Code, and tap Join Room. The game starts automatically once connected.\n• Score & ELO: Updates Chess ELO and saves wins to Leaderboard + difficulty XP (unless Practice Mode is on).';
+
+  @override
+  String get chessCopyCode => 'Copy';
+
+  @override
+  String chessRoomCodeCopied(String code) {
+    return 'Room code copied: $code';
+  }
 
   @override
   String get mineRemaining => 'Mines';

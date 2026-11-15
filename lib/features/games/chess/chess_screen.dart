@@ -80,11 +80,11 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     await ref.read(autoSaveSlotsProvider.notifier).clearSlot(GameType.chess);
 
     final playerWon =
-        !finalState.isDraw &&
-        finalState.winnerColour == finalState.playerColor;
+        !finalState.isDraw && finalState.winnerColour == finalState.playerColor;
     var score = playerWon ? 100 : (finalState.isDraw ? 50 : 0);
 
-    if (!finalState.isPractice && finalState.mode != ChessPlayMode.passAndPlay) {
+    if (!finalState.isPractice &&
+        finalState.mode != ChessPlayMode.passAndPlay) {
       final currentElo = ref.read(authProvider).chessElo;
       final opponentElo = finalState.mode == ChessPlayMode.vsAi
           ? ChessAiEngine.aiRatingForLevel(finalState.difficulty.level)
@@ -220,7 +220,11 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                           children: [
                             Expanded(
                               child: Center(
-                                child: _buildBoard(s, p, settings.chessPieceSet),
+                                child: _buildBoard(
+                                  s,
+                                  p,
+                                  settings.chessPieceSet,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 20),
@@ -246,6 +250,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                         ),
                         child: Column(
                           children: [
+                            if (s.onlineRoomCode != null) ...[
+                              _buildOnlineRoomBanner(s: s, p: p, l10n: l10n),
+                              const SizedBox(height: 6),
+                            ],
                             _buildPlayerBar(
                               isTop: true,
                               s: s,
@@ -256,7 +264,11 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                             const SizedBox(height: 6),
                             Expanded(
                               child: Center(
-                                child: _buildBoard(s, p, settings.chessPieceSet),
+                                child: _buildBoard(
+                                  s,
+                                  p,
+                                  settings.chessPieceSet,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -314,9 +326,8 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                 children: [
                   Text(
                     'Mode',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 10),
                   SegmentedButton<ChessPlayMode>(
@@ -332,7 +343,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                       ButtonSegment(
                         value: ChessPlayMode.passAndPlay,
                         label: Text(l10n.chessModePassPlay),
-                        icon: const Icon(Icons.people_outline_rounded, size: 18),
+                        icon: const Icon(
+                          Icons.people_outline_rounded,
+                          size: 18,
+                        ),
                       ),
                       ButtonSegment(
                         value: ChessPlayMode.online,
@@ -345,9 +359,8 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                   if (_selectedMode != ChessPlayMode.passAndPlay) ...[
                     Text(
                       l10n.chessPlayAs,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     SegmentedButton<ChessColorPref>(
@@ -373,9 +386,8 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                   ],
                   Text(
                     l10n.chessTimeControl,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -385,8 +397,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                       for (final tc in ChessTimeControl.values)
                         ChoiceChip(
                           selected: _selectedTime == tc,
-                          onSelected: (_) =>
-                              setState(() => _selectedTime = tc),
+                          onSelected: (_) => setState(() => _selectedTime = tc),
                           label: Text(switch (tc) {
                             ChessTimeControl.untimed => l10n.chessUntimed,
                             ChessTimeControl.bullet1 => l10n.chessBullet,
@@ -456,17 +467,318 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            _buildModeInfoCard(l10n),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBoard(
-    ChessUiState s,
-    ZetzyPalette p,
-    ChessPieceSet pieceSet,
-  ) {
+  Widget _buildOnlineRoomBanner({
+    required ChessUiState s,
+    required ZetzyPalette p,
+    required AppLocalizations l10n,
+  }) {
+    final code = s.onlineRoomCode!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.accent.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.public_rounded, size: 18, color: p.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${l10n.chessRoomCode}: $code',
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 1.0,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (s.onlineWaiting)
+                  Text(
+                    l10n.chessWaitingOpponent,
+                    style: TextStyle(color: p.warning, fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: code));
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.chessRoomCodeCopied(code))),
+              );
+            },
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+            icon: const Icon(Icons.copy_rounded, size: 15),
+            label: Text(l10n.chessCopyCode),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _timeControlLabel(ChessTimeControl tc, bool isIndo) {
+    return switch (tc) {
+      ChessTimeControl.untimed => isIndo ? 'Tanpa Waktu' : 'Untimed',
+      ChessTimeControl.bullet1 => 'Bullet 1m',
+      ChessTimeControl.blitz3 => 'Blitz 3m',
+      ChessTimeControl.blitz5 => 'Blitz 5m',
+      ChessTimeControl.rapid10 => 'Rapid 10m',
+    };
+  }
+
+  Widget _buildModeInfoCard(AppLocalizations l10n) {
+    final p = context.palette;
+    final (icon, summary, accent) = switch (_selectedMode) {
+      ChessPlayMode.vsAi => (
+        Icons.smart_toy_rounded,
+        widget.isPractice
+            ? l10n.chessInfoSummaryPractice
+            : l10n.chessInfoSummaryVsAi,
+        widget.isPractice ? p.warning : p.accent,
+      ),
+      ChessPlayMode.passAndPlay => (
+        Icons.people_alt_rounded,
+        l10n.chessInfoSummaryPassPlay,
+        p.textSecondary,
+      ),
+      ChessPlayMode.online => (
+        Icons.public_rounded,
+        widget.isPractice
+            ? l10n.chessInfoSummaryPractice
+            : l10n.chessInfoSummaryOnline,
+        widget.isPractice ? p.warning : p.success,
+      ),
+    };
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: TactileCard(
+        key: const ValueKey('chess_mode_info_card'),
+        onTap: () => _showModeInfoDialog(l10n),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        backgroundColor: p.surfaceElevated,
+        borderColor: accent.withValues(alpha: 0.35),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    summary,
+                    style: TextStyle(
+                      color: p.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.chessTapForDetails,
+                    style: TextStyle(color: p.textSecondary, fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.info_outline_rounded, size: 18, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showModeInfoDialog(AppLocalizations l10n) {
+    final p = context.palette;
+    final isIndo = Localizations.localeOf(context).languageCode == 'id';
+    final timeLabel = _timeControlLabel(_selectedTime, isIndo);
+    final aiRating = ChessAiEngine.aiRatingForLevel(widget.difficulty.level);
+
+    final (icon, modeTitle, detailText, accent) = switch (_selectedMode) {
+      ChessPlayMode.vsAi => (
+        Icons.smart_toy_rounded,
+        l10n.chessInfoSummaryVsAi,
+        l10n.chessInfoDetailVsAi(
+          widget.difficulty.level.toString(),
+          aiRating.toString(),
+          widget.difficulty.xpReward.toString(),
+        ),
+        p.accent,
+      ),
+      ChessPlayMode.passAndPlay => (
+        Icons.people_alt_rounded,
+        l10n.chessInfoSummaryPassPlay,
+        l10n.chessInfoDetailPassPlay,
+        p.textSecondary,
+      ),
+      ChessPlayMode.online => (
+        Icons.public_rounded,
+        l10n.chessInfoSummaryOnline,
+        l10n.chessInfoDetailOnline,
+        p.success,
+      ),
+    };
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: p.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: p.border),
+          ),
+          title: Row(
+            children: [
+              Icon(icon, color: accent, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  l10n.chessModeGuideTitle,
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    modeTitle,
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  detailText,
+                  style: TextStyle(
+                    color: p.textPrimary,
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: p.surfaceElevated,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: p.border),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.timer_outlined, size: 17, color: p.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.chessTimeControlRule(timeLabel),
+                          style: TextStyle(
+                            color: p.textSecondary,
+                            fontSize: 12.2,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.isPractice &&
+                    _selectedMode != ChessPlayMode.passAndPlay) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: p.warning.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: p.warning.withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.school_outlined, size: 17, color: p.warning),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.chessPracticeDisabledNote,
+                            style: TextStyle(
+                              color: p.textPrimary,
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBoard(ChessUiState s, ZetzyPalette p, ChessPieceSet pieceSet) {
     final game = _controller.game;
 
     return AspectRatio(
@@ -662,11 +974,15 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       children: [
         if (s.mode == ChessPlayMode.vsAi)
           Tooltip(
-            message: s.difficulty.level >= 5 ? l10n.chessUndoLocked : l10n.chessUndo,
+            message: s.difficulty.level >= 5
+                ? l10n.chessUndoLocked
+                : l10n.chessUndo,
             child: OutlinedButton.icon(
               onPressed: s.canUndo ? _controller.undoVsAi : null,
               icon: Icon(
-                s.difficulty.level >= 5 ? Icons.lock_outline : Icons.undo_rounded,
+                s.difficulty.level >= 5
+                    ? Icons.lock_outline
+                    : Icons.undo_rounded,
                 size: 18,
               ),
               label: Text(l10n.chessUndo),
@@ -814,7 +1130,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
             children: [
               Text(
                 l10n.chessPromotion,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 14),
               Row(
@@ -835,7 +1154,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                           child: SvgPicture.asset(
                             pieceSet.pieceAsset(
                               prefix,
-                              _controller.game.variant.pieces[move.promoPiece!]
+                              _controller
+                                  .game
+                                  .variant
+                                  .pieces[move.promoPiece!]
                                   .symbol
                                   .toUpperCase(),
                             ),

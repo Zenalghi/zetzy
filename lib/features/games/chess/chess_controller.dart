@@ -379,6 +379,14 @@ class ChessController extends ChangeNotifier {
       return;
     }
 
+    // Tapping the currently selected piece again clears selection and move guides
+    if (selected == squareIdx) {
+      _state = _state.copyWith(clearSelected: true, legalTargets: const {});
+      _haptics.selection();
+      notifyListeners();
+      return;
+    }
+
     // Select own piece
     final sq = _game.board[squareIdx];
     if (sq.isNotEmpty && sq.colour == _game.turn) {

@@ -12,12 +12,18 @@ import 'package:zetzy/core/routing/app_router.dart';
 import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
+import 'package:zetzy/core/widgets/platform_badge.dart';
+import 'package:zetzy/core/widgets/user_avatar.dart';
+import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/settings_repository.dart';
+import 'package:zetzy/data/models/game_record.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_service.dart';
+import 'package:zetzy/features/games/chess/chess_screen.dart';
 import 'package:zetzy/features/games/minesweeper/minesweeper_screen.dart';
 import 'package:zetzy/features/games/sudoku/sudoku_screen.dart';
+import 'package:zetzy/features/leaderboard/leaderboard_screen.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -418,4 +424,242 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Minesweeper • Easy'), findsOneWidget);
   });
+
+  testWidgets('ChessScreen pre-match lobby shows dynamic mode info card below TactileCard', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 860);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const ChessScreen(difficulty: DifficultyLevel.normal),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final infoCard = find.byKey(const ValueKey('chess_mode_info_card'));
+    expect(infoCard, findsOneWidget);
+    expect(find.text('Ranked • ELO vs AI & Leaderboard'), findsOneWidget);
+
+    // Ensure the info card is positioned below the main setup TactileCard
+    final infoRect = tester.getRect(infoCard);
+    final modeSegmentRect = tester.getRect(find.text('Vs AI'));
+    expect(infoRect.top, greaterThan(modeSegmentRect.bottom));
+
+    // Switching to Pass & Play updates the summary dynamically
+    await tester.tap(find.text('Pass & Play'));
+    await tester.pumpAndSettle();
+    expect(find.text('Local 2-Player • Unrated (No ELO/Score)'), findsOneWidget);
+
+    await tester.tap(infoCard);
+    await tester.pumpAndSettle();
+    expect(find.text('Match Rules & Scoring'), findsOneWidget);
+    expect(find.textContaining('Blitz 5m'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Switching to Online Room shows room ELO guide
+    await tester.tap(find.text('Online Room'));
+    await tester.pumpAndSettle();
+    expect(find.text('Online 1v1 • Rated ELO via Room Code'), findsOneWidget);
+
+    await tester.tap(infoCard);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Supabase Realtime'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Starting Pass & Play enters active board cleanly without overflow
+    await tester.tap(find.text('Pass & Play'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Play'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chess • Normal'), findsOneWidget);
+  });
+
+  testWidgets('WinResultDialog shows Back to Menu clearly on compact Nordic Frost screens', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 560);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    var exited = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ZetzyThemes.buildTheme(ZetzyThemeMode.nordicFrost),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () {
+                  showGameResultDialog(
+                    context: context,
+                    gameType: GameType.sudoku,
+                    difficulty: DifficultyLevel.pro,
+                    isWon: false,
+                    durationMs: 42000,
+                    score: 0,
+                    extraMetrics: const [
+                      (label: 'Lives', value: '0/3'),
+                      (label: 'Mistakes', value: '3'),
+                    ],
+                    onPlayAgain: () {},
+                    onExit: () => exited = true,
+                  );
+                },
+                child: const Text('Show Result'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show Result'));
+    await tester.pumpAndSettle();
+
+    final backButton = find.widgetWithText(OutlinedButton, 'Back to Menu');
+    expect(backButton, findsOneWidget);
+    final rect = tester.getRect(backButton);
+    expect(rect.bottom, lessThanOrEqualTo(560));
+
+    await tester.tap(backButton);
+    await tester.pumpAndSettle();
+    expect(exited, isTrue);
+  });
+
+  testWidgets('Home dashboard and Leaderboard Global/My Best render UserAvatar and inline PlatformBadge', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = _FakeLeaderboardSupabaseService();
+    final audio = AudioService();
+
+    await localStorage.saveLocalRecord(
+      GameRecord(
+        id: 'loc-1',
+        userId: 'guest',
+        username: 'guest',
+        gameType: GameType.sudoku,
+        difficulty: 3,
+        isWon: true,
+        score: 100,
+        durationMs: 25000,
+        platform: 'windows',
+        playedAt: DateTime(2026, 11, 15),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const ZetzyApp(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Dashboard Play displays UserAvatar in the header profile pill
+    expect(find.byType(UserAvatar), findsOneWidget);
+
+    // Navigate to Leaderboard tab -> Global Top 100
+    await tester.tap(find.text('Leaderboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('@global_pro'), findsOneWidget);
+    final globalAvatarRect = tester.getRect(
+      find.descendant(
+        of: find.byType(LeaderboardScreen),
+        matching: find.byType(UserAvatar),
+      ).first,
+    );
+    final globalNameRect = tester.getRect(find.text('@global_pro'));
+    final globalBadgeRect = tester.getRect(
+      find.descendant(
+        of: find.byType(LeaderboardScreen),
+        matching: find.byType(PlatformBadge),
+      ).first,
+    );
+    // Profile photo on the left, platform badge moved next to username on the right
+    expect(globalAvatarRect.right, lessThan(globalNameRect.left));
+    expect(globalBadgeRect.left, greaterThan(globalNameRect.right));
+
+    // Switch to My Best tab and verify same avatar + inline platform badge layout
+    await tester.tap(find.text('My Best'));
+    await tester.pumpAndSettle();
+    expect(find.text('@guest'), findsOneWidget);
+    final myAvatarRect = tester.getRect(
+      find.descendant(
+        of: find.byType(LeaderboardScreen),
+        matching: find.byType(UserAvatar),
+      ).first,
+    );
+    final myNameRect = tester.getRect(find.text('@guest'));
+    final myBadgeRect = tester.getRect(
+      find.descendant(
+        of: find.byType(LeaderboardScreen),
+        matching: find.byType(PlatformBadge),
+      ).first,
+    );
+    expect(myAvatarRect.right, lessThan(myNameRect.left));
+    expect(myBadgeRect.left, greaterThan(myNameRect.right));
+  });
+}
+
+class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {
+  @override
+  Future<List<GameRecord>> fetchGlobalLeaderboard({
+    required GameType gameType,
+    required int difficulty,
+  }) async {
+    return [
+      GameRecord(
+        id: 'glb-1',
+        userId: 'u-global',
+        username: 'global_pro',
+        gameType: gameType,
+        difficulty: difficulty,
+        isWon: true,
+        score: 250,
+        durationMs: 18000,
+        platform: 'android',
+        playedAt: DateTime(2026, 11, 15),
+      ),
+    ];
+  }
 }

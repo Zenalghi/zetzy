@@ -59,6 +59,8 @@
   "sudokuUndoNotes": "Undo Catatan",
   "sudokuDigitLockHint": "Tekan lama angka untuk kunci input cepat",
   "sudokuConflictOnlyNote": "Mode PRO+: Hanya deteksi konflik",
+  "sudokuConflictGuideTitle": "Mode PRO+ Deteksi Konflik",
+  "sudokuConflictGuideBody": "• Chill – High (Level 1–4): Angka langsung dicek ke kunci jawaban. Angka salah langsung mengurangi 1 nyawa, dan kotak benar terkunci.\n• PRO – God (Level 5–7): Kunci jawaban tidak dibocorkan sehingga Anda bebas mengisi dan mengganti angka tebakan.\n• Cara Nyawa Berkurang di PRO+: Mengisi angka kembar yang berkonflik di baris, kolom, atau blok 3×3 yang sama akan mengurangi 1 nyawa (PRO: 3, Nightmare: 2, God: 1 Sudden Death).\n• Menang / Kalah: Jika nyawa habis maka Game Over. Mengisi semua 81 kotak tanpa konflik berarti Menang.",
 
   "chessModeVsAi": "Lawan AI",
   "chessModePassPlay": "Pass & Play",
@@ -87,6 +89,46 @@
   "chessRoomCode": "Kode Ruang",
   "chessWaitingOpponent": "Menunggu lawan...",
   "chessOnlineRequiresAuth": "Masuk ke akun Anda untuk bermain Multiplayer Online.",
+  "chessTapForDetails": "Ketuk untuk info ELO, skor & panduan main",
+  "chessModeGuideTitle": "Aturan Pertandingan & Skor",
+  "chessPracticeDisabledNote": "Mode Latihan aktif: ELO, Papan Skor, XP, dan pembukaan level dinonaktifkan untuk laga ini.",
+  "chessTimeControlRule": "Kontrol Waktu ({timeLabel}) hanya mengatur batas waktu tiap pemain. Bullet, Blitz, Rapid, dan Tanpa Waktu memberi ELO serta XP yang sama (durasi lebih cepat hanya unggul saat skor seri di Papan Skor).",
+  "@chessTimeControlRule": {
+    "placeholders": {
+      "timeLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "chessInfoSummaryVsAi": "Ranked • ELO lawan AI & Papan Skor",
+  "chessInfoSummaryPassPlay": "2 Pemain Lokal • Tanpa ELO & Skor",
+  "chessInfoSummaryOnline": "Online 1v1 • ELO Aktif via Kode Ruang",
+  "chessInfoSummaryPractice": "Mode Latihan • Tanpa ELO & Skor",
+  "chessInfoDetailVsAi": "• Kekuatan Lawan: AI Level {level} (Rating {rating}).\n• ELO Catur & Papan Skor: Menang, seri, atau kalah mengubah ELO Catur Anda (rumus K=32). Selisih ELO dicatat sebagai skor, dan kemenangan masuk Papan Skor serta memberi +{xp} XP.\n• Buka Level: Menang di PRO membuka Nightmare, dan menang di Nightmare membuka Are U a God?.",
+  "@chessInfoDetailVsAi": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      },
+      "rating": {
+        "type": "String"
+      },
+      "xp": {
+        "type": "String"
+      }
+    }
+  },
+  "chessInfoDetailPassPlay": "• Cara Bermain: Anda dan teman bergantian melangkah Putih lalu Hitam pada satu perangkat yang sama.\n• Skor & ELO: Dihitung sebagai laga lokal santai (seperti Mode Latihan). Tidak mengubah ELO Catur, tidak masuk Papan Skor, dan tidak memberi XP maupun membuka level.",
+  "chessInfoDetailOnline": "• Konsep: Duel 1v1 real-time yang terhubung langsung lewat Supabase Realtime.\n• Host (Buat Ruang): Masuk ke akun dulu, pilih Kontrol Waktu, lalu tekan Buat Ruang. Bagikan Kode Ruang 6 karakter yang muncul di layar ke teman Anda.\n• Teman (Gabung Ruang): Masuk ke akun, pilih Ruang Online, ketik Kode Ruang tersebut, lalu tekan Gabung Ruang. Laga otomatis dimulai saat terhubung.\n• Skor & ELO: Memperbarui ELO Catur serta mencatat kemenangan di Papan Skor + XP kesulitan (kecuali Mode Latihan aktif).",
+  "chessCopyCode": "Salin",
+  "chessRoomCodeCopied": "Kode ruang disalin: {code}",
+  "@chessRoomCodeCopied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
 
   "mineRemaining": "Ranjau",
   "mineModeDig": "Gali",

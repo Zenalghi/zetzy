@@ -308,11 +308,88 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
           ],
         ),
         if (!s.checksAnswerKeyImmediately)
-          Text(
-            l10n.sudokuConflictOnlyNote,
-            style: TextStyle(fontSize: 11, color: p.warning),
+          Flexible(
+            child: InkWell(
+              onTap: () => _showConflictModeDialog(p, l10n),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: p.warning.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.sudokuConflictOnlyNote,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: p.warning,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 13,
+                      color: p.warning,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
       ],
+    );
+  }
+
+  void _showConflictModeDialog(ZetzyPalette p, AppLocalizations l10n) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: p.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: p.border),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.rule_rounded, color: p.warning, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.sudokuConflictGuideTitle,
+                style: TextStyle(
+                  color: p.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            l10n.sudokuConflictGuideBody,
+            style: TextStyle(
+              color: p.textPrimary,
+              fontSize: 13,
+              height: 1.45,
+            ),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 

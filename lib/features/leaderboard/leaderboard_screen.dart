@@ -5,6 +5,7 @@ import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/platform_badge.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
+import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/data/models/game_record.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
@@ -239,19 +240,16 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                       ),
                     ),
                   ),
-                  CircleAvatar(
+                  UserAvatar(
+                    avatarUrl: prof.avatarUrl,
+                    username: prof.username,
                     radius: 16,
-                    backgroundImage: prof.avatarUrl != null
-                        ? NetworkImage(prof.avatarUrl!)
-                        : null,
-                    child: prof.avatarUrl == null
-                        ? Text(prof.username.substring(0, 1).toUpperCase())
-                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       '@${prof.username}',
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -285,11 +283,21 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
       );
     }
 
+    final currentUser = ref.watch(authProvider);
+
     return ListView.separated(
       itemCount: records.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, idx) {
         final r = records[idx];
+        final isCurrentUser =
+            r.userId == currentUser.id ||
+            (!currentUser.isGuest && r.username == currentUser.username);
+        final resolvedAvatarUrl =
+            (r.avatarUrl != null && r.avatarUrl!.isNotEmpty)
+            ? r.avatarUrl
+            : (isCurrentUser ? currentUser.avatarUrl : null);
+
         return TactileCard(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
@@ -304,15 +312,28 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                   ),
                 ),
               ),
-              PlatformBadge(platform: r.platform, size: 18),
+              UserAvatar(
+                avatarUrl: resolvedAvatarUrl,
+                username: r.username,
+                radius: 16,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '@${r.username}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            '@${r.username}',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        PlatformBadge(platform: r.platform, size: 14),
+                      ],
                     ),
                     Text(
                       '${l10n.scoreLabel}: ${r.score}',
@@ -321,6 +342,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 TimeFormatter.formatMs(r.durationMs),
                 style: ZetzyThemes.monoStyle(
