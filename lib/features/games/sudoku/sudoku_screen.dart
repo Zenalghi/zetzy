@@ -34,6 +34,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
   late final SudokuController _controller;
   late final AutoSaveSlotsNotifier _autoSaveSlots;
   final FocusNode _focusNode = FocusNode();
+  ({SudokuGameState state, int score, bool isNewRecord})? _finishedSummary;
 
   @override
   void initState() {
@@ -54,6 +55,14 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
         isPractice: widget.isPractice,
       );
     }
+  }
+
+  void _startNewGame() {
+    _finishedSummary = null;
+    _controller.startNew(
+      difficulty: widget.difficulty,
+      isPractice: widget.isPractice,
+    );
   }
 
   Future<void> _handleGameFinished(SudokuGameState finalState) async {
@@ -77,7 +86,17 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
           metadata: {'mistakes': finalState.mistakes},
         );
 
+    final summary = (state: finalState, score: score, isNewRecord: isNewRecord);
+    _finishedSummary = summary;
+
     if (!mounted) return;
+    await _showResultDialog(summary);
+  }
+
+  Future<void> _showResultDialog(
+    ({SudokuGameState state, int score, bool isNewRecord}) summary,
+  ) async {
+    final finalState = summary.state;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -91,20 +110,21 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
       difficulty: finalState.difficulty,
       isWon: finalState.isWon,
       durationMs: finalState.elapsedMs,
-      score: score,
-      isNewRecord: isNewRecord,
+      score: summary.score,
+      isNewRecord: summary.isNewRecord,
       isPractice: finalState.isPractice,
       extraMetrics: [
         (label: l10n.mistakesLabel, value: '${finalState.mistakes}'),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.undoPractice(steps: settings.practiceRewindSteps)
+          ? () {
+              _finishedSummary = null;
+              _controller.undoPractice(steps: settings.practiceRewindSteps);
+            }
           : null,
-      onPlayAgain: () => _controller.startNew(
-        difficulty: finalState.difficulty,
-        isPractice: finalState.isPractice,
-      ),
+      onReviewBoard: () {},
+      onPlayAgain: _startNewGame,
       onExit: () => Navigator.of(context).pop(),
     );
   }
@@ -230,18 +250,22 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                                   children: [
                                     _buildStatusRow(s, p, l10n),
                                     const SizedBox(height: 16),
-                                    _buildActionToolbar(s, p, l10n),
-                                    const SizedBox(height: 16),
-                                    _buildDigitPad(s, p, keyHeight: 62),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      l10n.sudokuDigitLockHint,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: p.textSecondary,
+                                    if (s.isGameOver)
+                                      _buildReviewBar(s, p, l10n)
+                                    else ...[
+                                      _buildActionToolbar(s, p, l10n),
+                                      const SizedBox(height: 16),
+                                      _buildDigitPad(s, p, keyHeight: 62),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        l10n.sudokuDigitLockHint,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: p.textSecondary,
+                                        ),
+                                        textAlign: TextAlign.center,
                                       ),
-                                      textAlign: TextAlign.center,
-                                    ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -270,10 +294,14 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                               const SizedBox(height: 8),
                               Expanded(child: Center(child: _buildGrid(s, p))),
                               const SizedBox(height: 10),
-                              _buildActionToolbar(s, p, l10n),
-                              const SizedBox(height: 8),
-                              _buildDigitPad(s, p, keyHeight: digitKeyHeight),
-                              const SizedBox(height: 4),
+                              if (s.isGameOver)
+                                _buildReviewBar(s, p, l10n)
+                              else ...[
+                                _buildActionToolbar(s, p, l10n),
+                                const SizedBox(height: 8),
+                                _buildDigitPad(s, p, keyHeight: digitKeyHeight),
+                                const SizedBox(height: 4),
+                              ],
                             ],
                           ),
                         ),
@@ -492,14 +520,22 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     final val = s.values[idx];
     final isGiven = s.givens[idx] != 0;
     final isSelected = sel == idx;
-    final isError = s.errorCells.contains(idx);
+    final isWrongEntry = s.isGameOver && val != 0 && val != s.solution[idx];
+    final showSolutionCell =
+        s.isGameOver && s.showSolutionInReview && (val == 0 || isWrongEntry);
+    final displayVal = showSolutionCell ? s.solution[idx] : val;
+    final isError = s.errorCells.contains(idx) || isWrongEntry;
     final box = (row ~/ 3) * 3 + (col ~/ 3);
     final isRelated =
         sel != null && (row == selRow || col == selCol || box == selBox);
-    final isSameDigit = highlightDigit != null && val == highlightDigit;
+    final isSameDigit = highlightDigit != null && displayVal == highlightDigit;
 
     Color bg = p.surface;
-    if (isSelected) {
+    if (isWrongEntry) {
+      bg = p.danger.withValues(alpha: 0.16);
+    } else if (showSolutionCell) {
+      bg = p.success.withValues(alpha: 0.14);
+    } else if (isSelected) {
       bg = p.accent.withValues(alpha: 0.38);
     } else if (isSameDigit) {
       bg = p.accent.withValues(alpha: 0.22);
@@ -543,16 +579,52 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                     ),
             ),
           ),
-          child: val != 0
+          child: showSolutionCell && isWrongEntry
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '$displayVal',
+                          style: ZetzyThemes.monoStyle(
+                            fontSize: digitFontSize,
+                            fontWeight: FontWeight.w700,
+                            color: p.success,
+                          ).copyWith(height: 1.0),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 2,
+                      top: 1,
+                      child: Text(
+                        '$val',
+                        style: ZetzyThemes.monoStyle(
+                          fontSize: (cellSize * 0.26).clamp(8.0, 13.0),
+                          fontWeight: FontWeight.w700,
+                          color: p.danger,
+                        ).copyWith(
+                          height: 1.0,
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : displayVal != 0
               ? Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      '$val',
+                      '$displayVal',
                       style: ZetzyThemes.monoStyle(
                         fontSize: digitFontSize,
                         fontWeight: isGiven ? FontWeight.w700 : FontWeight.w600,
-                        color: isError
+                        color: showSolutionCell
+                            ? p.success
+                            : isError
                             ? p.danger
                             : (isGiven ? p.textPrimary : p.accent),
                       ).copyWith(height: 1.0),
@@ -621,6 +693,95 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReviewBar(
+    SudokuGameState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    final summary = _finishedSummary;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: (s.isWon ? p.success : p.danger).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!s.isWon) ...[
+            Row(
+              children: [
+                Icon(Icons.visibility_outlined, size: 17, color: p.danger),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.sudokuMistakeReviewHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: s.showSolutionInReview
+                    ? p.accent.withValues(alpha: 0.14)
+                    : p.surfaceElevated,
+                foregroundColor:
+                    s.showSolutionInReview ? p.accent : p.textPrimary,
+                side: BorderSide(
+                  color: s.showSolutionInReview ? p.accent : p.border,
+                ),
+              ),
+              onPressed: _controller.toggleReviewSolution,
+              icon: Icon(
+                s.showSolutionInReview
+                    ? Icons.visibility_off_outlined
+                    : Icons.auto_fix_high_outlined,
+                size: 18,
+              ),
+              label: Text(
+                s.showSolutionInReview
+                    ? l10n.sudokuHideSolution
+                    : l10n.sudokuShowSolution,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              if (summary != null) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showResultDialog(summary),
+                    icon: const Icon(Icons.assessment_outlined, size: 18),
+                    label: Text(l10n.viewResult),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _startNewGame,
+                  icon: const Icon(Icons.replay_rounded, size: 18),
+                  label: Text(l10n.playAgain),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

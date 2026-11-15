@@ -706,4 +706,52 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get invalidPassword =>
       'Min 8 characters with both letters and numbers.';
+
+  @override
+  String get reviewBoard => 'View Board';
+
+  @override
+  String get viewResult => 'View Result';
+
+  @override
+  String wrongFlagsCount(int count) {
+    return '$count wrong flag(s)';
+  }
+
+  @override
+  String get minesRevealedHint =>
+      'All mines & flags revealed. Pinch or drag to inspect.';
+
+  @override
+  String get chessReviewTitle => 'Move Review';
+
+  @override
+  String chessMoveStep(int current, int total) {
+    return 'Ply $current/$total';
+  }
+
+  @override
+  String get sudokuShowSolution => 'Show Answer';
+
+  @override
+  String get sudokuHideSolution => 'Hide Answer';
+
+  @override
+  String get sudokuMistakeReviewHint =>
+      'Incorrect entries are highlighted in red.';
+
+  @override
+  String get snakeDeathWall => 'Crashed into the arena wall.';
+
+  @override
+  String get snakeDeathObstacle => 'Crashed into an obstacle block.';
+
+  @override
+  String get snakeDeathSelf => 'Collided with your own body.';
+
+  @override
+  String get snakeDeathStarvation => 'Energy ran out before reaching food.';
+
+  @override
+  String get snakeAllCleared => 'Cleared the arena!';
 }

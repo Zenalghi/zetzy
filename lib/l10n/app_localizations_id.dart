@@ -699,4 +699,52 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get invalidPassword =>
       'Minimal 8 karakter dengan kombinasi huruf dan angka.';
+
+  @override
+  String get reviewBoard => 'Lihat Papan';
+
+  @override
+  String get viewResult => 'Lihat Hasil';
+
+  @override
+  String wrongFlagsCount(int count) {
+    return '$count bendera salah';
+  }
+
+  @override
+  String get minesRevealedHint =>
+      'Semua ranjau & bendera terlihat. Cubit atau geser untuk periksa.';
+
+  @override
+  String get chessReviewTitle => 'Analisis Langkah';
+
+  @override
+  String chessMoveStep(int current, int total) {
+    return 'Langkah $current/$total';
+  }
+
+  @override
+  String get sudokuShowSolution => 'Lihat Jawaban';
+
+  @override
+  String get sudokuHideSolution => 'Sembunyikan Jawaban';
+
+  @override
+  String get sudokuMistakeReviewHint =>
+      'Angka yang salah ditandai warna merah.';
+
+  @override
+  String get snakeDeathWall => 'Menabrak dinding arena.';
+
+  @override
+  String get snakeDeathObstacle => 'Menabrak blok rintangan.';
+
+  @override
+  String get snakeDeathSelf => 'Menabrak tubuh sendiri.';
+
+  @override
+  String get snakeDeathStarvation => 'Energi habis sebelum mencapai makanan.';
+
+  @override
+  String get snakeAllCleared => 'Arena berhasil diselesaikan!';
 }

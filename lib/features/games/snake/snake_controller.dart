@@ -55,6 +55,8 @@ class GridPoint {
 
 enum SnakeSpecialKind { golden, scissors, poison }
 
+enum SnakeDeathReason { wall, obstacle, selfCollision, starvation }
+
 @immutable
 class SnakeSpecialItem {
   const SnakeSpecialItem({
@@ -101,6 +103,8 @@ class SnakeGameState {
     required this.isGameOver,
     required this.isWon,
     this.canPracticeUndo = false,
+    this.deathReason,
+    this.crashPoint,
   });
 
   final DifficultyLevel difficulty;
@@ -124,6 +128,8 @@ class SnakeGameState {
   final bool isGameOver;
   final bool isWon;
   final bool canPracticeUndo;
+  final SnakeDeathReason? deathReason;
+  final GridPoint? crashPoint;
 
   bool get wrapWalls => difficulty.level == 1;
   bool get hasStarvation => difficulty.level >= 6;
@@ -152,6 +158,10 @@ class SnakeGameState {
     bool? isGameOver,
     bool? isWon,
     bool? canPracticeUndo,
+    SnakeDeathReason? deathReason,
+    bool clearDeathReason = false,
+    GridPoint? crashPoint,
+    bool clearCrashPoint = false,
   }) {
     return SnakeGameState(
       difficulty: difficulty,
@@ -177,6 +187,9 @@ class SnakeGameState {
       isGameOver: isGameOver ?? this.isGameOver,
       isWon: isWon ?? this.isWon,
       canPracticeUndo: canPracticeUndo ?? this.canPracticeUndo,
+      deathReason:
+          clearDeathReason ? null : (deathReason ?? this.deathReason),
+      crashPoint: clearCrashPoint ? null : (crashPoint ?? this.crashPoint),
     );
   }
 }
@@ -488,7 +501,11 @@ class SnakeController extends ChangeNotifier {
     );
 
     if (_state.hasStarvation && nextStarv <= 0) {
-      _endGame(won: false);
+      _endGame(
+        won: false,
+        deathReason: SnakeDeathReason.starvation,
+        crashPoint: _state.snake.first,
+      );
       return;
     }
 
@@ -518,14 +535,22 @@ class SnakeController extends ChangeNotifier {
           ny < 0 ||
           nx >= _state.gridSize ||
           ny >= _state.gridSize) {
-        _endGame(won: false);
+        _endGame(
+          won: false,
+          deathReason: SnakeDeathReason.wall,
+          crashPoint: head,
+        );
         return;
       }
     }
 
     final nextHead = GridPoint(nx, ny);
     if (_state.obstacles.contains(nextHead)) {
-      _endGame(won: false);
+      _endGame(
+        won: false,
+        deathReason: SnakeDeathReason.obstacle,
+        crashPoint: nextHead,
+      );
       return;
     }
 
@@ -534,7 +559,11 @@ class SnakeController extends ChangeNotifier {
         ? _state.snake
         : _state.snake.sublist(0, _state.snake.length - 1);
     if (bodyToCheck.contains(nextHead)) {
-      _endGame(won: false);
+      _endGame(
+        won: false,
+        deathReason: SnakeDeathReason.selfCollision,
+        crashPoint: nextHead,
+      );
       return;
     }
 
@@ -707,6 +736,8 @@ class SnakeController extends ChangeNotifier {
       isPaused: pauseAfterRewind,
       isGameOver: false,
       isWon: false,
+      clearDeathReason: true,
+      clearCrashPoint: true,
       canPracticeUndo: _practiceHistory.isNotEmpty,
     );
     _haptics.selection();
@@ -834,7 +865,11 @@ class SnakeController extends ChangeNotifier {
     return const GridPoint(0, 0);
   }
 
-  void _endGame({required bool won}) {
+  void _endGame({
+    required bool won,
+    SnakeDeathReason? deathReason,
+    GridPoint? crashPoint,
+  }) {
     _stopTimers();
     _audio.playSfx(won ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
     if (won) {
@@ -842,7 +877,14 @@ class SnakeController extends ChangeNotifier {
     } else {
       _haptics.heavy();
     }
-    _state = _state.copyWith(isGameOver: true, isWon: won);
+    _state = _state.copyWith(
+      isGameOver: true,
+      isWon: won,
+      deathReason: deathReason,
+      clearDeathReason: deathReason == null,
+      crashPoint: crashPoint,
+      clearCrashPoint: crashPoint == null,
+    );
     notifyListeners();
     onFinished(_state);
   }

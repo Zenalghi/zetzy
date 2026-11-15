@@ -259,5 +259,36 @@
   "requiredHint": "* Wajib diisi",
   "optionalLabel": "Opsional",
   "invalidUsername": "3–16 karakter: huruf kecil, angka, atau _ saja.",
-  "invalidPassword": "Minimal 8 karakter dengan kombinasi huruf dan angka."
+  "invalidPassword": "Minimal 8 karakter dengan kombinasi huruf dan angka.",
+  "reviewBoard": "Lihat Papan",
+  "viewResult": "Lihat Hasil",
+  "wrongFlagsCount": "{count} bendera salah",
+  "@wrongFlagsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "minesRevealedHint": "Semua ranjau & bendera terlihat. Cubit atau geser untuk periksa.",
+  "chessReviewTitle": "Analisis Langkah",
+  "chessMoveStep": "Langkah {current}/{total}",
+  "@chessMoveStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuShowSolution": "Lihat Jawaban",
+  "sudokuHideSolution": "Sembunyikan Jawaban",
+  "sudokuMistakeReviewHint": "Angka yang salah ditandai warna merah.",
+  "snakeDeathWall": "Menabrak dinding arena.",
+  "snakeDeathObstacle": "Menabrak blok rintangan.",
+  "snakeDeathSelf": "Menabrak tubuh sendiri.",
+  "snakeDeathStarvation": "Energi habis sebelum mencapai makanan.",
+  "snakeAllCleared": "Arena berhasil diselesaikan!"
 }

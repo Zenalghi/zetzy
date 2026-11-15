@@ -1,7 +1,7 @@
 name: zetzy
 description: "Zetzy — Tactile Minimalist Cross-Platform Arcade & Strategy Suite."
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.0.2+1
 
 environment:
   sdk: ^3.13.7

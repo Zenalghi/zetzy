@@ -1358,6 +1358,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Min 8 characters with both letters and numbers.'**
   String get invalidPassword;
+
+  /// No description provided for @reviewBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'View Board'**
+  String get reviewBoard;
+
+  /// No description provided for @viewResult.
+  ///
+  /// In en, this message translates to:
+  /// **'View Result'**
+  String get viewResult;
+
+  /// No description provided for @wrongFlagsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} wrong flag(s)'**
+  String wrongFlagsCount(int count);
+
+  /// No description provided for @minesRevealedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'All mines & flags revealed. Pinch or drag to inspect.'**
+  String get minesRevealedHint;
+
+  /// No description provided for @chessReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Review'**
+  String get chessReviewTitle;
+
+  /// No description provided for @chessMoveStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Ply {current}/{total}'**
+  String chessMoveStep(int current, int total);
+
+  /// No description provided for @sudokuShowSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Answer'**
+  String get sudokuShowSolution;
+
+  /// No description provided for @sudokuHideSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Answer'**
+  String get sudokuHideSolution;
+
+  /// No description provided for @sudokuMistakeReviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect entries are highlighted in red.'**
+  String get sudokuMistakeReviewHint;
+
+  /// No description provided for @snakeDeathWall.
+  ///
+  /// In en, this message translates to:
+  /// **'Crashed into the arena wall.'**
+  String get snakeDeathWall;
+
+  /// No description provided for @snakeDeathObstacle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crashed into an obstacle block.'**
+  String get snakeDeathObstacle;
+
+  /// No description provided for @snakeDeathSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Collided with your own body.'**
+  String get snakeDeathSelf;
+
+  /// No description provided for @snakeDeathStarvation.
+  ///
+  /// In en, this message translates to:
+  /// **'Energy ran out before reaching food.'**
+  String get snakeDeathStarvation;
+
+  /// No description provided for @snakeAllCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared the arena!'**
+  String get snakeAllCleared;
 }
 
 class _AppLocalizationsDelegate

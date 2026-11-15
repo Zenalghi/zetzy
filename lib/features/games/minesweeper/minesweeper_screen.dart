@@ -39,6 +39,9 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
   bool _spaceHeld = false;
   bool _isPanningPointer = false;
   Offset? _lastPanPos;
+  MinesweeperGameState? _finishedState;
+  int _finishedScore = 0;
+  bool _finishedIsNewRecord = false;
 
   @override
   void initState() {
@@ -59,6 +62,15 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
         isPractice: widget.isPractice,
       );
     }
+  }
+
+  void _startNewGame() {
+    _finishedState = null;
+    _transformCtrl.value = Matrix4.identity();
+    _controller.startNew(
+      difficulty: widget.difficulty,
+      isPractice: widget.isPractice,
+    );
   }
 
   Future<void> _handleGameFinished(MinesweeperGameState finalState) async {
@@ -87,7 +99,19 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
           },
         );
 
+    _finishedState = finalState;
+    _finishedScore = score;
+    _finishedIsNewRecord = isNewRecord;
+
     if (!mounted) return;
+    await _showResultDialog(finalState, score, isNewRecord);
+  }
+
+  Future<void> _showResultDialog(
+    MinesweeperGameState finalState,
+    int score,
+    bool isNewRecord,
+  ) async {
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -110,18 +134,21 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
           label: l10n.mine3bvSec,
           value: finalState.bbbvPerSec.toStringAsFixed(2),
         ),
+        if (!finalState.isWon && finalState.wrongFlagCount > 0)
+          (
+            label: l10n.mineModeFlag,
+            value: l10n.wrongFlagsCount(finalState.wrongFlagCount),
+          ),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          ? () {
+              _finishedState = null;
+              _controller.practiceRewind(settings.practiceRewindSteps);
+            }
           : null,
-      onPlayAgain: () {
-        _transformCtrl.value = Matrix4.identity();
-        _controller.startNew(
-          difficulty: finalState.difficulty,
-          isPractice: finalState.isPractice,
-        );
-      },
+      onReviewBoard: () {},
+      onPlayAgain: _startNewGame,
       onExit: () => Navigator.of(context).pop(),
     );
   }
@@ -357,32 +384,31 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
           const SizedBox(height: 16),
           _buildToolSegments(s, p, l10n),
           const SizedBox(height: 16),
-          Text(
-            l10n.mineDesktopHint,
-            style: TextStyle(fontSize: 12, color: p.textSecondary),
+          Expanded(
+            child: s.isGameOver
+                ? _buildReviewBar(s, p, l10n, isSidebar: true)
+                : Text(
+                    l10n.mineDesktopHint,
+                    style: TextStyle(fontSize: 12, color: p.textSecondary),
+                  ),
           ),
-          const Spacer(),
-          if (s.isPractice) ...[
+          if (!s.isGameOver) ...[
+            if (s.isPractice) ...[
+              OutlinedButton.icon(
+                onPressed: s.canPracticeUndo && !s.isPaused
+                    ? _controller.practiceUndo
+                    : null,
+                icon: const Icon(Icons.undo_rounded),
+                label: Text(l10n.practiceUndo),
+              ),
+              const SizedBox(height: 10),
+            ],
             OutlinedButton.icon(
-              onPressed: s.canPracticeUndo && !s.isPaused
-                  ? _controller.practiceUndo
-                  : null,
-              icon: const Icon(Icons.undo_rounded),
-              label: Text(l10n.practiceUndo),
+              onPressed: _startNewGame,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(l10n.restart),
             ),
-            const SizedBox(height: 10),
           ],
-          OutlinedButton.icon(
-            onPressed: () {
-              _transformCtrl.value = Matrix4.identity();
-              _controller.startNew(
-                difficulty: widget.difficulty,
-                isPractice: widget.isPractice,
-              );
-            },
-            icon: const Icon(Icons.refresh_rounded),
-            label: Text(l10n.restart),
-          ),
         ],
       ),
     );
@@ -397,21 +423,139 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildToolSegments(s, p, l10n),
-            if (PlatformDetector.isDesktopOrWeb)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
+        child: s.isGameOver
+            ? _buildReviewBar(s, p, l10n)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildToolSegments(s, p, l10n),
+                  if (PlatformDetector.isDesktopOrWeb)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        l10n.mineDesktopHint,
+                        style: TextStyle(fontSize: 11, color: p.textSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildReviewBar(
+    MinesweeperGameState s,
+    ZetzyPalette p,
+    AppLocalizations l10n, {
+    bool isSidebar = false,
+  }) {
+    final cached = _finishedState;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: (s.isWon ? p.success : p.danger).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                s.isWon
+                    ? Icons.emoji_events_rounded
+                    : Icons.visibility_outlined,
+                size: 18,
+                color: s.isWon ? p.success : p.danger,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
                 child: Text(
-                  l10n.mineDesktopHint,
-                  style: TextStyle(fontSize: 11, color: p.textSecondary),
-                  textAlign: TextAlign.center,
+                  l10n.minesRevealedHint,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: p.textPrimary,
+                  ),
                 ),
               ),
+            ],
+          ),
+          if (!s.isWon && s.wrongFlagCount > 0) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: p.danger.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  l10n.wrongFlagsCount(s.wrongFlagCount),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: p.danger,
+                  ),
+                ),
+              ),
+            ),
           ],
-        ),
+          SizedBox(height: isSidebar ? 14 : 10),
+          if (isSidebar) ...[
+            if (cached != null) ...[
+              OutlinedButton.icon(
+                onPressed: () => _showResultDialog(
+                  cached,
+                  _finishedScore,
+                  _finishedIsNewRecord,
+                ),
+                icon: const Icon(Icons.assessment_outlined, size: 18),
+                label: Text(l10n.viewResult),
+              ),
+              const SizedBox(height: 8),
+            ],
+            FilledButton.icon(
+              onPressed: _startNewGame,
+              icon: const Icon(Icons.replay_rounded, size: 18),
+              label: Text(l10n.playAgain),
+            ),
+          ] else
+            Row(
+              children: [
+                if (cached != null) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showResultDialog(
+                        cached,
+                        _finishedScore,
+                        _finishedIsNewRecord,
+                      ),
+                      icon: const Icon(Icons.assessment_outlined, size: 18),
+                      label: Text(l10n.viewResult),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _startNewGame,
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: Text(l10n.playAgain),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -515,6 +659,7 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
                           cell: s.grid[r][c],
                           size: cellSize,
                           palette: p,
+                          isGameOver: s.isGameOver,
                           onTap: () => _controller.onCellTap(r, c),
                           onSecondaryOrLongPress: () =>
                               _controller.onCellLongPressOrRightClick(r, c),
@@ -535,6 +680,7 @@ class _MineCellTile extends StatelessWidget {
     required this.cell,
     required this.size,
     required this.palette,
+    required this.isGameOver,
     required this.onTap,
     required this.onSecondaryOrLongPress,
   });
@@ -542,6 +688,7 @@ class _MineCellTile extends StatelessWidget {
   final MineCell cell;
   final double size;
   final ZetzyPalette palette;
+  final bool isGameOver;
   final VoidCallback onTap;
   final VoidCallback onSecondaryOrLongPress;
 
@@ -558,8 +705,20 @@ class _MineCellTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isWrongFlag =
+        isGameOver && !cell.isMine && cell.mark == MineCellMark.flag;
+    final isCorrectFlag =
+        isGameOver &&
+        cell.isRevealed &&
+        cell.isMine &&
+        cell.mark == MineCellMark.flag;
+
     final bgColor = cell.isExploded
-        ? palette.danger.withValues(alpha: 0.35)
+        ? palette.danger.withValues(alpha: 0.38)
+        : isWrongFlag
+        ? palette.danger.withValues(alpha: 0.24)
+        : (cell.isDefused || isCorrectFlag)
+        ? palette.success.withValues(alpha: 0.22)
         : (cell.isRevealed ? palette.boardDark : palette.boardLight);
 
     Widget? content;
@@ -568,12 +727,44 @@ class _MineCellTile extends StatelessWidget {
         padding: const EdgeInsets.all(4),
         child: Image.asset(AssetPaths.mineDefused),
       );
+    } else if (isWrongFlag) {
+      content = Stack(
+        fit: StackFit.expand,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(5),
+            child: Image.asset(AssetPaths.mineFlag),
+          ),
+          Center(
+            child: Icon(
+              Icons.close_rounded,
+              size: size * 0.65,
+              color: palette.danger,
+            ),
+          ),
+        ],
+      );
     } else if (cell.isRevealed && cell.isMine) {
-      content = Padding(
-        padding: const EdgeInsets.all(4),
-        child: Image.asset(
-          cell.isExploded ? AssetPaths.mineExploded : AssetPaths.mineNormal,
-        ),
+      content = Stack(
+        fit: StackFit.expand,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(4),
+            child: Image.asset(
+              cell.isExploded ? AssetPaths.mineExploded : AssetPaths.mineNormal,
+            ),
+          ),
+          if (isCorrectFlag)
+            Positioned(
+              right: 2,
+              bottom: 2,
+              child: Icon(
+                Icons.check_circle_rounded,
+                size: 13,
+                color: palette.success,
+              ),
+            ),
+        ],
       );
     } else if (cell.isRevealed && cell.adjacentMines > 0) {
       content = Center(
@@ -609,8 +800,12 @@ class _MineCellTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           border: Border.all(
-            color: palette.border.withValues(alpha: cell.isRevealed ? 0.35 : 0.8),
-            width: 0.8,
+            color: isWrongFlag || cell.isExploded
+                ? palette.danger.withValues(alpha: 0.75)
+                : isCorrectFlag
+                ? palette.success.withValues(alpha: 0.65)
+                : palette.border.withValues(alpha: cell.isRevealed ? 0.35 : 0.8),
+            width: isWrongFlag || cell.isExploded ? 1.2 : 0.8,
           ),
           borderRadius: BorderRadius.circular(4),
         ),

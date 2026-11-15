@@ -46,6 +46,15 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
   ChessColorPref _selectedColor = ChessColorPref.white;
   ChessTimeControl _selectedTime = ChessTimeControl.blitz5;
   final TextEditingController _roomCodeCtrl = TextEditingController();
+  ({
+    ChessUiState state,
+    int score,
+    bool effectiveWon,
+    bool aborted,
+    bool isUnratedForDialog,
+    bool isNewRecord,
+  })?
+  _finishedSummary;
 
   @override
   void initState() {
@@ -122,7 +131,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               : ChessColorPref.white)
         : (joinRoomCode != null ? ChessColorPref.black : _selectedColor);
 
-    setState(() => _inLobby = false);
+    setState(() {
+      _finishedSummary = null;
+      _inLobby = false;
+    });
     _controller.startNew(
       difficulty: widget.difficulty,
       isPractice: widget.isPractice,
@@ -172,7 +184,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               winnerColour: finalState.isDraw ? null : finalState.winnerColour,
               isDraw: finalState.isDraw,
               moveCount: finalState.moveSans.length,
-              pgn: _controller.game.pgn(),
+              pgn: _controller.livePgn,
             );
         if (serverResult != null) {
           if (serverResult.status == 'aborted') {
@@ -232,13 +244,40 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               'opponentElo': finalState.opponentElo,
             if (finalState.opponentUsername != null)
               'opponentUsername': finalState.opponentUsername,
-            'pgn': _controller.game.pgn(),
+            'pgn': _controller.livePgn,
             'moves': finalState.moveSans.length,
             if (aborted) 'aborted': true,
           },
         );
 
+    final summary = (
+      state: finalState,
+      score: score,
+      effectiveWon: effectiveWon,
+      aborted: aborted,
+      isUnratedForDialog: isUnratedForDialog,
+      isNewRecord: isNewRecord,
+    );
+    _finishedSummary = summary;
+
     if (!mounted) return;
+    await _showResultDialog(summary);
+  }
+
+  Future<void> _showResultDialog(
+    ({
+      ChessUiState state,
+      int score,
+      bool effectiveWon,
+      bool aborted,
+      bool isUnratedForDialog,
+      bool isNewRecord,
+    })
+    summary,
+  ) async {
+    final finalState = summary.state;
+    final aborted = summary.aborted;
+    final effectiveWon = summary.effectiveWon;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -270,9 +309,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       isWon: effectiveWon,
       isDraw: aborted || finalState.isDraw,
       durationMs: finalState.elapsedMs,
-      score: score,
-      isNewRecord: isNewRecord,
-      isPractice: isUnratedForDialog,
+      score: summary.score,
+      isNewRecord: summary.isNewRecord,
+      isPractice: summary.isUnratedForDialog,
       titleOverride: aborted ? l10n.chessAbortedTooShortTitle : null,
       subtitleOverride: subtitleOverride,
       noteText: noteText,
@@ -287,8 +326,12 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          ? () {
+              _finishedSummary = null;
+              _controller.practiceRewind(settings.practiceRewindSteps);
+            }
           : null,
+      onReviewBoard: () {},
       onPlayAgain: () => setState(() => _inLobby = true),
       onExit: () => Navigator.of(context).pop(),
     );
@@ -1457,8 +1500,13 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     ZetzyPalette p,
     AppLocalizations l10n,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    if (s.isGameOver) {
+      return _buildReviewControls(s, p, l10n);
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.spaceEvenly,
       children: [
         if (s.isPractice && !s.mode.isOnlineMultiplayer)
           OutlinedButton.icon(
@@ -1493,6 +1541,123 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
           label: Text(l10n.chessResign, style: TextStyle(color: p.danger)),
         ),
       ],
+    );
+  }
+
+  Widget _buildReviewControls(
+    ChessUiState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    final summary = _finishedSummary;
+    final totalPlies = s.moveSans.length;
+    final currentPly = s.effectiveReviewPly;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: p.accent.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewBack ? _controller.reviewFirst : null,
+                icon: const Icon(Icons.first_page_rounded, size: 19),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewBack ? _controller.reviewPrev : null,
+                icon: const Icon(Icons.chevron_left_rounded, size: 19),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    l10n.chessMoveStep(currentPly, totalPlies),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewForward ? _controller.reviewNext : null,
+                icon: const Icon(Icons.chevron_right_rounded, size: 19),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewForward ? _controller.reviewLast : null,
+                icon: const Icon(Icons.last_page_rounded, size: 19),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                tooltip: l10n.chessFlipBoard,
+                onPressed: _controller.flipBoard,
+                icon: const Icon(Icons.swap_vert_rounded, size: 19),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              if (summary != null) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
+                    ),
+                    onPressed: () => _showResultDialog(summary),
+                    icon: const Icon(Icons.assessment_outlined, size: 16),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(l10n.viewResult, maxLines: 1),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 10,
+                    ),
+                  ),
+                  onPressed: () => setState(() => _inLobby = true),
+                  icon: const Icon(Icons.replay_rounded, size: 16),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(l10n.playAgain, maxLines: 1),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1556,19 +1721,63 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               child: ListView.builder(
                 itemCount: (s.moveSans.length + 1) ~/ 2,
                 itemBuilder: (context, idx) {
+                  final whitePly = idx * 2 + 1;
+                  final blackPly = idx * 2 + 2;
                   final whiteMove = s.moveSans[idx * 2];
-                  final blackMove = idx * 2 + 1 < s.moveSans.length
-                      ? s.moveSans[idx * 2 + 1]
-                      : '';
+                  final hasBlack = idx * 2 + 1 < s.moveSans.length;
+                  final blackMove = hasBlack ? s.moveSans[idx * 2 + 1] : '';
+
+                  Widget buildMoveChip(String san, int ply) {
+                    final active = s.isGameOver && s.effectiveReviewPly == ply;
+                    final chip = Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? p.accent.withValues(alpha: 0.22)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        san,
+                        style: ZetzyThemes.monoStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              active ? FontWeight.w800 : FontWeight.w500,
+                          color: active ? p.accent : p.textPrimary,
+                        ),
+                      ),
+                    );
+                    if (!s.isGameOver) return chip;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: () => _controller.jumpToReviewPly(ply),
+                      child: chip,
+                    );
+                  }
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      '${idx + 1}. $whiteMove  $blackMove',
-                      style: ZetzyThemes.monoStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: p.textPrimary,
-                      ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 30,
+                          child: Text(
+                            '${idx + 1}.',
+                            style: ZetzyThemes.monoStyle(
+                              fontSize: 12,
+                              color: p.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: buildMoveChip(whiteMove, whitePly)),
+                        if (hasBlack)
+                          Expanded(child: buildMoveChip(blackMove, blackPly))
+                        else
+                          const Spacer(),
+                      ],
                     ),
                   );
                 },

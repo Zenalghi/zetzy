@@ -32,6 +32,7 @@ class SudokuGameState {
     required this.isWon,
     required this.canUndoNote,
     this.canUndoPractice = false,
+    this.showSolutionInReview = false,
   });
 
   final DifficultyLevel difficulty;
@@ -55,6 +56,7 @@ class SudokuGameState {
   final bool isWon;
   final bool canUndoNote;
   final bool canUndoPractice;
+  final bool showSolutionInReview;
 
   bool get unlimitedLives => isPractice || maxLives == 0;
   bool get checksAnswerKeyImmediately => difficulty.level <= 4;
@@ -100,6 +102,7 @@ class SudokuGameState {
     bool? isWon,
     bool? canUndoNote,
     bool? canUndoPractice,
+    bool? showSolutionInReview,
   }) {
     return SudokuGameState(
       difficulty: difficulty,
@@ -123,6 +126,8 @@ class SudokuGameState {
       isWon: isWon ?? this.isWon,
       canUndoNote: canUndoNote ?? this.canUndoNote,
       canUndoPractice: canUndoPractice ?? this.canUndoPractice,
+      showSolutionInReview:
+          showSolutionInReview ?? this.showSolutionInReview,
     );
   }
 }
@@ -302,7 +307,16 @@ class SudokuController extends ChangeNotifier {
   }
 
   void selectCell(int index) {
-    if (_state.isLoading || _state.isPaused || _state.isGameOver) return;
+    if (_state.isLoading || _state.isPaused) return;
+    if (_state.isGameOver) {
+      if (_state.selectedCell == index) {
+        _state = _state.copyWith(clearSelected: true, clearLockedDigit: true);
+      } else {
+        _state = _state.copyWith(selectedCell: index, clearLockedDigit: true);
+      }
+      notifyListeners();
+      return;
+    }
     final currentLocked = _state.lockedDigit;
     if (currentLocked != null) {
       if (!_state.isCellLocked(index)) {
@@ -595,6 +609,7 @@ class SudokuController extends ChangeNotifier {
       isPaused: false,
       isGameOver: false,
       isWon: false,
+      showSolutionInReview: false,
       canUndoPractice: _practiceHistory.isNotEmpty,
     );
     _haptics.selection();
@@ -727,6 +742,15 @@ class SudokuController extends ChangeNotifier {
   List<Set<int>> _cloneNotes(List<Set<int>> src) =>
       src.map((s) => Set<int>.from(s)).toList();
 
+  /// Toggles displaying the solution key over wrong/empty cells during post-game review.
+  void toggleReviewSolution() {
+    if (!_state.isGameOver) return;
+    _state = _state.copyWith(
+      showSolutionInReview: !_state.showSolutionInReview,
+    );
+    notifyListeners();
+  }
+
   void _endGame({required bool won}) {
     _stopTimer();
     _audio.playSfx(won ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
@@ -735,7 +759,11 @@ class SudokuController extends ChangeNotifier {
     } else {
       _haptics.heavy();
     }
-    _state = _state.copyWith(isGameOver: true, isWon: won);
+    _state = _state.copyWith(
+      isGameOver: true,
+      isWon: won,
+      showSolutionInReview: false,
+    );
     notifyListeners();
     onFinished(_state);
   }

@@ -1,3 +1,4 @@
+import 'package:bishop/bishop.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -711,6 +712,189 @@ void main() {
       expect(ctrl.state.isPaused, isTrue);
       expect(ctrl.state.snake.first.x, lessThan(ctrl.state.gridSize - 1));
       expect(ctrl.state.snake.first.x, greaterThan(startHead.x));
+
+      ctrl.dispose();
+    });
+  });
+
+  group('Post-Game Board Review', () {
+    test('MinesweeperController reveals all mines on both loss and win and counts wrong flags', () {
+      final ctrl = MinesweeperController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      // Loss case (Lv5 Pro has no defuse shield): wrong flag + mine hit reveals all mines
+      ctrl.startNew(difficulty: DifficultyLevel.pro, isPractice: false);
+      ctrl.onCellTap(4, 4);
+
+      (int, int)? safeUnrevealed;
+      (int, int)? mineCell;
+      for (var r = 0; r < ctrl.state.rows; r++) {
+        for (var c = 0; c < ctrl.state.cols; c++) {
+          final cell = ctrl.state.grid[r][c];
+          if (!cell.isMine && !cell.isRevealed && safeUnrevealed == null) {
+            safeUnrevealed = (r, c);
+          }
+          if (cell.isMine && mineCell == null) {
+            mineCell = (r, c);
+          }
+        }
+      }
+      expect(safeUnrevealed, isNotNull);
+      expect(mineCell, isNotNull);
+
+      ctrl.toggleMark(safeUnrevealed!.$1, safeUnrevealed.$2);
+      expect(ctrl.state.wrongFlagCount, equals(1));
+
+      ctrl.onCellTap(mineCell!.$1, mineCell.$2);
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.wrongFlagCount, equals(1));
+      expect(
+        ctrl.state.grid[mineCell.$1][mineCell.$2].isExploded,
+        isTrue,
+      );
+      for (final row in ctrl.state.grid) {
+        for (final cell in row) {
+          if (cell.isMine) {
+            expect(cell.isRevealed, isTrue);
+          }
+        }
+      }
+
+      // Win case: clearing all safe cells reveals all remaining unflagged & flagged mines
+      ctrl.startNew(difficulty: DifficultyLevel.pro, isPractice: false);
+      ctrl.onCellTap(4, 4);
+      var flaggedOneMine = false;
+      for (var r = 0; r < ctrl.state.rows; r++) {
+        for (var c = 0; c < ctrl.state.cols; c++) {
+          final cell = ctrl.state.grid[r][c];
+          if (cell.isMine && !flaggedOneMine) {
+            ctrl.toggleMark(r, c);
+            flaggedOneMine = true;
+          } else if (!cell.isMine && !cell.isRevealed) {
+            ctrl.onCellTap(r, c);
+          }
+        }
+      }
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isTrue);
+      expect(ctrl.state.wrongFlagCount, equals(0));
+      var revealedFlaggedMines = 0;
+      for (final row in ctrl.state.grid) {
+        for (final cell in row) {
+          if (cell.isMine) {
+            expect(cell.isRevealed, isTrue);
+            expect(cell.isExploded, isFalse);
+            if (cell.mark == MineCellMark.flag) revealedFlaggedMines++;
+          }
+        }
+      }
+      expect(revealedFlaggedMines, equals(1));
+
+      ctrl.dispose();
+    });
+
+    test('ChessController move review steps backward and forward cleanly after game ends', () {
+      final ctrl = ChessController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        supabase: SupabaseService(),
+        autoQueen: true,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(
+        difficulty: DifficultyLevel.pro,
+        isPractice: false,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+
+      for (var i = 0; i < 3; i++) {
+        final m = ctrl.game.generateLegalMoves().first;
+        ctrl.onSquareTap(m.from);
+        ctrl.onSquareTap(m.to);
+      }
+      ctrl.resign();
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.effectiveReviewPly, equals(3));
+      expect(ctrl.state.canReviewBack, isTrue);
+      expect(ctrl.state.canReviewForward, isFalse);
+
+      ctrl.reviewFirst();
+      expect(ctrl.state.reviewPly, equals(0));
+      expect(ctrl.state.turn, equals(Bishop.white));
+      expect(ctrl.state.lastFrom, isNull);
+      expect(ctrl.state.canReviewBack, isFalse);
+      expect(ctrl.state.canReviewForward, isTrue);
+
+      ctrl.reviewNext();
+      expect(ctrl.state.reviewPly, equals(1));
+      expect(ctrl.state.turn, equals(Bishop.black));
+      expect(ctrl.state.lastFrom, isNotNull);
+
+      ctrl.reviewLast();
+      expect(ctrl.state.reviewPly, isNull);
+      expect(ctrl.state.effectiveReviewPly, equals(3));
+      expect(ctrl.state.canReviewForward, isFalse);
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController toggleReviewSolution toggles solution overlay after loss', () async {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.god, // 1 life -> single mistake ends game
+        isPractice: false,
+      );
+
+      final emptyIdx = ctrl.state.givens.indexOf(0);
+      final correct = ctrl.state.solution[emptyIdx];
+      final wrong = correct == 9 ? 1 : correct + 1;
+
+      ctrl.selectCell(emptyIdx);
+      ctrl.onDigitTap(wrong);
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.showSolutionInReview, isFalse);
+
+      ctrl.toggleReviewSolution();
+      expect(ctrl.state.showSolutionInReview, isTrue);
+      ctrl.toggleReviewSolution();
+      expect(ctrl.state.showSolutionInReview, isFalse);
+
+      ctrl.dispose();
+    });
+
+    test('SnakeController records wall deathReason and crashPoint on wall impact', () {
+      final ctrl = SnakeController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: false);
+
+      var steps = 0;
+      while (!ctrl.state.isGameOver && steps < 25) {
+        ctrl.stepForTest();
+        steps++;
+      }
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.deathReason, equals(SnakeDeathReason.wall));
+      expect(ctrl.state.crashPoint, isNotNull);
+      expect(ctrl.state.crashPoint!.x, equals(ctrl.state.gridSize - 1));
 
       ctrl.dispose();
     });

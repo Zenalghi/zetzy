@@ -76,6 +76,7 @@ class ChessUiState {
     this.opponentAvatarUrl,
     this.opponentElo,
     this.isAbortedUnrated = false,
+    this.reviewPly,
   });
 
   final DifficultyLevel difficulty;
@@ -112,6 +113,12 @@ class ChessUiState {
   final String? opponentAvatarUrl;
   final int? opponentElo;
   final bool isAbortedUnrated;
+  final int? reviewPly;
+
+  int get effectiveReviewPly => reviewPly ?? moveSans.length;
+  bool get isReviewingHistory => reviewPly != null;
+  bool get canReviewBack => isGameOver && effectiveReviewPly > 0;
+  bool get canReviewForward => isGameOver && effectiveReviewPly < moveSans.length;
 
   bool get canUndo =>
       mode == ChessPlayMode.vsAi &&
@@ -162,6 +169,8 @@ class ChessUiState {
     String? opponentAvatarUrl,
     int? opponentElo,
     bool? isAbortedUnrated,
+    int? reviewPly,
+    bool clearReviewPly = false,
   }) {
     return ChessUiState(
       difficulty: difficulty,
@@ -201,8 +210,23 @@ class ChessUiState {
       opponentAvatarUrl: opponentAvatarUrl ?? this.opponentAvatarUrl,
       opponentElo: opponentElo ?? this.opponentElo,
       isAbortedUnrated: isAbortedUnrated ?? this.isAbortedUnrated,
+      reviewPly: clearReviewPly ? null : (reviewPly ?? this.reviewPly),
     );
   }
+}
+
+class _ChessTimelineSnapshot {
+  const _ChessTimelineSnapshot({
+    required this.fen,
+    required this.lastFrom,
+    required this.lastTo,
+    required this.inCheck,
+  });
+
+  final String fen;
+  final int? lastFrom;
+  final int? lastTo;
+  final bool inCheck;
 }
 
 class _ChessPracticeSnapshot {
@@ -243,13 +267,16 @@ class ChessController extends ChangeNotifier {
   final void Function(AutoSaveSlot slot) onAutoSave;
 
   late Game _game;
-  Game get game => _game;
+  Game? _reviewGame;
+  Game get game => _reviewGame ?? _game;
+  String get livePgn => _game.pgn();
 
   Timer? _timer;
   Timer? _disconnectGraceTimer;
   RealtimeChannel? _channel;
   final List<(int?, int?)> _moveSqHistory = [];
   final List<_ChessPracticeSnapshot> _practiceHistory = [];
+  final List<_ChessTimelineSnapshot> _timelineSnapshots = [];
   int _generation = 0;
   String? _localUserId;
   String? _localUsername;
@@ -285,8 +312,18 @@ class ChessController extends ChangeNotifier {
     _leaveOnlineRoom();
     _moveSqHistory.clear();
     _practiceHistory.clear();
+    _timelineSnapshots.clear();
+    _reviewGame = null;
     _generation++;
     _game = Game(variant: Variant.standard());
+    _timelineSnapshots.add(
+      _ChessTimelineSnapshot(
+        fen: _game.fen,
+        lastFrom: null,
+        lastTo: null,
+        inCheck: false,
+      ),
+    );
 
     _localUserId = localUserId;
     _localUsername = localUsername;
@@ -360,6 +397,8 @@ class ChessController extends ChangeNotifier {
     _leaveOnlineRoom();
     _moveSqHistory.clear();
     _practiceHistory.clear();
+    _timelineSnapshots.clear();
+    _reviewGame = null;
     _generation++;
     final s = slot.stateJson;
     final diff = DifficultyLevel.fromLevel(slot.difficulty);
@@ -369,11 +408,48 @@ class ChessController extends ChangeNotifier {
     if (pgn != null && pgn.trim().isNotEmpty) {
       try {
         _game = Game.fromPgn(pgn);
+        final walk = Game.fromPgn(pgn);
+        final reversed = <_ChessTimelineSnapshot>[
+          _ChessTimelineSnapshot(
+            fen: walk.fen,
+            lastFrom: null,
+            lastTo: null,
+            inCheck: walk.inCheck,
+          ),
+        ];
+        while (walk.canUndo) {
+          walk.undo();
+          reversed.add(
+            _ChessTimelineSnapshot(
+              fen: walk.fen,
+              lastFrom: null,
+              lastTo: null,
+              inCheck: walk.inCheck,
+            ),
+          );
+        }
+        _timelineSnapshots.addAll(reversed.reversed);
       } catch (_) {
         _game = Game(variant: Variant.standard(), fen: fen);
+        _timelineSnapshots.add(
+          _ChessTimelineSnapshot(
+            fen: _game.fen,
+            lastFrom: null,
+            lastTo: null,
+            inCheck: _game.inCheck,
+          ),
+        );
       }
     } else {
       _game = Game(variant: Variant.standard(), fen: fen);
+      _timelineSnapshots.add(
+        _ChessTimelineSnapshot(
+          fen: _game.fen,
+          lastFrom: null,
+          lastTo: null,
+          inCheck: _game.inCheck,
+        ),
+      );
     }
 
     final mode = ChessPlayMode.values.firstWhere(
@@ -556,6 +632,14 @@ class ChessController extends ChangeNotifier {
     }
 
     _moveSqHistory.add((move.from, move.to));
+    _timelineSnapshots.add(
+      _ChessTimelineSnapshot(
+        fen: _game.fen,
+        lastFrom: move.from,
+        lastTo: move.to,
+        inCheck: _game.inCheck,
+      ),
+    );
 
     if (_game.inCheck) {
       _audio.playSfx(ZetzySfx.chessCheck);
@@ -626,6 +710,10 @@ class ChessController extends ChangeNotifier {
     if (_moveSqHistory.length >= 2) {
       _moveSqHistory.removeLast();
       _moveSqHistory.removeLast();
+    }
+    if (_timelineSnapshots.length >= 3) {
+      _timelineSnapshots.removeLast();
+      _timelineSnapshots.removeLast();
     }
     if (_state.isPractice && _practiceHistory.length >= 2) {
       _practiceHistory.removeLast();
@@ -699,6 +787,10 @@ class ChessController extends ChangeNotifier {
     }
 
     _game = Game(variant: Variant.standard(), fen: snap.fen);
+    _reviewGame = null;
+    while (_timelineSnapshots.length > snap.moveSans.length + 1) {
+      _timelineSnapshots.removeLast();
+    }
     _moveSqHistory
       ..clear()
       ..addAll(snap.moveSqHistory);
@@ -723,6 +815,7 @@ class ChessController extends ChangeNotifier {
       clearWinner: true,
       isDraw: false,
       clearPromotion: true,
+      clearReviewPly: true,
       practiceHistoryCount: _practiceHistory.length,
     );
     _recomputeMaterialAndCaptures();
@@ -779,6 +872,7 @@ class ChessController extends ChangeNotifier {
     final playerWon =
         !abortedTooShort && !isDraw && winnerColour == _state.playerColor;
     _audio.playSfx(playerWon ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
+    _reviewGame = null;
     _state = _state.copyWith(
       isGameOver: true,
       winnerColour: abortedTooShort ? null : winnerColour,
@@ -786,14 +880,66 @@ class ChessController extends ChangeNotifier {
       isDraw: !abortedTooShort && isDraw,
       isAiThinking: false,
       isAbortedUnrated: abortedTooShort,
+      clearReviewPly: true,
     );
     notifyListeners();
     onFinished(_state);
   }
 
+  /// Navigates to a historical ply in post-game move review without altering
+  /// the completed live game record.
+  void jumpToReviewPly(int ply) {
+    if (!_state.isGameOver || _timelineSnapshots.isEmpty) return;
+    final totalPlies = _state.moveSans.length;
+    final targetPly = ply.clamp(0, totalPlies);
+
+    if (targetPly == totalPlies) {
+      _reviewGame = null;
+      final lastPair =
+          _moveSqHistory.isNotEmpty ? _moveSqHistory.last : (null, null);
+      _state = _state.copyWith(
+        clearReviewPly: true,
+        turn: _game.turn,
+        clearSelected: true,
+        legalTargets: const {},
+        lastFrom: lastPair.$1,
+        lastTo: lastPair.$2,
+        clearLastMove: lastPair.$1 == null,
+        inCheck: _game.inCheck,
+      );
+      _recomputeMaterialAndCaptures();
+      notifyListeners();
+      return;
+    }
+
+    final offset = totalPlies - (_timelineSnapshots.length - 1);
+    final snapIdx = targetPly - offset;
+    if (snapIdx < 0 || snapIdx >= _timelineSnapshots.length) return;
+    final snap = _timelineSnapshots[snapIdx];
+    _reviewGame = Game(variant: Variant.standard(), fen: snap.fen);
+    _state = _state.copyWith(
+      reviewPly: targetPly,
+      turn: _reviewGame!.turn,
+      clearSelected: true,
+      legalTargets: const {},
+      lastFrom: snap.lastFrom,
+      lastTo: snap.lastTo,
+      clearLastMove: snap.lastFrom == null,
+      inCheck: snap.inCheck,
+    );
+    _recomputeMaterialAndCaptures();
+    notifyListeners();
+  }
+
+  void reviewFirst() => jumpToReviewPly(0);
+  void reviewPrev() => jumpToReviewPly(_state.effectiveReviewPly - 1);
+  void reviewNext() => jumpToReviewPly(_state.effectiveReviewPly + 1);
+  void reviewLast() => jumpToReviewPly(_state.moveSans.length);
+
   void _recomputeMaterialAndCaptures() {
     const startCounts = {'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1};
     const pieceValues = {'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9};
+    final activeGame = game;
     final whiteOnBoard = <String, int>{};
     final blackOnBoard = <String, int>{};
     var whiteMat = 0;
@@ -801,9 +947,9 @@ class ChessController extends ChangeNotifier {
 
     for (var rank = 0; rank < 8; rank++) {
       for (var file = 0; file < 8; file++) {
-        final sq = _game.board[_game.size.square(file, rank)];
+        final sq = activeGame.board[activeGame.size.square(file, rank)];
         if (sq.isEmpty) continue;
-        final sym = _game.variant.pieces[sq.type].symbol.toUpperCase();
+        final sym = activeGame.variant.pieces[sq.type].symbol.toUpperCase();
         final v = pieceValues[sym] ?? 0;
         if (sq.colour == Bishop.white) {
           whiteMat += v;

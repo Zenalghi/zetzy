@@ -989,6 +989,111 @@ void main() {
     );
     expect(find.text('Zetzy v1.0.0+1'), findsOneWidget);
   });
+
+  testWidgets('WinResultDialog shows View Board button and enters post-game review without exiting', (
+    WidgetTester tester,
+  ) async {
+    var reviewed = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () {
+                  showGameResultDialog(
+                    context: context,
+                    gameType: GameType.minesweeper,
+                    difficulty: DifficultyLevel.normal,
+                    isWon: false,
+                    durationMs: 12000,
+                    score: 0,
+                    onReviewBoard: () => reviewed = true,
+                    onPlayAgain: () {},
+                    onExit: () {},
+                  );
+                },
+                child: const Text('Open Result'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Result'));
+    await tester.pumpAndSettle();
+
+    final viewBoardBtn = find.widgetWithText(OutlinedButton, 'View Board');
+    expect(viewBoardBtn, findsOneWidget);
+
+    await tester.tap(viewBoardBtn);
+    await tester.pumpAndSettle();
+
+    expect(reviewed, isTrue);
+    expect(find.widgetWithText(OutlinedButton, 'View Board'), findsNothing);
+    expect(find.text('Open Result'), findsOneWidget);
+  });
+
+  testWidgets('ChessScreen enters post-game review scrubber and re-opens result dialog via View Result', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const ChessScreen(
+            difficulty: DifficultyLevel.pro,
+            isPractice: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Switch to Pass & Play + Untimed in lobby so there is no countdown timer.
+    await tester.tap(find.text('Pass & Play'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Untimed'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await tester.pumpAndSettle();
+
+    // Resign immediately -> WinResultDialog opens with View Board.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Resign'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'View Board'));
+    await tester.pumpAndSettle();
+
+    // Post-game review bar replaces active controls and allows re-opening Result.
+    expect(find.text('Ply 0/0'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'View Result'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'View Result'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(OutlinedButton, 'View Board'), findsOneWidget);
+  });
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

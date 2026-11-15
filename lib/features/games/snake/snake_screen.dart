@@ -41,6 +41,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   ui.Image? _scissorsImg;
   ui.Image? _poisonImg;
   ui.Image? _wallImg;
+  ({SnakeGameState state, bool isNewRecord})? _finishedSummary;
 
   @override
   void initState() {
@@ -94,6 +95,25 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
     });
   }
 
+  void _startNewGame() {
+    _finishedSummary = null;
+    _controller.startNew(
+      difficulty: widget.difficulty,
+      isPractice: widget.isPractice,
+    );
+  }
+
+  String _reviewReasonText(SnakeGameState s, AppLocalizations l10n) {
+    if (s.isWon) return l10n.snakeAllCleared;
+    return switch (s.deathReason) {
+      SnakeDeathReason.wall => l10n.snakeDeathWall,
+      SnakeDeathReason.obstacle => l10n.snakeDeathObstacle,
+      SnakeDeathReason.selfCollision => l10n.snakeDeathSelf,
+      SnakeDeathReason.starvation => l10n.snakeDeathStarvation,
+      null => l10n.gameOver,
+    };
+  }
+
   Future<void> _handleGameFinished(SnakeGameState finalState) async {
     await ref.read(autoSaveSlotsProvider.notifier).clearSlot(GameType.snake);
     final isNewRecord = await ref
@@ -111,7 +131,17 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
           },
         );
 
+    final summary = (state: finalState, isNewRecord: isNewRecord);
+    _finishedSummary = summary;
+
     if (!mounted) return;
+    await _showResultDialog(summary);
+  }
+
+  Future<void> _showResultDialog(
+    ({SnakeGameState state, bool isNewRecord}) summary,
+  ) async {
+    final finalState = summary.state;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -126,19 +156,21 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
       isWon: finalState.isWon,
       durationMs: finalState.elapsedMs,
       score: finalState.score,
-      isNewRecord: isNewRecord,
+      isNewRecord: summary.isNewRecord,
       isPractice: finalState.isPractice,
+      noteText: finalState.isWon ? null : _reviewReasonText(finalState, l10n),
       extraMetrics: [
         (label: l10n.snakeLength, value: '${finalState.snake.length}'),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          ? () {
+              _finishedSummary = null;
+              _controller.practiceRewind(settings.practiceRewindSteps);
+            }
           : null,
-      onPlayAgain: () => _controller.startNew(
-        difficulty: finalState.difficulty,
-        isPractice: finalState.isPractice,
-      ),
+      onReviewBoard: () {},
+      onPlayAgain: _startNewGame,
       onExit: () => Navigator.of(context).pop(),
     );
   }
@@ -292,7 +324,10 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                 ),
                               ),
                             ),
-                            if (!PlatformDetector.isDesktopOrWeb &&
+                            if (s.isGameOver) ...[
+                              const SizedBox(height: 8),
+                              _buildReviewBar(s, p, l10n),
+                            ] else if (!PlatformDetector.isDesktopOrWeb &&
                                 settings.snakeControlMode ==
                                     SnakeControlMode.dpad) ...[
                               const SizedBox(height: 8),
@@ -431,22 +466,110 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
         children: [
           _buildCompactHud(s, p, l10n),
           const Divider(height: 24),
-          if (s.isPractice) ...[
-            OutlinedButton.icon(
-              onPressed: s.canPracticeUndo && !s.isGameOver
-                  ? _controller.practiceUndo
-                  : null,
-              icon: const Icon(Icons.undo_rounded),
-              label: Text(l10n.practiceUndo),
+          if (s.isGameOver) ...[
+            const Spacer(),
+            _buildReviewBar(s, p, l10n, isSidebar: true),
+          ] else ...[
+            if (s.isPractice) ...[
+              OutlinedButton.icon(
+                onPressed: s.canPracticeUndo && !s.isGameOver
+                    ? _controller.practiceUndo
+                    : null,
+                icon: const Icon(Icons.undo_rounded),
+                label: Text(l10n.practiceUndo),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Text(
+              l10n.snakeDesktopHint,
+              style: TextStyle(color: p.textSecondary, fontSize: 13),
             ),
-            const SizedBox(height: 12),
+            const Spacer(),
+            _buildVirtualDpad(p),
           ],
-          Text(
-            l10n.snakeDesktopHint,
-            style: TextStyle(color: p.textSecondary, fontSize: 13),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewBar(
+    SnakeGameState s,
+    ZetzyPalette p,
+    AppLocalizations l10n, {
+    bool isSidebar = false,
+  }) {
+    final summary = _finishedSummary;
+    final color = s.isWon ? p.success : p.danger;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                s.isWon
+                    ? Icons.emoji_events_rounded
+                    : Icons.warning_amber_rounded,
+                size: 18,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _reviewReasonText(s, l10n),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          _buildVirtualDpad(p),
+          SizedBox(height: isSidebar ? 12 : 8),
+          if (isSidebar) ...[
+            if (summary != null) ...[
+              OutlinedButton.icon(
+                onPressed: () => _showResultDialog(summary),
+                icon: const Icon(Icons.assessment_outlined, size: 18),
+                label: Text(l10n.viewResult),
+              ),
+              const SizedBox(height: 8),
+            ],
+            FilledButton.icon(
+              onPressed: _startNewGame,
+              icon: const Icon(Icons.replay_rounded, size: 18),
+              label: Text(l10n.playAgain),
+            ),
+          ] else
+            Row(
+              children: [
+                if (summary != null) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showResultDialog(summary),
+                      icon: const Icon(Icons.assessment_outlined, size: 18),
+                      label: Text(l10n.viewResult),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _startNewGame,
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: Text(l10n.playAgain),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -717,6 +840,43 @@ class _SnakeBoardPainter extends CustomPainter {
       canvas.drawCircle(eye2, cellW * 0.1, whitePaint);
       canvas.drawCircle(eye1 + Offset(dx * 1.2, dy * 1.2), cellW * 0.05, pupilPaint);
       canvas.drawCircle(eye2 + Offset(dx * 1.2, dy * 1.2), cellW * 0.05, pupilPaint);
+    }
+
+    // Post-game crash marker to highlight collision point during review.
+    final crash = state.crashPoint;
+    if (state.isGameOver && !state.isWon && crash != null) {
+      final crashRect = Rect.fromLTWH(
+        crash.x * cellW + 1,
+        crash.y * cellH + 1,
+        cellW - 2,
+        cellH - 2,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(crashRect, const Radius.circular(6)),
+        Paint()..color = palette.danger.withValues(alpha: 0.42),
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(crashRect, const Radius.circular(6)),
+        Paint()
+          ..color = palette.danger
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0,
+      );
+      final pad = cellW * 0.24;
+      final crossPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(crash.x * cellW + pad, crash.y * cellH + pad),
+        Offset((crash.x + 1) * cellW - pad, (crash.y + 1) * cellH - pad),
+        crossPaint,
+      );
+      canvas.drawLine(
+        Offset((crash.x + 1) * cellW - pad, crash.y * cellH + pad),
+        Offset(crash.x * cellW + pad, (crash.y + 1) * cellH - pad),
+        crossPaint,
+      );
     }
   }
 

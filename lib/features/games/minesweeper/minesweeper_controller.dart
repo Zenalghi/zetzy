@@ -60,6 +60,16 @@ class MinesweeperGameState {
 
   int get remainingMines => totalMines - flagsPlaced;
 
+  int get wrongFlagCount {
+    var count = 0;
+    for (final row in grid) {
+      for (final cell in row) {
+        if (!cell.isMine && cell.mark == MineCellMark.flag) count++;
+      }
+    }
+    return count;
+  }
+
   double get bbbvPerSec {
     if (elapsedMs <= 0 || bbbv <= 0) return 0;
     return bbbv / (elapsedMs / 1000.0);
@@ -498,8 +508,8 @@ class MinesweeperController extends ChangeNotifier {
 
   void _revealAllMines(
     List<List<MineCell>> grid, {
-    required int explodedRow,
-    required int explodedCol,
+    int? explodedRow,
+    int? explodedCol,
   }) {
     for (var r = 0; r < grid.length; r++) {
       for (var c = 0; c < grid[0].length; c++) {
@@ -523,6 +533,9 @@ class MinesweeperController extends ChangeNotifier {
         }
       }
     }
+    final revealedGrid = _cloneGrid(_state.grid);
+    _revealAllMines(revealedGrid);
+    _state = _state.copyWith(grid: revealedGrid);
     _endGame(won: true);
   }
 
