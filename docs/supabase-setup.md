@@ -21,7 +21,7 @@ Konfigurasi pembacaan kredensial ada di `lib/core/constants/supabase_schema.dart
 ## Langkah 2 — Jalankan SQL Schema & Policies
 
 1. Di sidebar kiri Supabase Dashboard, buka **SQL Editor** → klik **New query**.
-2. Copy-paste seluruh SQL berikut (isi ini juga tersedia di `lib/core/constants/supabase_schema.dart` dan dapat disalin dari dalam app lewat tab **Profile → View Supabase SQL Schema**):
+2. Copy-paste seluruh SQL berikut ke SQL Editor:
 
 ```sql
 -- Run in Supabase SQL Editor (Zetzy Schema + Anti-Cheat + Recovery RPC)
@@ -171,7 +171,7 @@ Zetzy memakai sistem akun **username-only tanpa verifikasi email** (secara inter
 
 1. Buka **Project Settings** (ikon roda gigi di kiri bawah) → **API** (atau **Data API** / **API Keys**).
 2. Salin dua nilai ini:
-   - **Project URL**: contoh `https://abcdefghijklmno.supabase.co`
+   - **Project URL**: contoh `https://abcdefghijklmno.supabase.co` *(hanya root URL project, JANGAN tambahkan `/rest/v1/` di belakangnya)*
    - **Anon / Publishable Key**: pilih key publik (`anon public` atau `sb_publishable_...`).
      > ⚠️ **JANGAN PERNAH** memakai `service_role` / `secret` key di aplikasi client!
 
@@ -251,6 +251,8 @@ Jika menjalankan lewat tombol Run/Debug di `.vscode/launch.json`, tambahkan `too
       "name": "Zetzy (Supabase)",
       "request": "launch",
       "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}",
       "toolArgs": [
         "--dart-define-from-file=supabase.json"
       ]
@@ -258,6 +260,8 @@ Jika menjalankan lewat tombol Run/Debug di `.vscode/launch.json`, tambahkan `too
   ]
 }
 ```
+
+> Untuk development di Desktop (Windows/macOS/Linux) dalam mode Debug/Profile, aplikasi juga otomatis membaca file `supabase.json` di root project apabila flag `--dart-define` belum diteruskan oleh IDE.
 
 ---
 

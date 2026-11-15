@@ -53,6 +53,10 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Zetzy needs access to your photo library so you can select a profile photo.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Zetzy needs access to your camera so you can take a profile photo.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -1,5 +1,5 @@
 import 'package:bishop/bishop.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -35,6 +35,7 @@ class ChessScreen extends ConsumerStatefulWidget {
 
 class _ChessScreenState extends ConsumerState<ChessScreen> {
   late final ChessController _controller;
+  late final AutoSaveSlotsNotifier _autoSaveSlots;
   bool _inLobby = true;
 
   ChessPlayMode _selectedMode = ChessPlayMode.vsAi;
@@ -45,6 +46,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
   @override
   void initState() {
     super.initState();
+    _autoSaveSlots = ref.read(autoSaveSlotsProvider.notifier);
     final settings = ref.read(settingsProvider);
     _controller = ChessController(
       audio: ref.read(audioServiceProvider),
@@ -52,10 +54,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       supabase: ref.read(supabaseServiceProvider),
       autoQueen: settings.chessAutoQueen,
       onFinished: _handleGameFinished,
-      onAutoSave: (slot) {
-        if (!mounted) return;
-        ref.read(autoSaveSlotsProvider.notifier).saveSlot(slot);
-      },
+      onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
     );
 
     if (widget.resumeSlot != null) {
@@ -144,9 +143,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     if (!_inLobby &&
         !_controller.state.isGameOver &&
         _controller.state.mode != ChessPlayMode.online) {
-      ref
-          .read(autoSaveSlotsProvider.notifier)
-          .saveSlot(_controller.exportSlot());
+      _autoSaveSlots.saveSlot(_controller.exportSlot());
     }
     _roomCodeCtrl.dispose();
     _controller.dispose();

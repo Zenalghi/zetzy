@@ -8,22 +8,38 @@ import 'package:zetzy/core/constants/supabase_schema.dart';
 import 'package:zetzy/core/utils/avatar_compressor.dart';
 import 'package:zetzy/data/models/game_record.dart';
 import 'package:zetzy/data/models/user_profile.dart';
+import 'package:zetzy/data/remote/supabase_config_loader_stub.dart'
+    if (dart.library.io) 'package:zetzy/data/remote/supabase_config_loader_io.dart';
 
 /// Wraps Supabase Auth, PostgREST, Storage, RPCs, and Realtime Chess channels.
 /// Falls back cleanly when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are unset.
 class SupabaseService {
   bool _initialized = false;
 
-  bool get isAvailable => _initialized && SupabaseConfig.isConfigured;
+  bool get isAvailable => _initialized;
 
   SupabaseClient? get _client => isAvailable ? Supabase.instance.client : null;
 
   Future<void> initialize() async {
-    if (!SupabaseConfig.isConfigured || _initialized) return;
+    if (_initialized) return;
+
+    var url = SupabaseConfig.normalizeUrl(SupabaseConfig.url);
+    var anonKey = SupabaseConfig.anonKey.trim();
+
+    if (url.isEmpty || anonKey.isEmpty) {
+      final devConfig = loadDevSupabaseConfig();
+      if (devConfig != null) {
+        url = devConfig.url;
+        anonKey = devConfig.anonKey;
+      }
+    }
+
+    if (url.isEmpty || anonKey.isEmpty) return;
+
     try {
       await Supabase.initialize(
-        url: SupabaseConfig.url,
-        publishableKey: SupabaseConfig.anonKey,
+        url: url,
+        publishableKey: anonKey,
       );
       _initialized = true;
     } catch (e) {
@@ -58,6 +74,12 @@ class SupabaseService {
     final user = res.user;
     if (user == null) {
       throw StateError('Registration did not return a user.');
+    }
+    if (res.session == null) {
+      throw StateError(
+        'Registration succeeded, but no active session was created. '
+        'Ensure "Confirm email" is disabled in Supabase Auth settings.',
+      );
     }
 
     final recoveryHash = (recoveryPhrase != null && recoveryPhrase.isNotEmpty)
@@ -171,7 +193,10 @@ class SupabaseService {
   Future<String> uploadAvatar(Uint8List rawBytes) async {
     final client = _requireClient();
     final uid = client.auth.currentUser!.id;
-    final compressed = AvatarCompressor.compressTo256Png(rawBytes);
+    final compressed = await compute(
+      AvatarCompressor.compressTo256Png,
+      rawBytes,
+    );
     if (compressed == null) {
       throw ArgumentError('Unsupported image format.');
     }

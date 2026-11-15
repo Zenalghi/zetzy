@@ -257,7 +257,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chessOnlineRequiresAuth =>
-      'Configure Supabase & sign in for Online Multiplayer.';
+      'Sign in to your account to play Online Multiplayer.';
 
   @override
   String get mineRemaining => 'Mines';
@@ -376,10 +376,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileSignOut => 'Sign Out';
 
   @override
-  String get profileUsername => 'Username (a-z, 0-9, _)';
+  String get profileUsername => 'Username';
 
   @override
-  String get profilePassword => 'Password (min 8, letters + numbers)';
+  String get profilePassword => 'Password';
 
   @override
   String get profileConfirmPassword => 'Confirm Password';
@@ -411,6 +411,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileUploadAvatar => 'Upload Avatar';
+
+  @override
+  String get profileAvatarUpdated => 'Profile photo updated!';
+
+  @override
+  String get profileAvatarSignInRequired =>
+      'Sign in or create an account to upload a profile photo.';
+
+  @override
+  String get profileAvatarSourceGallery => 'Choose from Gallery / Photos';
+
+  @override
+  String get profileAvatarSourceCamera => 'Take Photo with Camera';
 
   @override
   String get profileResetStats => 'Reset All Statistics';
@@ -470,14 +483,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsCloudStatus => 'Cloud & Sync';
 
   @override
-  String get settingsSupabaseConfigured => 'Supabase Connected';
+  String get settingsSupabaseConfigured => 'Cloud Sync Connected';
 
   @override
   String get settingsSupabaseLocalOnly =>
-      'Offline-First Local Mode (Supabase URL not set)';
-
-  @override
-  String get settingsViewSql => 'View Supabase SQL Schema';
+      'Offline Mode (Cloud sync unavailable)';
 
   @override
   String get themeOledMidnight => 'OLED Midnight';
@@ -505,6 +515,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copied => 'Copied to clipboard';
+
+  @override
+  String get requiredHint => '* Required';
+
+  @override
+  String get optionalLabel => 'Optional';
 
   @override
   String get invalidUsername =>

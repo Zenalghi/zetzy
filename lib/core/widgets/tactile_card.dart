@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 
 /// Tactile Modern Minimalist card combining flat cleanliness with subtle depth.

@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
@@ -30,19 +30,18 @@ class SudokuScreen extends ConsumerStatefulWidget {
 
 class _SudokuScreenState extends ConsumerState<SudokuScreen> {
   late final SudokuController _controller;
+  late final AutoSaveSlotsNotifier _autoSaveSlots;
   final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    _autoSaveSlots = ref.read(autoSaveSlotsProvider.notifier);
     _controller = SudokuController(
       audio: ref.read(audioServiceProvider),
       haptics: ref.read(hapticServiceProvider),
       onFinished: _handleGameFinished,
-      onAutoSave: (slot) {
-        if (!mounted) return;
-        ref.read(autoSaveSlotsProvider.notifier).saveSlot(slot);
-      },
+      onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
     );
 
     if (widget.resumeSlot != null) {
@@ -142,9 +141,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
   @override
   void dispose() {
     if (!_controller.state.isLoading && !_controller.state.isGameOver) {
-      ref
-          .read(autoSaveSlotsProvider.notifier)
-          .saveSlot(_controller.exportSlot());
+      _autoSaveSlots.saveSlot(_controller.exportSlot());
     }
     _focusNode.dispose();
     _controller.dispose();
@@ -213,9 +210,9 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                           child: Row(
                             children: [
                               Expanded(child: Center(child: _buildGrid(s, p))),
-                              const SizedBox(width: 20),
+                              const SizedBox(width: 24),
                               SizedBox(
-                                width: 320,
+                                width: 360,
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -326,10 +323,10 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     final selBox = sel != null ? (selRow ~/ 3) * 3 + (selCol ~/ 3) : -1;
     final highlightDigit = s.highlightedDigit;
 
-    return AspectRatio(
-      aspectRatio: 1,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480, maxHeight: 480),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
+      child: AspectRatio(
+        aspectRatio: 1,
         child: Container(
           decoration: BoxDecoration(
             color: p.surface,
@@ -338,10 +335,12 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var r = 0; r < 9; r++)
                 Expanded(
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (var c = 0; c < 9; c++)
                         _buildCell(
@@ -399,19 +398,33 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => _controller.selectCell(idx),
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          _controller.selectCell(idx);
+          _focusNode.requestFocus();
+        },
         child: Container(
+          width: double.infinity,
+          height: double.infinity,
           decoration: BoxDecoration(
             color: bg,
             border: Border(
-              right: BorderSide(
-                color: rightThick ? p.accent.withValues(alpha: 0.5) : p.border,
-                width: rightThick ? 2 : 0.6,
-              ),
-              bottom: BorderSide(
-                color: bottomThick ? p.accent.withValues(alpha: 0.5) : p.border,
-                width: bottomThick ? 2 : 0.6,
-              ),
+              right: col == 8
+                  ? BorderSide.none
+                  : BorderSide(
+                      color: rightThick
+                          ? p.accent.withValues(alpha: 0.5)
+                          : p.border,
+                      width: rightThick ? 2 : 0.6,
+                    ),
+              bottom: row == 8
+                  ? BorderSide.none
+                  : BorderSide(
+                      color: bottomThick
+                          ? p.accent.withValues(alpha: 0.5)
+                          : p.border,
+                      width: bottomThick ? 2 : 0.6,
+                    ),
             ),
           ),
           child: val != 0
@@ -437,24 +450,40 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
   }
 
   Widget _buildNotesGrid(Set<int> cellNotes, ZetzyPalette p) {
-    if (cellNotes.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: GridView.count(
-        crossAxisCount: 3,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          for (var d = 1; d <= 9; d++)
-            Center(
-              child: Text(
-                cellNotes.contains(d) ? '$d' : '',
-                style: ZetzyThemes.monoStyle(
-                  fontSize: 8.5,
-                  color: p.textSecondary,
+    if (cellNotes.isEmpty) return const SizedBox.expand();
+    return SizedBox.expand(
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var r = 0; r < 3; r++)
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var c = 0; c < 3; c++)
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              cellNotes.contains(r * 3 + c + 1)
+                                  ? '${r * 3 + c + 1}'
+                                  : '',
+                              style: ZetzyThemes.monoStyle(
+                                fontSize: 9,
+                                color: p.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -465,30 +494,49 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     AppLocalizations l10n,
   ) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _ActionIcon(
-          icon: Icons.undo_rounded,
-          label: l10n.sudokuUndoNotes,
-          enabled: s.canUndoNote,
-          onTap: _controller.undoNotes,
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: _ActionIcon(
+              icon: Icons.undo_rounded,
+              label: l10n.sudokuUndoNotes,
+              enabled: s.canUndoNote,
+              onTap: _controller.undoNotes,
+            ),
+          ),
         ),
-        _ActionIcon(
-          icon: Icons.backspace_outlined,
-          label: l10n.sudokuErase,
-          onTap: _controller.eraseSelected,
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: _ActionIcon(
+              icon: Icons.backspace_outlined,
+              label: l10n.sudokuErase,
+              onTap: _controller.eraseSelected,
+            ),
+          ),
         ),
-        _ActionIcon(
-          icon: Icons.edit_note_rounded,
-          label: l10n.sudokuNotes,
-          active: s.notesMode,
-          onTap: _controller.toggleNotesMode,
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: _ActionIcon(
+              icon: Icons.edit_note_rounded,
+              label: l10n.sudokuNotes,
+              active: s.notesMode,
+              onTap: _controller.toggleNotesMode,
+            ),
+          ),
         ),
-        _ActionIcon(
-          icon: Icons.lightbulb_outline_rounded,
-          label: '${l10n.sudokuHint} (${s.hintsLeft})',
-          enabled: s.hintsLeft > 0,
-          onTap: _controller.useHint,
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: _ActionIcon(
+              icon: Icons.lightbulb_outline_rounded,
+              label: '${l10n.sudokuHint} (${s.hintsLeft})',
+              enabled: s.hintsLeft > 0,
+              onTap: _controller.useHint,
+            ),
+          ),
         ),
       ],
     );
@@ -506,8 +554,14 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                 isLocked: s.lockedDigit == d,
                 isCompleted: s.countDigit(d) >= 9,
                 palette: p,
-                onTap: () => _controller.onDigitTap(d),
-                onLongPress: () => _controller.toggleDigitLock(d),
+                onTap: () {
+                  _controller.onDigitTap(d);
+                  _focusNode.requestFocus();
+                },
+                onLongPress: () {
+                  _controller.toggleDigitLock(d);
+                  _focusNode.requestFocus();
+                },
               ),
             ),
           ),
@@ -553,7 +607,14 @@ class _ActionIcon extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, color: color)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(fontSize: 10, color: color),
+              ),
+            ),
           ],
         ),
       ),
@@ -581,6 +642,7 @@ class _DigitKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onLongPress: onLongPress,
       child: AnimatedOpacity(

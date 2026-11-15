@@ -1,9 +1,14 @@
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
+import 'package:zetzy/core/constants/supabase_schema.dart';
 import 'package:zetzy/core/services/audio_service.dart';
+import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/services/haptic_service.dart';
+import 'package:zetzy/core/utils/avatar_compressor.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/zetzy_database.dart' hide AutoSaveSlot;
@@ -40,6 +45,21 @@ void main() {
       expect(TimeFormatter.formatMs(0), equals('00:00.00'));
       expect(TimeFormatter.formatMs(134850), equals('02:14.85'));
       expect(TimeFormatter.formatClock(60000), equals('01:00'));
+    });
+
+    test('SupabaseConfig.normalizeUrl strips trailing slashes and API suffixes', () {
+      expect(
+        SupabaseConfig.normalizeUrl(' https://abc.supabase.co/rest/v1/ '),
+        equals('https://abc.supabase.co'),
+      );
+      expect(
+        SupabaseConfig.normalizeUrl('https://abc.supabase.co/auth/v1'),
+        equals('https://abc.supabase.co'),
+      );
+      expect(
+        SupabaseConfig.normalizeUrl('https://abc.supabase.co/'),
+        equals('https://abc.supabase.co'),
+      );
     });
   });
 
@@ -150,6 +170,47 @@ void main() {
       expect(ctrl.state.values[emptyIdx], equals(ctrl.state.solution[emptyIdx]));
       ctrl.dispose();
     });
+
+    test('SudokuController locks correctly answered cells in levels 1-4', () async {
+      final audio = AudioService();
+      final haptics = HapticService()..enabled = false;
+      final ctrl = SudokuController(
+        audio: audio,
+        haptics: haptics,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.easy,
+        isPractice: false,
+      );
+
+      final emptyIdx = ctrl.state.givens.indexOf(0);
+      final correctDigit = ctrl.state.solution[emptyIdx];
+      final wrongDigit = correctDigit == 9 ? 1 : correctDigit + 1;
+      final initialLives = ctrl.state.livesLeft;
+
+      ctrl.selectCell(emptyIdx);
+      ctrl.onDigitTap(correctDigit);
+      expect(ctrl.state.values[emptyIdx], equals(correctDigit));
+      expect(ctrl.state.livesLeft, equals(initialLives));
+
+      // Attempt to overwrite via digit tap, locked digit tap, and erase
+      ctrl.onDigitTap(wrongDigit);
+      expect(ctrl.state.values[emptyIdx], equals(correctDigit));
+      expect(ctrl.state.livesLeft, equals(initialLives));
+      expect(ctrl.state.mistakes, equals(0));
+
+      ctrl.toggleDigitLock(wrongDigit);
+      ctrl.selectCell(emptyIdx);
+      expect(ctrl.state.values[emptyIdx], equals(correctDigit));
+      expect(ctrl.state.livesLeft, equals(initialLives));
+
+      ctrl.eraseSelected();
+      expect(ctrl.state.values[emptyIdx], equals(correctDigit));
+      ctrl.dispose();
+    });
   });
 
   group('Minesweeper Engine & Controller', () {
@@ -228,6 +289,44 @@ void main() {
         score: 1.0,
       );
       expect(nextElo, greaterThan(1000));
+    });
+  });
+
+  group('Cross-Platform Avatar Compressor & Picker', () {
+    test('AvatarCompressor crops and resizes images to 256x256 PNG', () {
+      final raw = img.Image(width: 640, height: 480);
+      img.fill(raw, color: img.ColorRgb8(40, 180, 120));
+      final encoded = Uint8List.fromList(img.encodeJpg(raw));
+
+      final compressed = AvatarCompressor.compressTo256Png(encoded);
+      expect(compressed, isNotNull);
+
+      final decoded = img.decodePng(compressed!);
+      expect(decoded, isNotNull);
+      expect(decoded!.width, equals(256));
+      expect(decoded.height, equals(256));
+
+      expect(
+        AvatarCompressor.compressTo256Png(Uint8List.fromList([1, 2, 3])),
+        isNull,
+      );
+    });
+
+    test('AvatarPickerService limits camera prompt to Android and iOS', () {
+      final picker = AvatarPickerService();
+      for (final desktop in [
+        TargetPlatform.windows,
+        TargetPlatform.macOS,
+        TargetPlatform.linux,
+      ]) {
+        debugDefaultTargetPlatformOverride = desktop;
+        expect(picker.supportsCameraChoice, isFalse);
+      }
+      for (final mobile in [TargetPlatform.android, TargetPlatform.iOS]) {
+        debugDefaultTargetPlatformOverride = mobile;
+        expect(picker.supportsCameraChoice, isTrue);
+      }
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 }

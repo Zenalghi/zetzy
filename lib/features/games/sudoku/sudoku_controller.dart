@@ -56,6 +56,12 @@ class SudokuGameState {
   bool get unlimitedLives => isPractice || maxLives == 0;
   bool get checksAnswerKeyImmediately => difficulty.level <= 4;
 
+  /// Cells that are given clues, or already answered correctly in levels 1–4,
+  /// cannot be overwritten or erased.
+  bool isCellLocked(int index) =>
+      givens[index] != 0 ||
+      (checksAnswerKeyImmediately && values[index] == solution[index]);
+
   int? get highlightedDigit {
     if (lockedDigit != null) return lockedDigit;
     if (selectedCell != null && values[selectedCell!] != 0) {
@@ -321,7 +327,7 @@ class SudokuController extends ChangeNotifier {
   }
 
   void _applyDigitToCell(int index, int digit) {
-    if (_state.givens[index] != 0) return;
+    if (_state.isCellLocked(index)) return;
 
     if (_state.notesMode) {
       if (_state.values[index] != 0) return;
@@ -405,7 +411,7 @@ class SudokuController extends ChangeNotifier {
   void eraseSelected() {
     final idx = _state.selectedCell;
     if (idx == null || _state.isPaused || _state.isGameOver) return;
-    if (_state.givens[idx] != 0) return;
+    if (_state.isCellLocked(idx)) return;
 
     final nextValues = List<int>.from(_state.values);
     final nextErrors = Set<int>.from(_state.errorCells);

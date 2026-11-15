@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
@@ -33,6 +33,7 @@ class SnakeScreen extends ConsumerStatefulWidget {
 
 class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   late final SnakeController _controller;
+  late final AutoSaveSlotsNotifier _autoSaveSlots;
   final FocusNode _focusNode = FocusNode();
 
   ui.Image? _appleImg;
@@ -44,14 +45,12 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   @override
   void initState() {
     super.initState();
+    _autoSaveSlots = ref.read(autoSaveSlotsProvider.notifier);
     _controller = SnakeController(
       audio: ref.read(audioServiceProvider),
       haptics: ref.read(hapticServiceProvider),
       onFinished: _handleGameFinished,
-      onAutoSave: (slot) {
-        if (!mounted) return;
-        ref.read(autoSaveSlotsProvider.notifier).saveSlot(slot);
-      },
+      onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
     );
 
     if (widget.resumeSlot != null) {
@@ -161,7 +160,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   @override
   void dispose() {
     if (!_controller.state.isGameOver) {
-      ref.read(autoSaveSlotsProvider.notifier).saveSlot(_controller.exportSlot());
+      _autoSaveSlots.saveSlot(_controller.exportSlot());
     }
     _focusNode.dispose();
     _controller.dispose();

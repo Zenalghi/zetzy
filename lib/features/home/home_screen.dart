@@ -1,15 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
+import 'package:zetzy/core/routing/app_router.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/difficulty_selector_sheet.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
-import 'package:zetzy/features/games/chess/chess_screen.dart';
-import 'package:zetzy/features/games/minesweeper/minesweeper_screen.dart';
-import 'package:zetzy/features/games/snake/snake_screen.dart';
-import 'package:zetzy/features/games/sudoku/sudoku_screen.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -56,30 +53,14 @@ class HomeScreen extends ConsumerWidget {
     bool isPractice = false,
     AutoSaveSlot? resumeSlot,
   }) {
-    final Widget screen = switch (gameType) {
-      GameType.sudoku => SudokuScreen(
+    return Navigator.of(context).pushNamed(
+      AppRouter.routeForGame(gameType),
+      arguments: GameRouteArgs(
         difficulty: difficulty,
         isPractice: isPractice,
         resumeSlot: resumeSlot,
       ),
-      GameType.chess => ChessScreen(
-        difficulty: difficulty,
-        isPractice: isPractice,
-        resumeSlot: resumeSlot,
-      ),
-      GameType.minesweeper => MinesweeperScreen(
-        difficulty: difficulty,
-        isPractice: isPractice,
-        resumeSlot: resumeSlot,
-      ),
-      GameType.snake => SnakeScreen(
-        difficulty: difficulty,
-        isPractice: isPractice,
-        resumeSlot: resumeSlot,
-      ),
-    };
-
-    return Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    );
   }
 
   @override

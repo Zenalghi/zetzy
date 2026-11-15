@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/audio_service.dart';
+import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/services/haptic_service.dart';
 import 'package:zetzy/core/services/wakelock_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
@@ -32,6 +33,9 @@ final supabaseServiceProvider = Provider<SupabaseService>(
 );
 
 final audioServiceProvider = Provider<AudioService>((ref) => AudioService());
+final avatarPickerServiceProvider = Provider<AvatarPickerService>(
+  (ref) => AvatarPickerService(),
+);
 final hapticServiceProvider = Provider<HapticService>((ref) => HapticService());
 final wakelockServiceProvider = Provider<WakelockService>(
   (ref) => WakelockService(),
@@ -272,16 +276,19 @@ class AutoSaveSlotsNotifier extends Notifier<Map<GameType, AutoSaveSlot>> {
 
   Future<void> refresh() async {
     final slots = await ref.read(localStorageProvider).loadAllGameSlots();
+    if (!ref.mounted) return;
     state = slots;
   }
 
   Future<void> saveSlot(AutoSaveSlot slot) async {
     await ref.read(localStorageProvider).saveGameSlot(slot);
+    if (!ref.mounted) return;
     state = {...state, slot.gameType: slot};
   }
 
   Future<void> clearSlot(GameType gameType) async {
     await ref.read(localStorageProvider).clearGameSlot(gameType);
+    if (!ref.mounted) return;
     final next = Map<GameType, AutoSaveSlot>.from(state)..remove(gameType);
     state = next;
   }

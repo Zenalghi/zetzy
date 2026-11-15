@@ -1,13 +1,36 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'dart:typed_data';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
-import 'package:zetzy/core/constants/supabase_schema.dart';
+import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
+
+String _formatAuthError(Object error) {
+  if (error is AuthException) return error.message;
+  if (error is PostgrestException) return error.message;
+  if (error is StorageException) return error.message;
+  if (error is ArgumentError) return '${error.message}';
+  if (error is StateError) return error.message;
+  return error.toString();
+}
+
+InputDecoration _dialogInputDecoration({
+  required String label,
+  String? helperText,
+  Widget? suffixIcon,
+}) => InputDecoration(
+  labelText: label,
+  helperText: helperText,
+  helperMaxLines: 2,
+  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  suffixIcon: suffixIcon,
+);
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -17,360 +40,136 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  Future<void> _pickAndUploadAvatar(AppLocalizations l10n) async {
+  bool _uploadingAvatar = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_recoverLostAndroidAvatar);
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _recoverLostAndroidAvatar() async {
     try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(source: ImageSource.gallery);
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-      await ref.read(authProvider.notifier).uploadAvatar(bytes);
+      final bytes = await ref
+          .read(avatarPickerServiceProvider)
+          .retrieveLostAndroidBytes();
+      if (!mounted || bytes == null || ref.read(authProvider).isGuest) return;
+      await _uploadAvatarBytes(bytes);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      _showSnack(_formatAuthError(e));
+    }
+  }
+
+  Future<void> _handleAvatarTap(AppLocalizations l10n) async {
+    if (_uploadingAvatar) return;
+    if (ref.read(authProvider).isGuest) {
+      _showSnack(l10n.profileAvatarSignInRequired);
+      return;
+    }
+
+    final picker = ref.read(avatarPickerServiceProvider);
+    if (!picker.supportsCameraChoice) {
+      await _pickAndUploadFromSource(AvatarPickSource.gallery, l10n);
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(l10n.profileAvatarSourceGallery),
+              onTap: () {
+                Navigator.of(sheetCtx).pop();
+                _pickAndUploadFromSource(AvatarPickSource.gallery, l10n);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(l10n.profileAvatarSourceCamera),
+              onTap: () {
+                Navigator.of(sheetCtx).pop();
+                _pickAndUploadFromSource(AvatarPickSource.camera, l10n);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadFromSource(
+    AvatarPickSource source,
+    AppLocalizations l10n,
+  ) async {
+    try {
+      final bytes = await ref
+          .read(avatarPickerServiceProvider)
+          .pickImageBytes(source: source);
+      if (bytes == null || !mounted) return;
+      await _uploadAvatarBytes(bytes, successMessage: l10n.profileAvatarUpdated);
+    } catch (e) {
+      _showSnack(_formatAuthError(e));
+    }
+  }
+
+  Future<void> _uploadAvatarBytes(
+    Uint8List bytes, {
+    String? successMessage,
+  }) async {
+    setState(() => _uploadingAvatar = true);
+    try {
+      await ref.read(authProvider.notifier).uploadAvatar(bytes);
+      if (successMessage != null) {
+        _showSnack(successMessage);
+      }
+    } catch (e) {
+      _showSnack(_formatAuthError(e));
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
 
   void _showAuthSheet({required bool isRegister}) {
-    final userCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final recoveryCtrl = TextEditingController();
-    final l10n = AppLocalizations.of(context)!;
-    String? errorMsg;
-    var loading = false;
-
     showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(isRegister ? l10n.profileRegister : l10n.profileSignIn),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: userCtrl,
-                  decoration: InputDecoration(labelText: l10n.profileUsername),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: passCtrl,
-                  obscureText: true,
-                  decoration: InputDecoration(labelText: l10n.profilePassword),
-                ),
-                if (isRegister) ...[
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: recoveryCtrl,
-                    decoration: InputDecoration(
-                      labelText: '${l10n.profileRecoveryPhrase} (Optional)',
-                    ),
-                  ),
-                ],
-                if (errorMsg != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    errorMsg!,
-                    style: TextStyle(color: context.palette.danger, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            if (!isRegister)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showForgotPasswordDialog();
-                },
-                child: Text(l10n.profileForgotPassword),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: loading
-                  ? null
-                  : () async {
-                      final u = userCtrl.text.trim();
-                      final pw = passCtrl.text;
-                      if (!ValidationRules.isValidUsername(u)) {
-                        setDialogState(() => errorMsg = l10n.invalidUsername);
-                        return;
-                      }
-                      if (!ValidationRules.isValidPassword(pw)) {
-                        setDialogState(() => errorMsg = l10n.invalidPassword);
-                        return;
-                      }
-                      setDialogState(() {
-                        loading = true;
-                        errorMsg = null;
-                      });
-                      try {
-                        if (isRegister) {
-                          await ref.read(authProvider.notifier).register(
-                                username: u,
-                                password: pw,
-                                recoveryPhrase: recoveryCtrl.text.trim(),
-                              );
-                        } else {
-                          await ref.read(authProvider.notifier).signIn(u, pw);
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                      } catch (e) {
-                        setDialogState(() {
-                          loading = false;
-                          errorMsg = e.toString();
-                        });
-                      }
-                    },
-              child: loading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(isRegister ? l10n.profileRegister : l10n.profileSignIn),
-            ),
-          ],
-        ),
+      builder: (_) => _AuthDialog(
+        isRegister: isRegister,
+        onOpenForgotPassword: _showForgotPasswordDialog,
       ),
     );
   }
 
   void _showForgotPasswordDialog() {
-    final userCtrl = TextEditingController();
-    final phraseCtrl = TextEditingController();
-    final newPassCtrl = TextEditingController();
-    final l10n = AppLocalizations.of(context)!;
-    String? msg;
-
     showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(l10n.profileForgotPassword),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: userCtrl,
-                decoration: InputDecoration(labelText: l10n.profileUsername),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: phraseCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.profileRecoveryPhrase,
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: newPassCtrl,
-                obscureText: true,
-                decoration: InputDecoration(labelText: l10n.profileNewPassword),
-              ),
-              if (msg != null) ...[
-                const SizedBox(height: 8),
-                Text(msg!, style: const TextStyle(fontSize: 12)),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (!ValidationRules.isValidPassword(newPassCtrl.text)) {
-                  setDialogState(() => msg = l10n.invalidPassword);
-                  return;
-                }
-                try {
-                  final ok = await ref
-                      .read(supabaseServiceProvider)
-                      .resetPasswordWithRecovery(
-                        username: userCtrl.text.trim(),
-                        recoveryPhrase: phraseCtrl.text.trim(),
-                        newPassword: newPassCtrl.text,
-                      );
-                  if (ok && ctx.mounted) {
-                    Navigator.pop(ctx);
-                  } else {
-                    setDialogState(() => msg = 'Invalid username or phrase');
-                  }
-                } catch (e) {
-                  setDialogState(() => msg = '$e');
-                }
-              },
-              child: Text(l10n.confirm),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _ForgotPasswordDialog(),
     );
   }
 
   void _showChangeUsernameDialog() {
-    final ctrl = TextEditingController(text: ref.read(authProvider).username);
-    final l10n = AppLocalizations.of(context)!;
-    String? err;
-
     showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(l10n.profileChangeUsername),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: ctrl,
-                decoration: InputDecoration(labelText: l10n.profileUsername),
-              ),
-              if (err != null) ...[
-                const SizedBox(height: 8),
-                Text(err!, style: TextStyle(color: context.palette.danger, fontSize: 12)),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final v = ctrl.text.trim();
-                if (!ValidationRules.isValidUsername(v)) {
-                  setDialogState(() => err = l10n.invalidUsername);
-                  return;
-                }
-                try {
-                  await ref.read(authProvider.notifier).updateUsername(v);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } catch (e) {
-                  setDialogState(() => err = '$e');
-                }
-              },
-              child: Text(l10n.save),
-            ),
-          ],
-        ),
+      builder: (_) => _ChangeUsernameDialog(
+        initialUsername: ref.read(authProvider).username,
       ),
     );
   }
 
   void _showChangePasswordDialog() {
-    final oldCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-    final l10n = AppLocalizations.of(context)!;
-    String? err;
-
     showDialog<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(l10n.profileChangePassword),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: oldCtrl,
-                obscureText: true,
-                decoration: InputDecoration(labelText: l10n.profileOldPassword),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: newCtrl,
-                obscureText: true,
-                decoration: InputDecoration(labelText: l10n.profileNewPassword),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: confirmCtrl,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: l10n.profileConfirmPassword,
-                ),
-              ),
-              if (err != null) ...[
-                const SizedBox(height: 8),
-                Text(err!, style: TextStyle(color: context.palette.danger, fontSize: 12)),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (newCtrl.text != confirmCtrl.text) {
-                  setDialogState(() => err = 'Passwords do not match');
-                  return;
-                }
-                if (!ValidationRules.isValidPassword(newCtrl.text)) {
-                  setDialogState(() => err = l10n.invalidPassword);
-                  return;
-                }
-                try {
-                  await ref.read(authProvider.notifier).changePassword(
-                        oldPassword: oldCtrl.text,
-                        newPassword: newCtrl.text,
-                      );
-                  if (ctx.mounted) Navigator.pop(ctx);
-                } catch (e) {
-                  setDialogState(() => err = '$e');
-                }
-              },
-              child: Text(l10n.save),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showSqlSchemaDialog(AppLocalizations l10n) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.settingsViewSql),
-        content: SizedBox(
-          width: 560,
-          height: 360,
-          child: SingleChildScrollView(
-            child: SelectableText(
-              SupabaseConfig.sqlSetupGuide,
-              style: ZetzyThemes.monoStyle(fontSize: 11),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(
-                const ClipboardData(text: SupabaseConfig.sqlSetupGuide),
-              );
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(l10n.copied)));
-            },
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Copy SQL'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.close),
-          ),
-        ],
-      ),
+      builder: (_) => const _ChangePasswordDialog(),
     );
   }
 
@@ -393,9 +192,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               Text(
                 l10n.navProfile,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 14),
               // Account Card
@@ -405,21 +203,72 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: p.surfaceElevated,
-                          backgroundImage: user.avatarUrl != null
-                              ? NetworkImage(user.avatarUrl!)
-                              : null,
-                          child: user.avatarUrl == null
-                              ? Text(
-                                  user.username.substring(0, 1).toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
+                        InkWell(
+                          borderRadius: BorderRadius.circular(32),
+                          onTap: _uploadingAvatar
+                              ? null
+                              : () => _handleAvatarTap(l10n),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CircleAvatar(
+                                radius: 28,
+                                backgroundColor: p.surfaceElevated,
+                                backgroundImage: user.avatarUrl != null
+                                    ? NetworkImage(user.avatarUrl!)
+                                    : null,
+                                onBackgroundImageError: user.avatarUrl != null
+                                    ? (_, _) {}
+                                    : null,
+                                child: user.avatarUrl == null
+                                    ? Text(
+                                        user.username
+                                            .substring(0, 1)
+                                            .toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              if (_uploadingAvatar)
+                                Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
                                   ),
                                 )
-                              : null,
+                              else if (!user.isGuest)
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: p.accent,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: p.surface,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.camera_alt_rounded,
+                                      size: 11,
+                                      color: p.surface,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -446,13 +295,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         if (!user.isGuest)
                           IconButton(
                             tooltip: l10n.profileUploadAvatar,
-                            onPressed: () => _pickAndUploadAvatar(l10n),
-                            icon: const Icon(Icons.camera_alt_outlined),
+                            onPressed: _uploadingAvatar
+                                ? null
+                                : () => _handleAvatarTap(l10n),
+                            icon: _uploadingAvatar
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.camera_alt_outlined),
                           ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    if (user.isGuest)
+                    if (user.isGuest) ...[
                       Row(
                         children: [
                           Expanded(
@@ -473,8 +332,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ),
                         ],
-                      )
-                    else
+                      ),
+                      if (!supa.isAvailable) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          l10n.settingsSupabaseLocalOnly,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: p.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ] else
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -502,7 +371,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         title: Text(l10n.profileRecoveryToggle),
                         subtitle: Text(
                           l10n.profileRecoveryDesc,
-                          style: TextStyle(fontSize: 12, color: p.textSecondary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: p.textSecondary,
+                          ),
                         ),
                         onChanged: (enabled) async {
                           if (!enabled) {
@@ -583,7 +455,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               settingsCtrl.setLocale(s.first),
                           segments: const [
                             ButtonSegment(value: 'en', label: Text('English')),
-                            ButtonSegment(value: 'id', label: Text('Indonesia')),
+                            ButtonSegment(
+                              value: 'id',
+                              label: Text('Indonesia'),
+                            ),
                           ],
                         ),
                       ],
@@ -712,12 +587,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => _showSqlSchemaDialog(l10n),
-                      icon: const Icon(Icons.storage_rounded, size: 18),
-                      label: Text(l10n.settingsViewSql),
-                    ),
                     const Divider(height: 24),
                     Text(
                       l10n.profileDangerZone,
@@ -754,6 +623,567 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DialogErrorBanner extends StatelessWidget {
+  const _DialogErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final danger = context.palette.danger;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: danger.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: danger.withValues(alpha: 0.4)),
+      ),
+      child: Text(message, style: TextStyle(color: danger, fontSize: 12.5)),
+    );
+  }
+}
+
+class _AuthDialog extends ConsumerStatefulWidget {
+  const _AuthDialog({
+    required this.isRegister,
+    required this.onOpenForgotPassword,
+  });
+
+  final bool isRegister;
+  final VoidCallback onOpenForgotPassword;
+
+  @override
+  ConsumerState<_AuthDialog> createState() => _AuthDialogState();
+}
+
+class _AuthDialogState extends ConsumerState<_AuthDialog> {
+  final _userCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _recoveryCtrl = TextEditingController();
+
+  String? _errorMsg;
+  bool _loading = false;
+  bool _obscurePass = true;
+
+  @override
+  void dispose() {
+    _userCtrl.dispose();
+    _passCtrl.dispose();
+    _recoveryCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(AppLocalizations l10n) async {
+    final u = _userCtrl.text.trim();
+    final pw = _passCtrl.text;
+
+    if (!ValidationRules.isValidUsername(u)) {
+      setState(() => _errorMsg = l10n.invalidUsername);
+      return;
+    }
+    if (!ValidationRules.isValidPassword(pw)) {
+      setState(() => _errorMsg = l10n.invalidPassword);
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _errorMsg = null;
+    });
+
+    try {
+      if (widget.isRegister) {
+        await ref
+            .read(authProvider.notifier)
+            .register(
+              username: u,
+              password: pw,
+              recoveryPhrase: _recoveryCtrl.text.trim(),
+            );
+      } else {
+        await ref.read(authProvider.notifier).signIn(u, pw);
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMsg = _formatAuthError(e);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final p = context.palette;
+
+    return PopScope(
+      canPop: !_loading,
+      child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        title: Text(
+          widget.isRegister ? l10n.profileRegister : l10n.profileSignIn,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.requiredHint,
+                  style: TextStyle(fontSize: 12, color: p.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _userCtrl,
+                  enabled: !_loading,
+                  textInputAction: TextInputAction.next,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileUsername} *',
+                    helperText: l10n.invalidUsername,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _passCtrl,
+                  enabled: !_loading,
+                  obscureText: _obscurePass,
+                  textInputAction: widget.isRegister
+                      ? TextInputAction.next
+                      : TextInputAction.done,
+                  onSubmitted: widget.isRegister ? null : (_) => _submit(l10n),
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profilePassword} *',
+                    helperText: l10n.invalidPassword,
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => _obscurePass = !_obscurePass),
+                      icon: Icon(
+                        _obscurePass
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                ),
+                if (widget.isRegister) ...[
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _recoveryCtrl,
+                    enabled: !_loading,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(l10n),
+                    decoration: _dialogInputDecoration(
+                      label:
+                          '${l10n.profileRecoveryPhrase} (${l10n.optionalLabel})',
+                      helperText: l10n.profileRecoveryDesc,
+                    ),
+                  ),
+                ],
+                if (_errorMsg != null) ...[
+                  const SizedBox(height: 14),
+                  _DialogErrorBanner(message: _errorMsg!),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          if (!widget.isRegister)
+            TextButton(
+              onPressed: _loading
+                  ? null
+                  : () {
+                      Navigator.of(context).pop();
+                      widget.onOpenForgotPassword();
+                    },
+              child: Text(l10n.profileForgotPassword),
+            ),
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: _loading ? null : () => _submit(l10n),
+            child: _loading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    widget.isRegister
+                        ? l10n.profileRegister
+                        : l10n.profileSignIn,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ForgotPasswordDialog extends ConsumerStatefulWidget {
+  const _ForgotPasswordDialog();
+
+  @override
+  ConsumerState<_ForgotPasswordDialog> createState() =>
+      _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends ConsumerState<_ForgotPasswordDialog> {
+  final _userCtrl = TextEditingController();
+  final _phraseCtrl = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+
+  String? _msg;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _userCtrl.dispose();
+    _phraseCtrl.dispose();
+    _newPassCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return PopScope(
+      canPop: !_loading,
+      child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        title: Text(
+          l10n.profileForgotPassword,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.requiredHint,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.palette.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _userCtrl,
+                  enabled: !_loading,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileUsername} *',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _phraseCtrl,
+                  enabled: !_loading,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileRecoveryPhrase} *',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _newPassCtrl,
+                  enabled: !_loading,
+                  obscureText: true,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileNewPassword} *',
+                    helperText: l10n.invalidPassword,
+                  ),
+                ),
+                if (_msg != null) ...[
+                  const SizedBox(height: 14),
+                  _DialogErrorBanner(message: _msg!),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: _loading
+                ? null
+                : () async {
+                    if (!ValidationRules.isValidPassword(_newPassCtrl.text)) {
+                      setState(() => _msg = l10n.invalidPassword);
+                      return;
+                    }
+                    setState(() {
+                      _loading = true;
+                      _msg = null;
+                    });
+                    try {
+                      final ok = await ref
+                          .read(supabaseServiceProvider)
+                          .resetPasswordWithRecovery(
+                            username: _userCtrl.text.trim(),
+                            recoveryPhrase: _phraseCtrl.text.trim(),
+                            newPassword: _newPassCtrl.text,
+                          );
+                      if (!context.mounted) return;
+                      if (ok) {
+                        Navigator.of(context).pop();
+                      } else {
+                        setState(() {
+                          _loading = false;
+                          _msg = 'Invalid username or phrase';
+                        });
+                      }
+                    } catch (e) {
+                      if (!mounted) return;
+                      setState(() {
+                        _loading = false;
+                        _msg = _formatAuthError(e);
+                      });
+                    }
+                  },
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChangeUsernameDialog extends ConsumerStatefulWidget {
+  const _ChangeUsernameDialog({required this.initialUsername});
+
+  final String initialUsername;
+
+  @override
+  ConsumerState<_ChangeUsernameDialog> createState() =>
+      _ChangeUsernameDialogState();
+}
+
+class _ChangeUsernameDialogState extends ConsumerState<_ChangeUsernameDialog> {
+  late final TextEditingController _ctrl;
+  String? _err;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.initialUsername);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return PopScope(
+      canPop: !_loading,
+      child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        title: Text(
+          l10n.profileChangeUsername,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _ctrl,
+                  enabled: !_loading,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileUsername} *',
+                    helperText: l10n.invalidUsername,
+                  ),
+                ),
+                if (_err != null) ...[
+                  const SizedBox(height: 14),
+                  _DialogErrorBanner(message: _err!),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: _loading
+                ? null
+                : () async {
+                    final v = _ctrl.text.trim();
+                    if (!ValidationRules.isValidUsername(v)) {
+                      setState(() => _err = l10n.invalidUsername);
+                      return;
+                    }
+                    setState(() {
+                      _loading = true;
+                      _err = null;
+                    });
+                    try {
+                      await ref.read(authProvider.notifier).updateUsername(v);
+                      if (context.mounted) Navigator.of(context).pop();
+                    } catch (e) {
+                      if (!mounted) return;
+                      setState(() {
+                        _loading = false;
+                        _err = _formatAuthError(e);
+                      });
+                    }
+                  },
+            child: Text(l10n.save),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChangePasswordDialog extends ConsumerStatefulWidget {
+  const _ChangePasswordDialog();
+
+  @override
+  ConsumerState<_ChangePasswordDialog> createState() =>
+      _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
+  final _oldCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+
+  String? _err;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _oldCtrl.dispose();
+    _newCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return PopScope(
+      canPop: !_loading,
+      child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        title: Text(
+          l10n.profileChangePassword,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _oldCtrl,
+                  enabled: !_loading,
+                  obscureText: true,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileOldPassword} *',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _newCtrl,
+                  enabled: !_loading,
+                  obscureText: true,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileNewPassword} *',
+                    helperText: l10n.invalidPassword,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _confirmCtrl,
+                  enabled: !_loading,
+                  obscureText: true,
+                  decoration: _dialogInputDecoration(
+                    label: '${l10n.profileConfirmPassword} *',
+                  ),
+                ),
+                if (_err != null) ...[
+                  const SizedBox(height: 14),
+                  _DialogErrorBanner(message: _err!),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _loading ? null : () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: _loading
+                ? null
+                : () async {
+                    if (_newCtrl.text != _confirmCtrl.text) {
+                      setState(() => _err = 'Passwords do not match');
+                      return;
+                    }
+                    if (!ValidationRules.isValidPassword(_newCtrl.text)) {
+                      setState(() => _err = l10n.invalidPassword);
+                      return;
+                    }
+                    setState(() {
+                      _loading = true;
+                      _err = null;
+                    });
+                    try {
+                      await ref
+                          .read(authProvider.notifier)
+                          .changePassword(
+                            oldPassword: _oldCtrl.text,
+                            newPassword: _newCtrl.text,
+                          );
+                      if (context.mounted) Navigator.of(context).pop();
+                    } catch (e) {
+                      if (!mounted) return;
+                      setState(() {
+                        _loading = false;
+                        _err = _formatAuthError(e);
+                      });
+                    }
+                  },
+            child: Text(l10n.save),
+          ),
+        ],
       ),
     );
   }

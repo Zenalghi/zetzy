@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:zetzy/core/services/wakelock_service.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
 /// Automatically pauses active games on background/focus loss and manages wakelock.
@@ -19,13 +20,16 @@ class GameLifecycleGuard extends ConsumerStatefulWidget {
 
 class _GameLifecycleGuardState extends ConsumerState<GameLifecycleGuard>
     with WidgetsBindingObserver {
+  late final WakelockService _wakelock;
+
   @override
   void initState() {
     super.initState();
+    _wakelock = ref.read(wakelockServiceProvider);
     WidgetsBinding.instance.addObserver(this);
-    Future.microtask(
-      () => ref.read(wakelockServiceProvider).enableIfAllowed(),
-    );
+    Future.microtask(() {
+      if (mounted) _wakelock.enableIfAllowed();
+    });
   }
 
   @override
@@ -40,7 +44,7 @@ class _GameLifecycleGuardState extends ConsumerState<GameLifecycleGuard>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    ref.read(wakelockServiceProvider).disable();
+    _wakelock.disable();
     super.dispose();
   }
 

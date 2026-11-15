@@ -5,14 +5,18 @@ import 'package:image/image.dart' as img;
 abstract final class AvatarCompressor {
   static Uint8List? compressTo256Png(Uint8List rawBytes) {
     final decoded = img.decodeImage(rawBytes);
-    if (decoded == null) return null;
+    if (decoded == null || decoded.width <= 0 || decoded.height <= 0) {
+      return null;
+    }
 
-    final size = decoded.width < decoded.height ? decoded.width : decoded.height;
-    final offsetX = (decoded.width - size) ~/ 2;
-    final offsetY = (decoded.height - size) ~/ 2;
+    final oriented = img.bakeOrientation(decoded);
+    final size =
+        oriented.width < oriented.height ? oriented.width : oriented.height;
+    final offsetX = (oriented.width - size) ~/ 2;
+    final offsetY = (oriented.height - size) ~/ 2;
 
     final cropped = img.copyCrop(
-      decoded,
+      oriented,
       x: offsetX,
       y: offsetY,
       width: size,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 
 /// Four visual skins specified in PRD Section 1.1.

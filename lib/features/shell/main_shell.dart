@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
+import 'package:zetzy/core/routing/app_router.dart';
 import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/features/home/home_screen.dart';
 import 'package:zetzy/features/leaderboard/leaderboard_screen.dart';
@@ -10,14 +13,18 @@ import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
 class MainShell extends ConsumerStatefulWidget {
-  const MainShell({super.key});
+  const MainShell({super.key, this.initialTab = 0});
+
+  final int initialTab;
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  int _selectedIndex = 0;
+  late int _selectedIndex = widget.initialTab.clamp(0, 3);
+  late final Set<int> _activatedTabs = {_selectedIndex};
+  final _pagesKey = GlobalKey();
 
   static const _pages = [
     HomeScreen(),
@@ -30,8 +37,21 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (index == _selectedIndex) return;
     ref.read(audioServiceProvider).playSfx(ZetzySfx.uiClick);
     ref.read(hapticServiceProvider).selection();
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+      _activatedTabs.add(index);
+    });
+    if (kIsWeb) {
+      SystemNavigator.routeInformationUpdated(
+        uri: Uri.parse(AppRouter.routeForTab(index)),
+      );
+    }
   }
+
+  List<Widget> _buildLazyPages() => [
+    for (var i = 0; i < _pages.length; i++)
+      _activatedTabs.contains(i) ? _pages[i] : const SizedBox.shrink(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -87,8 +107,9 @@ class _MainShellState extends ConsumerState<MainShell> {
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: IndexedStack(
+                    key: _pagesKey,
                     index: _selectedIndex,
-                    children: _pages,
+                    children: _buildLazyPages(),
                   ),
                 ),
               ],
@@ -98,8 +119,9 @@ class _MainShellState extends ConsumerState<MainShell> {
 
         return Scaffold(
           body: IndexedStack(
+            key: _pagesKey,
             index: _selectedIndex,
-            children: _pages,
+            children: _buildLazyPages(),
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _selectedIndex,

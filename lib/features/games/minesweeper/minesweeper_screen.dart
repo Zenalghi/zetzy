@@ -1,5 +1,5 @@
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
@@ -33,6 +33,7 @@ class MinesweeperScreen extends ConsumerStatefulWidget {
 
 class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
   late final MinesweeperController _controller;
+  late final AutoSaveSlotsNotifier _autoSaveSlots;
   final TransformationController _transformCtrl = TransformationController();
   final FocusNode _focusNode = FocusNode();
   bool _spaceHeld = false;
@@ -42,14 +43,12 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
   @override
   void initState() {
     super.initState();
+    _autoSaveSlots = ref.read(autoSaveSlotsProvider.notifier);
     _controller = MinesweeperController(
       audio: ref.read(audioServiceProvider),
       haptics: ref.read(hapticServiceProvider),
       onFinished: _handleGameFinished,
-      onAutoSave: (slot) {
-        if (!mounted) return;
-        ref.read(autoSaveSlotsProvider.notifier).saveSlot(slot);
-      },
+      onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
     );
 
     if (widget.resumeSlot != null) {
@@ -120,9 +119,7 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
   @override
   void dispose() {
     if (_controller.state.hasStarted && !_controller.state.isGameOver) {
-      ref
-          .read(autoSaveSlotsProvider.notifier)
-          .saveSlot(_controller.exportSlot());
+      _autoSaveSlots.saveSlot(_controller.exportSlot());
     }
     _transformCtrl.dispose();
     _focusNode.dispose();
@@ -207,7 +204,7 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
                               Expanded(child: _buildInteractiveBoard(s, p)),
                               const SizedBox(width: 18),
                               SizedBox(
-                                width: 280,
+                                width: 312,
                                 child: _buildSidebar(s, p, l10n),
                               ),
                             ],
@@ -260,16 +257,17 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: p.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: p.border),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset(AssetPaths.mineNormal, width: 18, height: 18),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 '${s.remainingMines}',
                 style: ZetzyThemes.monoStyle(fontSize: 15, color: p.textPrimary),
@@ -277,29 +275,40 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
             ],
           ),
         ),
-        if (s.shieldRemaining > 0)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: p.success.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: p.success),
-            ),
-            child: Row(
-              children: [
-                Image.asset(AssetPaths.mineShield, width: 18, height: 18),
-                const SizedBox(width: 6),
-                Text(
-                  l10n.mineShieldActive,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: p.success,
+        if (s.shieldRemaining > 0) ...[
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: p.success.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: p.success),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(AssetPaths.mineShield, width: 16, height: 16),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      l10n.mineShieldActive,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: p.success,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+        ],
+        const SizedBox(width: 8),
         IconButton.outlined(
           tooltip: 'Reset Zoom',
           onPressed: () => _transformCtrl.value = Matrix4.identity(),
@@ -389,17 +398,26 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
         ButtonSegment(
           value: MineTapTool.dig,
           icon: const Icon(Icons.hardware_rounded, size: 18),
-          label: Text(l10n.mineModeDig),
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(l10n.mineModeDig, softWrap: false, maxLines: 1),
+          ),
         ),
         ButtonSegment(
           value: MineTapTool.flag,
           icon: Image.asset(AssetPaths.mineFlag, width: 16, height: 16),
-          label: Text(l10n.mineModeFlag),
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(l10n.mineModeFlag, softWrap: false, maxLines: 1),
+          ),
         ),
         ButtonSegment(
           value: MineTapTool.question,
           icon: Image.asset(AssetPaths.mineQuestion, width: 16, height: 16),
-          label: Text(l10n.mineModeQuestion),
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(l10n.mineModeQuestion, softWrap: false, maxLines: 1),
+          ),
         ),
       ],
     );
@@ -452,25 +470,29 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: p.border, width: 1.5),
           ),
-          width: boardWidth + 12,
-          height: boardHeight + 12,
-          child: Column(
-            children: [
-              for (var r = 0; r < s.rows; r++)
-                Row(
-                  children: [
-                    for (var c = 0; c < s.cols; c++)
-                      _MineCellTile(
-                        cell: s.grid[r][c],
-                        size: cellSize,
-                        palette: p,
-                        onTap: () => _controller.onCellTap(r, c),
-                        onSecondaryOrLongPress: () =>
-                            _controller.onCellLongPressOrRightClick(r, c),
-                      ),
-                  ],
-                ),
-            ],
+          child: SizedBox(
+            width: boardWidth,
+            height: boardHeight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var r = 0; r < s.rows; r++)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var c = 0; c < s.cols; c++)
+                        _MineCellTile(
+                          cell: s.grid[r][c],
+                          size: cellSize,
+                          palette: p,
+                          onTap: () => _controller.onCellTap(r, c),
+                          onSecondaryOrLongPress: () =>
+                              _controller.onCellLongPressOrRightClick(r, c),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),

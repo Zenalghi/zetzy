@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' show GlobalCupertinoLocalizations;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:zetzy/core/routing/app_router.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
-import 'package:zetzy/features/shell/main_shell.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -27,7 +29,8 @@ class ZetzyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const MainShell(),
+      initialRoute: AppRouter.home,
+      onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }
 }

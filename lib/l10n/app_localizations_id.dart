@@ -257,7 +257,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get chessOnlineRequiresAuth =>
-      'Atur Supabase & login untuk Multiplayer Online.';
+      'Masuk ke akun Anda untuk bermain Multiplayer Online.';
 
   @override
   String get mineRemaining => 'Ranjau';
@@ -376,10 +376,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get profileSignOut => 'Keluar';
 
   @override
-  String get profileUsername => 'Username (a-z, 0-9, _)';
+  String get profileUsername => 'Username';
 
   @override
-  String get profilePassword => 'Password (min 8, huruf + angka)';
+  String get profilePassword => 'Password';
 
   @override
   String get profileConfirmPassword => 'Konfirmasi Password';
@@ -411,6 +411,19 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get profileUploadAvatar => 'Unggah Foto Profil';
+
+  @override
+  String get profileAvatarUpdated => 'Foto profil berhasil diperbarui!';
+
+  @override
+  String get profileAvatarSignInRequired =>
+      'Masuk atau daftar akun untuk mengunggah foto profil.';
+
+  @override
+  String get profileAvatarSourceGallery => 'Pilih dari Galeri / Foto';
+
+  @override
+  String get profileAvatarSourceCamera => 'Ambil Foto dengan Kamera';
 
   @override
   String get profileResetStats => 'Reset Semua Statistik';
@@ -470,14 +483,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get settingsCloudStatus => 'Cloud & Sinkronisasi';
 
   @override
-  String get settingsSupabaseConfigured => 'Supabase Terhubung';
+  String get settingsSupabaseConfigured => 'Sinkronisasi Cloud Terhubung';
 
   @override
   String get settingsSupabaseLocalOnly =>
-      'Mode Lokal Offline-First (URL Supabase belum diatur)';
-
-  @override
-  String get settingsViewSql => 'Lihat Skema SQL Supabase';
+      'Mode Offline (Sinkronisasi cloud tidak tersedia)';
 
   @override
   String get themeOledMidnight => 'OLED Midnight';
@@ -505,6 +515,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get copied => 'Disalin ke papan klip';
+
+  @override
+  String get requiredHint => '* Wajib diisi';
+
+  @override
+  String get optionalLabel => 'Opsional';
 
   @override
   String get invalidUsername =>

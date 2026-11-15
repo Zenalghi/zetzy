@@ -575,7 +575,7 @@ abstract class AppLocalizations {
   /// No description provided for @chessOnlineRequiresAuth.
   ///
   /// In en, this message translates to:
-  /// **'Configure Supabase & sign in for Online Multiplayer.'**
+  /// **'Sign in to your account to play Online Multiplayer.'**
   String get chessOnlineRequiresAuth;
 
   /// No description provided for @mineRemaining.
@@ -803,13 +803,13 @@ abstract class AppLocalizations {
   /// No description provided for @profileUsername.
   ///
   /// In en, this message translates to:
-  /// **'Username (a-z, 0-9, _)'**
+  /// **'Username'**
   String get profileUsername;
 
   /// No description provided for @profilePassword.
   ///
   /// In en, this message translates to:
-  /// **'Password (min 8, letters + numbers)'**
+  /// **'Password'**
   String get profilePassword;
 
   /// No description provided for @profileConfirmPassword.
@@ -871,6 +871,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload Avatar'**
   String get profileUploadAvatar;
+
+  /// No description provided for @profileAvatarUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile photo updated!'**
+  String get profileAvatarUpdated;
+
+  /// No description provided for @profileAvatarSignInRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in or create an account to upload a profile photo.'**
+  String get profileAvatarSignInRequired;
+
+  /// No description provided for @profileAvatarSourceGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Gallery / Photos'**
+  String get profileAvatarSourceGallery;
+
+  /// No description provided for @profileAvatarSourceCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take Photo with Camera'**
+  String get profileAvatarSourceCamera;
 
   /// No description provided for @profileResetStats.
   ///
@@ -989,20 +1013,14 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSupabaseConfigured.
   ///
   /// In en, this message translates to:
-  /// **'Supabase Connected'**
+  /// **'Cloud Sync Connected'**
   String get settingsSupabaseConfigured;
 
   /// No description provided for @settingsSupabaseLocalOnly.
   ///
   /// In en, this message translates to:
-  /// **'Offline-First Local Mode (Supabase URL not set)'**
+  /// **'Offline Mode (Cloud sync unavailable)'**
   String get settingsSupabaseLocalOnly;
-
-  /// No description provided for @settingsViewSql.
-  ///
-  /// In en, this message translates to:
-  /// **'View Supabase SQL Schema'**
-  String get settingsViewSql;
 
   /// No description provided for @themeOledMidnight.
   ///
@@ -1057,6 +1075,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied to clipboard'**
   String get copied;
+
+  /// No description provided for @requiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'* Required'**
+  String get requiredHint;
+
+  /// No description provided for @optionalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get optionalLabel;
 
   /// No description provided for @invalidUsername.
   ///
