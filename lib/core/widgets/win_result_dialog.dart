@@ -24,6 +24,9 @@ Future<void> showGameResultDialog({
   bool isDraw = false,
   bool isNewRecord = false,
   bool isPractice = false,
+  String? titleOverride,
+  String? subtitleOverride,
+  String? noteText,
   List<({String label, String value})> extraMetrics = const [],
   int rewindSteps = 1,
   VoidCallback? onRewindContinue,
@@ -42,6 +45,9 @@ Future<void> showGameResultDialog({
       score: score,
       isNewRecord: isNewRecord,
       isPractice: isPractice,
+      titleOverride: titleOverride,
+      subtitleOverride: subtitleOverride,
+      noteText: noteText,
       extraMetrics: extraMetrics,
       rewindSteps: rewindSteps,
       onRewindContinue: onRewindContinue,
@@ -61,6 +67,9 @@ class _GameResultDialog extends StatefulWidget {
     required this.score,
     required this.isNewRecord,
     required this.isPractice,
+    this.titleOverride,
+    this.subtitleOverride,
+    this.noteText,
     required this.extraMetrics,
     this.rewindSteps = 1,
     this.onRewindContinue,
@@ -76,6 +85,9 @@ class _GameResultDialog extends StatefulWidget {
   final int score;
   final bool isNewRecord;
   final bool isPractice;
+  final String? titleOverride;
+  final String? subtitleOverride;
+  final String? noteText;
   final List<({String label, String value})> extraMetrics;
   final int rewindSteps;
   final VoidCallback? onRewindContinue;
@@ -152,12 +164,16 @@ class _GameResultDialogState extends State<_GameResultDialog> {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
 
-    final title = widget.isDraw
-        ? l10n.draw
-        : (widget.isWon ? l10n.victory : l10n.gameOver);
-    final accentColor = widget.isWon
-        ? p.success
-        : (widget.isDraw ? p.warning : p.danger);
+    final title =
+        widget.titleOverride ??
+        (widget.isDraw
+            ? l10n.draw
+            : (widget.isWon ? l10n.victory : l10n.gameOver));
+    final accentColor = widget.titleOverride != null
+        ? p.warning
+        : (widget.isWon
+              ? p.success
+              : (widget.isDraw ? p.warning : p.danger));
 
     return Stack(
       alignment: Alignment.topCenter,
@@ -233,10 +249,24 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${widget.difficulty.level}. ${widget.difficulty.localizedLabel(l10n)}'
-                          '${widget.isPractice ? ' (${l10n.practiceMode})' : ''}',
+                          widget.subtitleOverride ??
+                              '${widget.difficulty.level}. ${widget.difficulty.localizedLabel(l10n)}'
+                                  '${widget.isPractice ? ' (${l10n.practiceMode})' : ''}',
                           style: TextStyle(color: p.textSecondary),
+                          textAlign: TextAlign.center,
                         ),
+                        if (widget.noteText != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.noteText!,
+                            style: TextStyle(
+                              color: p.warning,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                         if (widget.isNewRecord && !widget.isPractice) ...[
                           const SizedBox(height: 10),
                           Container(

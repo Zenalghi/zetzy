@@ -201,6 +201,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chessModePassPlay => 'Pass & Play';
 
   @override
+  String get chessModeFindMatch => 'Find Match';
+
+  @override
   String get chessModeOnline => 'Online Room';
 
   @override
@@ -277,6 +280,63 @@ class AppLocalizationsEn extends AppLocalizations {
       'Sign in to your account to play Online Multiplayer.';
 
   @override
+  String get chessFindMatchStart => 'Find Match';
+
+  @override
+  String get chessFindingMatchTitle => 'Finding Ranked Opponent...';
+
+  @override
+  String chessSearchingEloRange(int minElo, int maxElo, int radius) {
+    return 'Searching ELO: $minElo – $maxElo (±$radius)';
+  }
+
+  @override
+  String chessSearchingNearestElo(int minElo, int maxElo) {
+    return 'Searching ELO: $minElo – $maxElo (Nearest Available)';
+  }
+
+  @override
+  String get chessExpandingRangeHint =>
+      'No equal ELO found yet? Range widens automatically to the nearest online player.';
+
+  @override
+  String chessFindMatchStage(int stage, int total, int seconds) {
+    return 'Stage $stage/$total • ${seconds}s';
+  }
+
+  @override
+  String get chessMatchTimedOnlyNote =>
+      'Find Match requires a timed clock (Untimed disabled to prevent AFK stalling).';
+
+  @override
+  String get chessAutoColorFair =>
+      'Colors are assigned randomly and fairly upon match.';
+
+  @override
+  String get chessOnlineUnratedNote =>
+      'Private Friend Rooms are Unrated (Casual) to prevent ELO/PRO+ score boosting.';
+
+  @override
+  String get chessAbortedTooShortTitle => 'Match Aborted';
+
+  @override
+  String get chessAbortedTooShortNote =>
+      'Ended before 4 half-moves — marked Unrated (0 ELO change) under Fair Play rules.';
+
+  @override
+  String get chessOpponentLabel => 'Opponent';
+
+  @override
+  String chessYourElo(int elo) {
+    return 'Your ELO: $elo';
+  }
+
+  @override
+  String chessMatchFoundBanner(String username, int elo) {
+    return 'Matched vs @$username (ELO $elo)';
+  }
+
+  @override
   String get chessTapForDetails => 'Tap for ELO, scoring & setup guide';
 
   @override
@@ -299,7 +359,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Local 2-Player • Unrated (No ELO/Score)';
 
   @override
-  String get chessInfoSummaryOnline => 'Online 1v1 • Rated ELO via Room Code';
+  String get chessInfoSummaryFindMatch =>
+      'Ranked Random 1v1 • Dynamic ELO Matchmaking';
+
+  @override
+  String get chessInfoSummaryOnline => 'Friend Room 1v1 • Unrated (Anti-Cheat)';
 
   @override
   String get chessInfoSummaryPractice =>
@@ -315,8 +379,12 @@ class AppLocalizationsEn extends AppLocalizations {
       '• How to Play: Take turns playing White and Black on this same device — hand the device over after each move.\n• Score & ELO: Treated as a casual local match (same as Practice Mode). It does NOT change Chess ELO, does NOT save to Leaderboard, and does NOT award XP or unlock levels.';
 
   @override
+  String get chessInfoDetailFindMatch =>
+      '• Fair Random Matchmaking: Matches you against another live player queued in the same Timed control (Bullet, Blitz, or Rapid).\n• Expanding ELO Window: Starts searching near your ELO (±50) and widens automatically over time (±120 → ±250 → ±500 → ±1000). After 45s, it opens to the nearest online player (400–3500) even if the ELO gap is hundreds or thousands of points.\n• Anti-Cheat Protection: Colors are assigned randomly, self-matching is blocked, resigns/abandons before 4 half-moves are Aborted (0 ELO), ELO updates use the matched opponent rating (K=32), and AI Nightmare/God levels only unlock in Vs AI.';
+
+  @override
   String get chessInfoDetailOnline =>
-      '• Concept: Real-time 1v1 match connected directly via Supabase Realtime.\n• Host (Create Room): Sign in first, pick Time Control, then tap Create Room. Share the 6-character Room Code shown on screen with your friend.\n• Friend (Join Room): Sign in, pick Online Room, enter the Room Code, and tap Join Room. The game starts automatically once connected.\n• Score & ELO: Updates Chess ELO and saves wins to Leaderboard + difficulty XP (unless Practice Mode is on).';
+      '• Concept: Private 1v1 room via Supabase Realtime for playing with friends.\n• Host & Join: Sign in first. Host picks side & Time Control then shares the 6-character code; friend enters the code to join.\n• Anti-Cheat & Unrated Rule: Private Room matches are strictly Unrated — no Chess ELO change, no PRO+ Leaderboard entry, no XP, and no Nightmare/God level unlock so private rooms cannot be used for win-trading.';
 
   @override
   String get chessCopyCode => 'Copy';
@@ -398,6 +466,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leaderboardPlatform => 'Device';
+
+  @override
+  String leaderboardLoadMore(int count) {
+    return 'Load $count more';
+  }
+
+  @override
+  String get leaderboardRefresh => 'Refresh';
+
+  @override
+  String leaderboardShowingCount(int count) {
+    return 'Showing $count entries • Refresh for newest';
+  }
 
   @override
   String get statsTotalGames => 'Total Played';

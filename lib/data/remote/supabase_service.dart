@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:bishop/bishop.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,6 +11,13 @@ import 'package:zetzy/data/models/game_record.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_config_loader_stub.dart'
     if (dart.library.io) 'package:zetzy/data/remote/supabase_config_loader_io.dart';
+import 'package:zetzy/features/games/chess/chess_matchmaking.dart';
+
+/// Thrown when optional matchmaking SQL tables/RPCs have not yet been applied
+/// in the connected Supabase project so callers can fall back cleanly.
+class SupabaseMissingSchemaException implements Exception {
+  const SupabaseMissingSchemaException();
+}
 
 /// Wraps Supabase Auth, PostgREST, Storage, RPCs, and Realtime Chess channels.
 /// Falls back cleanly when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are unset.
@@ -266,9 +274,11 @@ class SupabaseService {
   Future<List<GameRecord>> fetchGlobalLeaderboard({
     required GameType gameType,
     required int difficulty,
+    int limit = 20,
+    int offset = 0,
   }) async {
     final client = _client;
-    if (client == null) return [];
+    if (client == null || limit <= 0) return [];
 
     var query = client
         .from('game_records')
@@ -283,22 +293,27 @@ class SupabaseService {
     final rows = await query
         .order('score', ascending: false)
         .order('duration_ms', ascending: true)
-        .limit(100);
+        .order('id', ascending: true)
+        .range(offset, offset + limit - 1);
 
     return (rows as List)
         .map((e) => GameRecord.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
-  Future<List<UserProfile>> fetchChessEloLeaderboard() async {
+  Future<List<UserProfile>> fetchChessEloLeaderboard({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final client = _client;
-    if (client == null) return [];
+    if (client == null || limit <= 0) return [];
 
     final rows = await client
         .from('profiles')
         .select()
         .order('chess_elo', ascending: false)
-        .limit(100);
+        .order('id', ascending: true)
+        .range(offset, offset + limit - 1);
 
     return (rows as List)
         .map(
@@ -331,13 +346,148 @@ class SupabaseService {
   }
 
   /// Creates a Supabase Realtime channel for Online Chess room codes.
-  RealtimeChannel? createChessRoomChannel(String roomCode) {
+  RealtimeChannel? createChessRoomChannel(
+    String roomCode, {
+    String presenceKey = '',
+  }) {
     final client = _client;
     if (client == null) return null;
     return client.channel(
       'chess_room_$roomCode',
-      opts: const RealtimeChannelConfig(self: false),
+      opts: RealtimeChannelConfig(
+        self: false,
+        key: presenceKey,
+        enabled: presenceKey.isNotEmpty,
+      ),
     );
+  }
+
+  /// Creates a Supabase Realtime Presence channel for Random Chess matchmaking.
+  RealtimeChannel? createChessMatchmakingChannel(
+    String timeControlName, {
+    String presenceKey = '',
+  }) {
+    final client = _client;
+    if (client == null) return null;
+    return client.channel(
+      'chess_mm_queue_$timeControlName',
+      opts: RealtimeChannelConfig(
+        self: false,
+        key: presenceKey,
+        enabled: true,
+      ),
+    );
+  }
+
+  /// Calls the atomic Postgres matchmaking RPC when deployed in Supabase.
+  Future<MatchAssignment?> matchmakeChess({
+    required String timeControlName,
+    int? searchRadius,
+    int waitSeconds = 0,
+  }) async {
+    final client = _client;
+    if (client == null || client.auth.currentUser == null) return null;
+
+    try {
+      final raw = await client.rpc(
+        'matchmake_chess',
+        params: {
+          'p_time_control': timeControlName,
+          'p_search_radius': searchRadius,
+          'p_wait_seconds': waitSeconds,
+        },
+      );
+      Map<String, dynamic>? row;
+      if (raw is Map) {
+        row = Map<String, dynamic>.from(raw);
+      } else if (raw is List && raw.isNotEmpty && raw.first is Map) {
+        row = Map<String, dynamic>.from(raw.first as Map);
+      }
+      if (row == null || row['status'] != 'matched') return null;
+
+      final colorRaw = row['assigned_color']?.toString().toLowerCase();
+      final assignedColor =
+          (colorRaw == 'b' || colorRaw == 'black' || colorRaw == '1')
+          ? Bishop.black
+          : Bishop.white;
+
+      return MatchAssignment(
+        matchId: row['match_id']?.toString(),
+        roomCode: (row['room_code'] ?? '').toString(),
+        assignedColor: assignedColor,
+        opponentUserId: (row['opponent_id'] ?? '').toString(),
+        opponentUsername: (row['opponent_username'] ?? 'opponent').toString(),
+        opponentAvatarUrl: row['opponent_avatar_url'] as String?,
+        opponentElo: (row['opponent_elo'] as num?)?.toInt() ?? 1000,
+        timeControlName: timeControlName,
+        viaServerRpc: true,
+      );
+    } on PostgrestException catch (e) {
+      if (_isMissingSchemaError(e)) {
+        throw const SupabaseMissingSchemaException();
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> cancelChessMatchmaking() async {
+    final client = _client;
+    if (client == null || client.auth.currentUser == null) return;
+    try {
+      await client.rpc('cancel_chess_matchmaking');
+    } on PostgrestException catch (e) {
+      if (_isMissingSchemaError(e)) return;
+      rethrow;
+    }
+  }
+
+  /// Settles a completed ranked Find Match game atomically on Postgres when RPC exists.
+  Future<({int newElo, int eloDelta, String status})?> finishRankedChessMatch({
+    required String matchId,
+    required int? winnerColour,
+    required bool isDraw,
+    required int moveCount,
+    required String pgn,
+  }) async {
+    final client = _client;
+    if (client == null || client.auth.currentUser == null) return null;
+    try {
+      final raw = await client.rpc(
+        'finish_ranked_chess_match',
+        params: {
+          'p_match_id': matchId,
+          'p_winner_colour': winnerColour,
+          'p_is_draw': isDraw,
+          'p_move_count': moveCount,
+          'p_pgn': pgn,
+        },
+      );
+      Map<String, dynamic>? row;
+      if (raw is Map) {
+        row = Map<String, dynamic>.from(raw);
+      } else if (raw is List && raw.isNotEmpty && raw.first is Map) {
+        row = Map<String, dynamic>.from(raw.first as Map);
+      }
+      if (row == null) return null;
+      return (
+        newElo: (row['new_elo'] as num?)?.toInt() ?? 1000,
+        eloDelta: (row['elo_delta'] as num?)?.toInt() ?? 0,
+        status: (row['status'] ?? 'finished').toString(),
+      );
+    } on PostgrestException catch (e) {
+      if (_isMissingSchemaError(e)) return null;
+      rethrow;
+    }
+  }
+
+  bool _isMissingSchemaError(PostgrestException e) {
+    final code = (e.code ?? '').toUpperCase();
+    final msg = e.message.toLowerCase();
+    return code == 'PGRST202' ||
+        code == '42883' ||
+        code == '42P01' ||
+        msg.contains('could not find the function') ||
+        msg.contains('does not exist');
   }
 
   SupabaseClient _requireClient() {

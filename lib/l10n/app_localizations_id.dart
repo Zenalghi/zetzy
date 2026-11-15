@@ -201,6 +201,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get chessModePassPlay => 'Pass & Play';
 
   @override
+  String get chessModeFindMatch => 'Cari Lawan';
+
+  @override
   String get chessModeOnline => 'Ruang Online';
 
   @override
@@ -277,6 +280,63 @@ class AppLocalizationsId extends AppLocalizations {
       'Masuk ke akun Anda untuk bermain Multiplayer Online.';
 
   @override
+  String get chessFindMatchStart => 'Cari Lawan';
+
+  @override
+  String get chessFindingMatchTitle => 'Mencari Lawan Ranked...';
+
+  @override
+  String chessSearchingEloRange(int minElo, int maxElo, int radius) {
+    return 'Mencari ELO: $minElo – $maxElo (±$radius)';
+  }
+
+  @override
+  String chessSearchingNearestElo(int minElo, int maxElo) {
+    return 'Mencari ELO: $minElo – $maxElo (Terdekat / Bebas)';
+  }
+
+  @override
+  String get chessExpandingRangeHint =>
+      'Belum ada ELO setara? Rentang meluas otomatis hingga menemukan lawan terdekat.';
+
+  @override
+  String chessFindMatchStage(int stage, int total, int seconds) {
+    return 'Tahap $stage/$total • ${seconds}d';
+  }
+
+  @override
+  String get chessMatchTimedOnlyNote =>
+      'Cari Lawan wajib memakai kontrol waktu (Tanpa Waktu dinonaktifkan agar bebas AFK).';
+
+  @override
+  String get chessAutoColorFair =>
+      'Warna Putih/Hitam diacak secara adil saat lawan ditemukan.';
+
+  @override
+  String get chessOnlineUnratedNote =>
+      'Ruang Teman bersifat Unrated (Santai) untuk mencegah kecurangan ELO/skor PRO+.';
+
+  @override
+  String get chessAbortedTooShortTitle => 'Laga Dibatalkan';
+
+  @override
+  String get chessAbortedTooShortNote =>
+      'Berakhir sebelum 4 langkah-paruh — dihitung Unrated (0 perubahan ELO) demi Fair Play.';
+
+  @override
+  String get chessOpponentLabel => 'Lawan';
+
+  @override
+  String chessYourElo(int elo) {
+    return 'ELO Anda: $elo';
+  }
+
+  @override
+  String chessMatchFoundBanner(String username, int elo) {
+    return 'Bertemu @$username (ELO $elo)';
+  }
+
+  @override
   String get chessTapForDetails => 'Ketuk untuk info ELO, skor & panduan main';
 
   @override
@@ -298,7 +358,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get chessInfoSummaryPassPlay => '2 Pemain Lokal • Tanpa ELO & Skor';
 
   @override
-  String get chessInfoSummaryOnline => 'Online 1v1 • ELO Aktif via Kode Ruang';
+  String get chessInfoSummaryFindMatch =>
+      'Ranked Acak 1v1 • Matchmaking ELO Dinamis';
+
+  @override
+  String get chessInfoSummaryOnline =>
+      'Ruang Teman 1v1 • Unrated (Anti-Curang)';
 
   @override
   String get chessInfoSummaryPractice => 'Mode Latihan • Tanpa ELO & Skor';
@@ -313,8 +378,12 @@ class AppLocalizationsId extends AppLocalizations {
       '• Cara Bermain: Anda dan teman bergantian melangkah Putih lalu Hitam pada satu perangkat yang sama.\n• Skor & ELO: Dihitung sebagai laga lokal santai (seperti Mode Latihan). Tidak mengubah ELO Catur, tidak masuk Papan Skor, dan tidak memberi XP maupun membuka level.';
 
   @override
+  String get chessInfoDetailFindMatch =>
+      '• Matchmaking Acak Adil: Mempertemukan Anda dengan pemain lain yang sedang antre di Kontrol Waktu berdurasi sama (Bullet, Blitz, atau Rapid).\n• Rentang ELO Meluas Otomatis: Mulai mencari lawan di sekitar ELO Anda (±50) lalu meluas bertahap (±120 → ±250 → ±500 → ±1000). Jika tetap belum ada lawan setelah 45 detik, sistem memilih pemain aktif terdekat (400–3500) meski selisihnya ratusan atau ribuan poin.\n• Perlindungan Anti-Curang: Warna diacak adil, blokir duel akun sendiri, menyerah sebelum 4 langkah-paruh dibatalkan (Aborted, 0 ELO), ELO dihitung memakai rating asli lawan (K=32), dan pembukaan level Nightmare/God tetap khusus mode Lawan AI.';
+
+  @override
   String get chessInfoDetailOnline =>
-      '• Konsep: Duel 1v1 real-time yang terhubung langsung lewat Supabase Realtime.\n• Host (Buat Ruang): Masuk ke akun dulu, pilih Kontrol Waktu, lalu tekan Buat Ruang. Bagikan Kode Ruang 6 karakter yang muncul di layar ke teman Anda.\n• Teman (Gabung Ruang): Masuk ke akun, pilih Ruang Online, ketik Kode Ruang tersebut, lalu tekan Gabung Ruang. Laga otomatis dimulai saat terhubung.\n• Skor & ELO: Memperbarui ELO Catur serta mencatat kemenangan di Papan Skor + XP kesulitan (kecuali Mode Latihan aktif).';
+      '• Konsep: Duel privat 1v1 via Supabase Realtime khusus bermain santai bersama teman.\n• Host & Gabung: Masuk ke akun dulu. Host memilih warna & Kontrol Waktu lalu membagikan Kode Ruang 6 karakter; teman memasukkan kode untuk bergabung.\n• Anti-Curang & Unrated: Ruang Privat selalu bersifat Unrated — tidak mengubah ELO Catur, tidak masuk Papan Skor PRO+, tidak memberi XP, dan tidak membuka level Nightmare/God agar tidak bisa dipakai win-trading.';
 
   @override
   String get chessCopyCode => 'Salin';
@@ -396,6 +465,19 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get leaderboardPlatform => 'Perangkat';
+
+  @override
+  String leaderboardLoadMore(int count) {
+    return 'Muat $count lagi';
+  }
+
+  @override
+  String get leaderboardRefresh => 'Muat Ulang';
+
+  @override
+  String leaderboardShowingCount(int count) {
+    return 'Menampilkan $count data • Muat ulang untuk skor terbaru';
+  }
 
   @override
   String get statsTotalGames => 'Total Main';

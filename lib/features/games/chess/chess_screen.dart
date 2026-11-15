@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bishop/bishop.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +16,7 @@ import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/features/games/chess/chess_ai.dart';
 import 'package:zetzy/features/games/chess/chess_controller.dart';
+import 'package:zetzy/features/games/chess/chess_matchmaking.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -36,6 +39,7 @@ class ChessScreen extends ConsumerStatefulWidget {
 class _ChessScreenState extends ConsumerState<ChessScreen> {
   late final ChessController _controller;
   late final AutoSaveSlotsNotifier _autoSaveSlots;
+  late final ChessMatchmakingSession _matchmaking;
   bool _inLobby = true;
 
   ChessPlayMode _selectedMode = ChessPlayMode.vsAi;
@@ -56,6 +60,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       onFinished: _handleGameFinished,
       onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
     );
+    _matchmaking = ChessMatchmakingSession(
+      supabase: ref.read(supabaseServiceProvider),
+      onMatched: _onMatchFound,
+    );
 
     if (widget.resumeSlot != null) {
       _inLobby = false;
@@ -63,57 +71,170 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     }
   }
 
-  void _startMatch({String? joinRoomCode}) {
+  void _onMatchFound(MatchAssignment assignment) {
+    if (!mounted) return;
+    setState(() => _selectedMode = ChessPlayMode.findMatch);
+    _startMatch(assignment: assignment);
+    final l10n = AppLocalizations.of(context);
+    if (l10n != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.chessMatchFoundBanner(
+              assignment.opponentUsername,
+              assignment.opponentElo,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _selectMode(ChessPlayMode mode) {
+    if (_matchmaking.state.isSearching && mode != ChessPlayMode.findMatch) {
+      unawaited(_matchmaking.cancelSearch());
+    }
+    setState(() {
+      _selectedMode = mode;
+      if (mode == ChessPlayMode.findMatch &&
+          _selectedTime == ChessTimeControl.untimed) {
+        _selectedTime = ChessTimeControl.blitz5;
+      }
+    });
+  }
+
+  void _startMatch({String? joinRoomCode, MatchAssignment? assignment}) {
+    if (_matchmaking.state.isSearching) {
+      unawaited(_matchmaking.cancelSearch());
+    }
+    final user = ref.read(authProvider);
+    final effectiveMode = assignment != null
+        ? ChessPlayMode.findMatch
+        : _selectedMode;
+    final effectiveTime =
+        effectiveMode == ChessPlayMode.findMatch &&
+            _selectedTime == ChessTimeControl.untimed
+        ? ChessTimeControl.blitz5
+        : _selectedTime;
+    final colorPref = assignment != null
+        ? (assignment.assignedColor == Bishop.black
+              ? ChessColorPref.black
+              : ChessColorPref.white)
+        : (joinRoomCode != null ? ChessColorPref.black : _selectedColor);
+
     setState(() => _inLobby = false);
     _controller.startNew(
       difficulty: widget.difficulty,
       isPractice: widget.isPractice,
-      mode: _selectedMode,
-      colorPref: joinRoomCode != null ? ChessColorPref.black : _selectedColor,
-      timeControl: _selectedTime,
-      roomCode: joinRoomCode,
-      isHost: joinRoomCode == null,
+      mode: effectiveMode,
+      colorPref: colorPref,
+      timeControl: effectiveTime,
+      roomCode: assignment?.roomCode ?? joinRoomCode,
+      isHost: assignment == null
+          ? joinRoomCode == null
+          : assignment.assignedColor == Bishop.white,
+      matchId: assignment?.matchId,
+      localUserId: user.isGuest ? null : user.id,
+      localUsername: user.isGuest ? null : user.username,
+      localAvatarUrl: user.avatarUrl,
+      localChessElo: user.chessElo,
+      opponentUserId: assignment?.opponentUserId,
+      opponentUsername: assignment?.opponentUsername,
+      opponentAvatarUrl: assignment?.opponentAvatarUrl,
+      opponentElo: assignment?.opponentElo,
     );
   }
 
   Future<void> _handleGameFinished(ChessUiState finalState) async {
     await ref.read(autoSaveSlotsProvider.notifier).clearSlot(GameType.chess);
 
+    var aborted = finalState.isAbortedUnrated;
     final playerWon =
-        !finalState.isDraw && finalState.winnerColour == finalState.playerColor;
-    var score = playerWon ? 100 : (finalState.isDraw ? 50 : 0);
+        !aborted &&
+        !finalState.isDraw &&
+        finalState.winnerColour == finalState.playerColor;
+    // Anti-cheat: Private Online Friend Rooms and Pass & Play are strictly unrated
+    // to prevent mutual forfeit/win-trading ELO boosting or PRO+ Leaderboard spoofing.
+    final isCasualMode =
+        finalState.isPractice ||
+        finalState.mode == ChessPlayMode.passAndPlay ||
+        finalState.mode == ChessPlayMode.online;
+    var score = 0;
 
-    if (!finalState.isPractice &&
-        finalState.mode != ChessPlayMode.passAndPlay) {
+    if (!aborted && !isCasualMode && finalState.mode.isRankedMode) {
       final currentElo = ref.read(authProvider).chessElo;
-      final opponentElo = finalState.mode == ChessPlayMode.vsAi
-          ? ChessAiEngine.aiRatingForLevel(finalState.difficulty.level)
-          : currentElo;
-      final outcome = finalState.isDraw ? 0.5 : (playerWon ? 1.0 : 0.0);
-      final newElo = ChessAiEngine.calculateNewElo(
-        currentElo: currentElo,
-        opponentElo: opponentElo,
-        score: outcome,
-      );
-      score = newElo - currentElo;
-      await ref.read(authProvider.notifier).updateChessElo(newElo);
+      if (finalState.mode == ChessPlayMode.findMatch &&
+          finalState.onlineMatchId != null) {
+        final serverResult = await ref
+            .read(supabaseServiceProvider)
+            .finishRankedChessMatch(
+              matchId: finalState.onlineMatchId!,
+              winnerColour: finalState.isDraw ? null : finalState.winnerColour,
+              isDraw: finalState.isDraw,
+              moveCount: finalState.moveSans.length,
+              pgn: _controller.game.pgn(),
+            );
+        if (serverResult != null) {
+          if (serverResult.status == 'aborted') {
+            aborted = true;
+            score = 0;
+          } else {
+            score = serverResult.eloDelta;
+            await ref
+                .read(authProvider.notifier)
+                .updateChessElo(serverResult.newElo);
+          }
+        } else {
+          final opponentElo = finalState.opponentElo ?? currentElo;
+          final outcome = finalState.isDraw ? 0.5 : (playerWon ? 1.0 : 0.0);
+          final newElo = ChessAiEngine.calculateNewElo(
+            currentElo: currentElo,
+            opponentElo: opponentElo,
+            score: outcome,
+          );
+          score = newElo - currentElo;
+          await ref.read(authProvider.notifier).updateChessElo(newElo);
+        }
+      } else {
+        final opponentElo = finalState.mode == ChessPlayMode.vsAi
+            ? ChessAiEngine.aiRatingForLevel(finalState.difficulty.level)
+            : (finalState.opponentElo ?? currentElo);
+        final outcome = finalState.isDraw ? 0.5 : (playerWon ? 1.0 : 0.0);
+        final newElo = ChessAiEngine.calculateNewElo(
+          currentElo: currentElo,
+          opponentElo: opponentElo,
+          score: outcome,
+        );
+        score = newElo - currentElo;
+        await ref.read(authProvider.notifier).updateChessElo(newElo);
+      }
     }
+
+    final isUnratedForDialog = aborted || isCasualMode;
+    final effectiveWon = !aborted && playerWon;
+    final isVsAiRanked = !aborted && !isCasualMode && finalState.mode == ChessPlayMode.vsAi;
 
     final isNewRecord = await ref
         .read(scoreSyncControllerProvider)
         .recordGameResult(
           gameType: GameType.chess,
           difficulty: finalState.difficulty.level,
-          isWon: playerWon,
+          isWon: effectiveWon,
           score: score,
           durationMs: finalState.elapsedMs,
-          isPractice:
-              finalState.isPractice ||
-              finalState.mode == ChessPlayMode.passAndPlay,
+          isPractice: isUnratedForDialog,
+          allowUnlock: isVsAiRanked,
+          syncRemote: isVsAiRanked,
           metadata: {
             'mode': finalState.mode.name,
+            'timeControl': finalState.timeControl.name,
+            if (finalState.opponentElo != null)
+              'opponentElo': finalState.opponentElo,
+            if (finalState.opponentUsername != null)
+              'opponentUsername': finalState.opponentUsername,
             'pgn': _controller.game.pgn(),
             'moves': finalState.moveSans.length,
+            if (aborted) 'aborted': true,
           },
         );
 
@@ -122,23 +243,47 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     final settings = ref.read(settingsProvider);
     final canRewind =
         finalState.isPractice &&
-        !playerWon &&
+        !finalState.mode.isOnlineMultiplayer &&
+        !effectiveWon &&
         !finalState.isDraw &&
+        !aborted &&
         settings.practiceRewindOnLoss &&
         finalState.canPracticeUndo;
+
+    final subtitleOverride = switch (finalState.mode) {
+      ChessPlayMode.findMatch =>
+        '${l10n.chessModeFindMatch}'
+            '${finalState.opponentUsername != null ? ' • vs @${finalState.opponentUsername}' : ''}',
+      ChessPlayMode.online => '${l10n.chessModeOnline} (Unrated)',
+      _ => null,
+    };
+    final noteText = aborted
+        ? l10n.chessAbortedTooShortNote
+        : (finalState.mode == ChessPlayMode.online
+              ? l10n.chessOnlineUnratedNote
+              : null);
+
     await showGameResultDialog(
       context: context,
       gameType: GameType.chess,
       difficulty: finalState.difficulty,
-      isWon: playerWon,
-      isDraw: finalState.isDraw,
+      isWon: effectiveWon,
+      isDraw: aborted || finalState.isDraw,
       durationMs: finalState.elapsedMs,
       score: score,
       isNewRecord: isNewRecord,
-      isPractice:
-          finalState.isPractice || finalState.mode == ChessPlayMode.passAndPlay,
+      isPractice: isUnratedForDialog,
+      titleOverride: aborted ? l10n.chessAbortedTooShortTitle : null,
+      subtitleOverride: subtitleOverride,
+      noteText: noteText,
       extraMetrics: [
         (label: l10n.chessMoves, value: '${finalState.moveSans.length}'),
+        if (finalState.mode == ChessPlayMode.findMatch &&
+            finalState.opponentElo != null)
+          (
+            label: '${l10n.chessOpponentLabel} ELO',
+            value: '${finalState.opponentElo}',
+          ),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
@@ -153,9 +298,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
   void dispose() {
     if (!_inLobby &&
         !_controller.state.isGameOver &&
-        _controller.state.mode != ChessPlayMode.online) {
+        !_controller.state.mode.isOnlineMultiplayer) {
       _autoSaveSlots.saveSlot(_controller.exportSlot());
     }
+    _matchmaking.dispose();
     _roomCodeCtrl.dispose();
     _controller.dispose();
     super.dispose();
@@ -195,7 +341,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                     elapsedMs: _controller.state.elapsedMs,
                     isPaused: _controller.state.isPaused,
                   ),
-                  if (_controller.state.mode != ChessPlayMode.online)
+                  if (!_controller.state.mode.isOnlineMultiplayer)
                     IconButton(
                       onPressed: () {
                         if (_controller.state.isPaused) {
@@ -324,6 +470,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     final supa = ref.watch(supabaseServiceProvider);
     final user = ref.watch(authProvider);
     final canOnline = supa.isAvailable && !user.isGuest;
+    final isFindMatch = _selectedMode == ChessPlayMode.findMatch;
 
     return Center(
       child: ConstrainedBox(
@@ -341,33 +488,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 10),
-                  SegmentedButton<ChessPlayMode>(
-                    selected: {_selectedMode},
-                    onSelectionChanged: (set) =>
-                        setState(() => _selectedMode = set.first),
-                    segments: [
-                      ButtonSegment(
-                        value: ChessPlayMode.vsAi,
-                        label: Text(l10n.chessModeVsAi),
-                        icon: const Icon(Icons.memory_rounded, size: 18),
-                      ),
-                      ButtonSegment(
-                        value: ChessPlayMode.passAndPlay,
-                        label: Text(l10n.chessModePassPlay),
-                        icon: const Icon(
-                          Icons.people_outline_rounded,
-                          size: 18,
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: ChessPlayMode.online,
-                        label: Text(l10n.chessModeOnline),
-                        icon: const Icon(Icons.wifi_rounded, size: 18),
-                      ),
-                    ],
-                  ),
+                  _buildModeSelector(p, l10n),
                   const SizedBox(height: 18),
-                  if (_selectedMode != ChessPlayMode.passAndPlay) ...[
+                  if (_selectedMode == ChessPlayMode.vsAi ||
+                      _selectedMode == ChessPlayMode.online) ...[
                     Text(
                       l10n.chessPlayAs,
                       style: Theme.of(context).textTheme.titleSmall
@@ -394,6 +518,34 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                       ],
                     ),
                     const SizedBox(height: 18),
+                  ] else if (isFindMatch) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: p.surfaceElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: p.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.shuffle_rounded, size: 16, color: p.accent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              l10n.chessAutoColorFair,
+                              style: TextStyle(
+                                color: p.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
                   Text(
                     l10n.chessTimeControl,
@@ -408,7 +560,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                       for (final tc in ChessTimeControl.values)
                         ChoiceChip(
                           selected: _selectedTime == tc,
-                          onSelected: (_) => setState(() => _selectedTime = tc),
+                          onSelected:
+                              isFindMatch && tc == ChessTimeControl.untimed
+                              ? null
+                              : (_) => setState(() => _selectedTime = tc),
                           label: Text(switch (tc) {
                             ChessTimeControl.untimed => l10n.chessUntimed,
                             ChessTimeControl.bullet1 => l10n.chessBullet,
@@ -419,8 +574,47 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                         ),
                     ],
                   ),
-                  if (_selectedMode == ChessPlayMode.online) ...[
+                  if (isFindMatch) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      l10n.chessMatchTimedOnlyNote,
+                      style: TextStyle(color: p.textSecondary, fontSize: 11.5),
+                    ),
                     const SizedBox(height: 18),
+                    _buildFindMatchPanel(p, l10n, canOnline),
+                  ] else if (_selectedMode == ChessPlayMode.online) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: p.surfaceElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: p.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.verified_user_outlined,
+                            size: 16,
+                            color: p.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              l10n.chessOnlineUnratedNote,
+                              style: TextStyle(
+                                color: p.textSecondary,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     if (!canOnline)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -486,11 +680,248 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     );
   }
 
+  Widget _buildModeSelector(ZetzyPalette p, AppLocalizations l10n) {
+    final options = [
+      (ChessPlayMode.vsAi, l10n.chessModeVsAi, Icons.memory_rounded),
+      (
+        ChessPlayMode.passAndPlay,
+        l10n.chessModePassPlay,
+        Icons.people_outline_rounded,
+      ),
+      (ChessPlayMode.findMatch, l10n.chessModeFindMatch, Icons.radar_rounded),
+      (ChessPlayMode.online, l10n.chessModeOnline, Icons.wifi_rounded),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 8) / 2;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (mode, label, icon) in options)
+              SizedBox(
+                width: itemWidth,
+                child: Material(
+                  color: _selectedMode == mode
+                      ? p.accent.withValues(alpha: 0.14)
+                      : p.surfaceElevated,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: _selectedMode == mode ? p.accent : p.border,
+                      width: _selectedMode == mode ? 1.4 : 1,
+                    ),
+                  ),
+                  child: InkWell(
+                    key: ValueKey('chess_mode_${mode.name}'),
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _selectMode(mode),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 11,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            icon,
+                            size: 17,
+                            color: _selectedMode == mode
+                                ? p.accent
+                                : p.textSecondary,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _selectedMode == mode
+                                    ? p.accent
+                                    : p.textPrimary,
+                                fontWeight: _selectedMode == mode
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFindMatchPanel(
+    ZetzyPalette p,
+    AppLocalizations l10n,
+    bool canOnline,
+  ) {
+    final user = ref.watch(authProvider);
+    if (!canOnline) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: p.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: p.warning),
+        ),
+        child: Text(
+          l10n.chessOnlineRequiresAuth,
+          style: TextStyle(color: p.warning, fontSize: 12),
+        ),
+      );
+    }
+
+    return ListenableBuilder(
+      listenable: _matchmaking,
+      builder: (context, _) {
+        final mm = _matchmaking.state;
+        if (!mm.isSearching) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.chessYourElo(user.chessElo),
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: 12.5,
+                      color: p.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _timeControlLabel(_selectedTime, false),
+                    style: TextStyle(color: p.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
+              if (mm.errorMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  mm.errorMessage!,
+                  style: TextStyle(color: p.danger, fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: () {
+                  unawaited(
+                    _matchmaking.startSearch(
+                      profile: user,
+                      timeControlName: _selectedTime.name,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.radar_rounded),
+                label: Text(l10n.chessFindMatchStart),
+              ),
+            ],
+          );
+        }
+
+        final w = mm.window;
+        final rangeText = w.isUnbounded
+            ? l10n.chessSearchingNearestElo(w.minElo, w.maxElo)
+            : l10n.chessSearchingEloRange(w.minElo, w.maxElo, w.radius!);
+
+        return Container(
+          key: const ValueKey('chess_finding_match_card'),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: p.accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: p.accent.withValues(alpha: 0.45)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: p.accent,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      l10n.chessFindingMatchTitle,
+                      style: TextStyle(
+                        color: p.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    l10n.chessFindMatchStage(w.stage, w.totalStages, mm.waitSeconds),
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: 11.5,
+                      color: p.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                rangeText,
+                key: const ValueKey('chess_elo_search_range'),
+                style: ZetzyThemes.monoStyle(
+                  fontSize: 12.5,
+                  color: p.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: w.stage / w.totalStages,
+                  minHeight: 5,
+                  backgroundColor: p.surfaceElevated,
+                  color: p.accent,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.chessExpandingRangeHint,
+                style: TextStyle(color: p.textSecondary, fontSize: 11.5),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => unawaited(_matchmaking.cancelSearch()),
+                icon: const Icon(Icons.close_rounded, size: 18),
+                label: Text(l10n.cancel),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildOnlineRoomBanner({
     required ChessUiState s,
     required ZetzyPalette p,
     required AppLocalizations l10n,
   }) {
+    final isFindMatch = s.mode == ChessPlayMode.findMatch;
     final code = s.onlineRoomCode!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -501,7 +932,11 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.public_rounded, size: 18, color: p.accent),
+          Icon(
+            isFindMatch ? Icons.radar_rounded : Icons.public_rounded,
+            size: 18,
+            color: p.accent,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -509,12 +944,18 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${l10n.chessRoomCode}: $code',
+                  isFindMatch
+                      ? (s.opponentUsername != null
+                            ? l10n.chessMatchFoundBanner(
+                                s.opponentUsername!,
+                                s.opponentElo ?? 1000,
+                              )
+                            : l10n.chessModeFindMatch)
+                      : '${l10n.chessRoomCode}: $code (Unrated)',
                   style: TextStyle(
                     color: p.textPrimary,
                     fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    letterSpacing: 1.0,
+                    fontSize: 12.5,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -527,22 +968,24 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: code));
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.chessRoomCodeCopied(code))),
-              );
-            },
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          if (!isFindMatch) ...[
+            const SizedBox(width: 8),
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: code));
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.chessRoomCodeCopied(code))),
+                );
+              },
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              icon: const Icon(Icons.copy_rounded, size: 15),
+              label: Text(l10n.chessCopyCode),
             ),
-            icon: const Icon(Icons.copy_rounded, size: 15),
-            label: Text(l10n.chessCopyCode),
-          ),
+          ],
         ],
       ),
     );
@@ -573,12 +1016,17 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
         l10n.chessInfoSummaryPassPlay,
         p.textSecondary,
       ),
-      ChessPlayMode.online => (
-        Icons.public_rounded,
+      ChessPlayMode.findMatch => (
+        Icons.radar_rounded,
         widget.isPractice
             ? l10n.chessInfoSummaryPractice
-            : l10n.chessInfoSummaryOnline,
+            : l10n.chessInfoSummaryFindMatch,
         widget.isPractice ? p.warning : p.success,
+      ),
+      ChessPlayMode.online => (
+        Icons.public_rounded,
+        l10n.chessInfoSummaryOnline,
+        p.textSecondary,
       ),
     };
 
@@ -653,11 +1101,17 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
         l10n.chessInfoDetailPassPlay,
         p.textSecondary,
       ),
+      ChessPlayMode.findMatch => (
+        Icons.radar_rounded,
+        l10n.chessInfoSummaryFindMatch,
+        l10n.chessInfoDetailFindMatch,
+        p.success,
+      ),
       ChessPlayMode.online => (
         Icons.public_rounded,
         l10n.chessInfoSummaryOnline,
         l10n.chessInfoDetailOnline,
-        p.success,
+        p.textSecondary,
       ),
     };
 
@@ -744,8 +1198,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                     ],
                   ),
                 ),
-                if (widget.isPractice &&
-                    _selectedMode != ChessPlayMode.passAndPlay) ...[
+                if (widget.isPractice && _selectedMode.isRankedMode) ...[
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(10),
@@ -917,6 +1370,20 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     final captured = isWhite ? s.capturedByWhite : s.capturedByBlack;
     final adv = isWhite ? s.materialAdvantage : -s.materialAdvantage;
 
+    final auth = ref.watch(authProvider);
+    final isLocalPlayer = colour == s.playerColor;
+    var label = isWhite ? l10n.chessWhite : l10n.chessBlack;
+    if (s.mode.isOnlineMultiplayer) {
+      if (isLocalPlayer) {
+        if (!auth.isGuest) {
+          label = '@${auth.username} (${auth.chessElo})';
+        }
+      } else if (s.opponentUsername != null) {
+        final oppElo = s.opponentElo != null ? ' (${s.opponentElo})' : '';
+        label = '@${s.opponentUsername}$oppElo';
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -926,14 +1393,24 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 10,
-            backgroundColor: isWhite ? Colors.white : Colors.black,
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isWhite ? Colors.white : Colors.black,
+              border: Border.all(color: p.border, width: 1.2),
+            ),
           ),
           const SizedBox(width: 8),
-          Text(
-            isWhite ? l10n.chessWhite : l10n.chessBlack,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 165),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -983,7 +1460,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        if (s.isPractice && s.mode != ChessPlayMode.online)
+        if (s.isPractice && !s.mode.isOnlineMultiplayer)
           OutlinedButton.icon(
             onPressed: s.canPracticeUndo ? _controller.practiceUndo : null,
             icon: const Icon(Icons.undo_rounded, size: 18),
@@ -1043,20 +1520,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
             pieceSet: pieceSet,
           ),
           const SizedBox(height: 8),
-          if (s.onlineRoomCode != null)
-            ListTile(
-              dense: true,
-              title: Text('${l10n.chessRoomCode}: ${s.onlineRoomCode}'),
-              subtitle: Text(
-                s.onlineWaiting ? l10n.chessWaitingOpponent : 'Connected',
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.copy_rounded, size: 18),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: s.onlineRoomCode!));
-                },
-              ),
-            ),
+          if (s.onlineRoomCode != null) ...[
+            _buildOnlineRoomBanner(s: s, p: p, l10n: l10n),
+            const SizedBox(height: 8),
+          ],
           if (s.isAiThinking)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),

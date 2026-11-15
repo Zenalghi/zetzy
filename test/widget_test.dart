@@ -485,10 +485,24 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    // Switching to Online Room shows room ELO guide
+    // Switching to Find Match shows dynamic ELO matchmaking guide
+    await tester.tap(find.text('Find Match'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Ranked Random 1v1 • Dynamic ELO Matchmaking'),
+      findsOneWidget,
+    );
+
+    await tester.tap(infoCard);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Expanding ELO Window'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // Switching to Online Room shows unrated friend-room anti-cheat guide
     await tester.tap(find.text('Online Room'));
     await tester.pumpAndSettle();
-    expect(find.text('Online 1v1 • Rated ELO via Room Code'), findsOneWidget);
+    expect(find.text('Friend Room 1v1 • Unrated (Anti-Cheat)'), findsOneWidget);
 
     await tester.tap(infoCard);
     await tester.pumpAndSettle();
@@ -936,6 +950,8 @@ class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {
   Future<List<GameRecord>> fetchGlobalLeaderboard({
     required GameType gameType,
     required int difficulty,
+    int limit = 20,
+    int offset = 0,
   }) async {
     return [
       GameRecord(

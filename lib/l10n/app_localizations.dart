@@ -453,6 +453,12 @@ abstract class AppLocalizations {
   /// **'Pass & Play'**
   String get chessModePassPlay;
 
+  /// No description provided for @chessModeFindMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Match'**
+  String get chessModeFindMatch;
+
   /// No description provided for @chessModeOnline.
   ///
   /// In en, this message translates to:
@@ -603,6 +609,90 @@ abstract class AppLocalizations {
   /// **'Sign in to your account to play Online Multiplayer.'**
   String get chessOnlineRequiresAuth;
 
+  /// No description provided for @chessFindMatchStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Match'**
+  String get chessFindMatchStart;
+
+  /// No description provided for @chessFindingMatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding Ranked Opponent...'**
+  String get chessFindingMatchTitle;
+
+  /// No description provided for @chessSearchingEloRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching ELO: {minElo} – {maxElo} (±{radius})'**
+  String chessSearchingEloRange(int minElo, int maxElo, int radius);
+
+  /// No description provided for @chessSearchingNearestElo.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching ELO: {minElo} – {maxElo} (Nearest Available)'**
+  String chessSearchingNearestElo(int minElo, int maxElo);
+
+  /// No description provided for @chessExpandingRangeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No equal ELO found yet? Range widens automatically to the nearest online player.'**
+  String get chessExpandingRangeHint;
+
+  /// No description provided for @chessFindMatchStage.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage {stage}/{total} • {seconds}s'**
+  String chessFindMatchStage(int stage, int total, int seconds);
+
+  /// No description provided for @chessMatchTimedOnlyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Find Match requires a timed clock (Untimed disabled to prevent AFK stalling).'**
+  String get chessMatchTimedOnlyNote;
+
+  /// No description provided for @chessAutoColorFair.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors are assigned randomly and fairly upon match.'**
+  String get chessAutoColorFair;
+
+  /// No description provided for @chessOnlineUnratedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Private Friend Rooms are Unrated (Casual) to prevent ELO/PRO+ score boosting.'**
+  String get chessOnlineUnratedNote;
+
+  /// No description provided for @chessAbortedTooShortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match Aborted'**
+  String get chessAbortedTooShortTitle;
+
+  /// No description provided for @chessAbortedTooShortNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended before 4 half-moves — marked Unrated (0 ELO change) under Fair Play rules.'**
+  String get chessAbortedTooShortNote;
+
+  /// No description provided for @chessOpponentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponent'**
+  String get chessOpponentLabel;
+
+  /// No description provided for @chessYourElo.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ELO: {elo}'**
+  String chessYourElo(int elo);
+
+  /// No description provided for @chessMatchFoundBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Matched vs @{username} (ELO {elo})'**
+  String chessMatchFoundBanner(String username, int elo);
+
   /// No description provided for @chessTapForDetails.
   ///
   /// In en, this message translates to:
@@ -639,10 +729,16 @@ abstract class AppLocalizations {
   /// **'Local 2-Player • Unrated (No ELO/Score)'**
   String get chessInfoSummaryPassPlay;
 
+  /// No description provided for @chessInfoSummaryFindMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranked Random 1v1 • Dynamic ELO Matchmaking'**
+  String get chessInfoSummaryFindMatch;
+
   /// No description provided for @chessInfoSummaryOnline.
   ///
   /// In en, this message translates to:
-  /// **'Online 1v1 • Rated ELO via Room Code'**
+  /// **'Friend Room 1v1 • Unrated (Anti-Cheat)'**
   String get chessInfoSummaryOnline;
 
   /// No description provided for @chessInfoSummaryPractice.
@@ -663,10 +759,16 @@ abstract class AppLocalizations {
   /// **'• How to Play: Take turns playing White and Black on this same device — hand the device over after each move.\n• Score & ELO: Treated as a casual local match (same as Practice Mode). It does NOT change Chess ELO, does NOT save to Leaderboard, and does NOT award XP or unlock levels.'**
   String get chessInfoDetailPassPlay;
 
+  /// No description provided for @chessInfoDetailFindMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'• Fair Random Matchmaking: Matches you against another live player queued in the same Timed control (Bullet, Blitz, or Rapid).\n• Expanding ELO Window: Starts searching near your ELO (±50) and widens automatically over time (±120 → ±250 → ±500 → ±1000). After 45s, it opens to the nearest online player (400–3500) even if the ELO gap is hundreds or thousands of points.\n• Anti-Cheat Protection: Colors are assigned randomly, self-matching is blocked, resigns/abandons before 4 half-moves are Aborted (0 ELO), ELO updates use the matched opponent rating (K=32), and AI Nightmare/God levels only unlock in Vs AI.'**
+  String get chessInfoDetailFindMatch;
+
   /// No description provided for @chessInfoDetailOnline.
   ///
   /// In en, this message translates to:
-  /// **'• Concept: Real-time 1v1 match connected directly via Supabase Realtime.\n• Host (Create Room): Sign in first, pick Time Control, then tap Create Room. Share the 6-character Room Code shown on screen with your friend.\n• Friend (Join Room): Sign in, pick Online Room, enter the Room Code, and tap Join Room. The game starts automatically once connected.\n• Score & ELO: Updates Chess ELO and saves wins to Leaderboard + difficulty XP (unless Practice Mode is on).'**
+  /// **'• Concept: Private 1v1 room via Supabase Realtime for playing with friends.\n• Host & Join: Sign in first. Host picks side & Time Control then shares the 6-character code; friend enters the code to join.\n• Anti-Cheat & Unrated Rule: Private Room matches are strictly Unrated — no Chess ELO change, no PRO+ Leaderboard entry, no XP, and no Nightmare/God level unlock so private rooms cannot be used for win-trading.'**
   String get chessInfoDetailOnline;
 
   /// No description provided for @chessCopyCode.
@@ -824,6 +926,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Device'**
   String get leaderboardPlatform;
+
+  /// No description provided for @leaderboardLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load {count} more'**
+  String leaderboardLoadMore(int count);
+
+  /// No description provided for @leaderboardRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get leaderboardRefresh;
+
+  /// No description provided for @leaderboardShowingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {count} entries • Refresh for newest'**
+  String leaderboardShowingCount(int count);
 
   /// No description provided for @statsTotalGames.
   ///

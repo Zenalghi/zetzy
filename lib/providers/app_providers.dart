@@ -330,6 +330,8 @@ class ScoreSyncController {
     required int score,
     required int durationMs,
     bool isPractice = false,
+    bool allowUnlock = true,
+    bool syncRemote = true,
     Map<String, dynamic> metadata = const {},
   }) async {
     if (isPractice) return false;
@@ -343,7 +345,7 @@ class ScoreSyncController {
       difficulty: difficulty,
     );
     bool isNewRecord = false;
-    if (isWon || gameType == GameType.snake) {
+    if (syncRemote && (isWon || gameType == GameType.snake)) {
       if (existing.isEmpty) {
         isNewRecord = true;
       } else if (gameType == GameType.snake || gameType == GameType.chess) {
@@ -376,17 +378,21 @@ class ScoreSyncController {
     );
 
     await storage.saveLocalRecord(record);
-    if (isWon) {
+    if (isWon && allowUnlock) {
       await _ref
           .read(authProvider.notifier)
           .recordUnlockIfEarned(gameType, difficulty);
     }
 
-    await storage.enqueueScore(record);
+    if (syncRemote) {
+      await storage.enqueueScore(record);
+      _ref.invalidate(pendingQueueCountProvider);
+    }
     _ref.invalidate(localRecordsProvider);
-    _ref.invalidate(pendingQueueCountProvider);
 
-    await flushQueue();
+    if (syncRemote) {
+      await flushQueue();
+    }
     return isNewRecord;
   }
 

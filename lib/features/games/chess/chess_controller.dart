@@ -11,7 +11,18 @@ import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/data/remote/supabase_service.dart';
 import 'package:zetzy/features/games/chess/chess_ai.dart';
 
-enum ChessPlayMode { vsAi, passAndPlay, online }
+enum ChessPlayMode {
+  vsAi,
+  passAndPlay,
+  findMatch,
+  online;
+
+  bool get isOnlineMultiplayer =>
+      this == ChessPlayMode.findMatch || this == ChessPlayMode.online;
+
+  bool get isRankedMode =>
+      this == ChessPlayMode.vsAi || this == ChessPlayMode.findMatch;
+}
 
 enum ChessColorPref { white, black, random }
 
@@ -28,6 +39,8 @@ enum ChessTimeControl {
 
 @immutable
 class ChessUiState {
+  static const int minRankedOnlinePlies = 4;
+
   const ChessUiState({
     required this.difficulty,
     required this.isPractice,
@@ -57,6 +70,12 @@ class ChessUiState {
     required this.onlineWaiting,
     required this.pendingPromotionMoves,
     this.practiceHistoryCount = 0,
+    this.onlineMatchId,
+    this.opponentUserId,
+    this.opponentUsername,
+    this.opponentAvatarUrl,
+    this.opponentElo,
+    this.isAbortedUnrated = false,
   });
 
   final DifficultyLevel difficulty;
@@ -87,6 +106,12 @@ class ChessUiState {
   final bool onlineWaiting;
   final List<Move>? pendingPromotionMoves;
   final int practiceHistoryCount;
+  final String? onlineMatchId;
+  final String? opponentUserId;
+  final String? opponentUsername;
+  final String? opponentAvatarUrl;
+  final int? opponentElo;
+  final bool isAbortedUnrated;
 
   bool get canUndo =>
       mode == ChessPlayMode.vsAi &&
@@ -97,11 +122,13 @@ class ChessUiState {
 
   bool get canPracticeUndo =>
       isPractice &&
-      mode != ChessPlayMode.online &&
+      !mode.isOnlineMultiplayer &&
       practiceHistoryCount > 0 &&
       !isAiThinking;
 
   ChessUiState copyWith({
+    ChessTimeControl? timeControl,
+    int? playerColor,
     bool? flipped,
     int? turn,
     int? selectedSquare,
@@ -129,13 +156,19 @@ class ChessUiState {
     List<Move>? pendingPromotionMoves,
     bool clearPromotion = false,
     int? practiceHistoryCount,
+    String? onlineMatchId,
+    String? opponentUserId,
+    String? opponentUsername,
+    String? opponentAvatarUrl,
+    int? opponentElo,
+    bool? isAbortedUnrated,
   }) {
     return ChessUiState(
       difficulty: difficulty,
       isPractice: isPractice,
       mode: mode,
-      timeControl: timeControl,
-      playerColor: playerColor,
+      timeControl: timeControl ?? this.timeControl,
+      playerColor: playerColor ?? this.playerColor,
       flipped: flipped ?? this.flipped,
       turn: turn ?? this.turn,
       selectedSquare:
@@ -162,6 +195,12 @@ class ChessUiState {
           ? null
           : (pendingPromotionMoves ?? this.pendingPromotionMoves),
       practiceHistoryCount: practiceHistoryCount ?? this.practiceHistoryCount,
+      onlineMatchId: onlineMatchId ?? this.onlineMatchId,
+      opponentUserId: opponentUserId ?? this.opponentUserId,
+      opponentUsername: opponentUsername ?? this.opponentUsername,
+      opponentAvatarUrl: opponentAvatarUrl ?? this.opponentAvatarUrl,
+      opponentElo: opponentElo ?? this.opponentElo,
+      isAbortedUnrated: isAbortedUnrated ?? this.isAbortedUnrated,
     );
   }
 }
@@ -207,10 +246,15 @@ class ChessController extends ChangeNotifier {
   Game get game => _game;
 
   Timer? _timer;
+  Timer? _disconnectGraceTimer;
   RealtimeChannel? _channel;
   final List<(int?, int?)> _moveSqHistory = [];
   final List<_ChessPracticeSnapshot> _practiceHistory = [];
   int _generation = 0;
+  String? _localUserId;
+  String? _localUsername;
+  String? _localAvatarUrl;
+  int _localChessElo = 1000;
   late ChessUiState _state;
   ChessUiState get state => _state;
 
@@ -226,13 +270,28 @@ class ChessController extends ChangeNotifier {
     required ChessTimeControl timeControl,
     String? roomCode,
     bool isHost = true,
+    String? matchId,
+    String? localUserId,
+    String? localUsername,
+    String? localAvatarUrl,
+    int localChessElo = 1000,
+    String? opponentUserId,
+    String? opponentUsername,
+    String? opponentAvatarUrl,
+    int? opponentElo,
   }) {
     _stopTimer();
+    _cancelDisconnectTimer();
     _leaveOnlineRoom();
     _moveSqHistory.clear();
     _practiceHistory.clear();
     _generation++;
     _game = Game(variant: Variant.standard());
+
+    _localUserId = localUserId;
+    _localUsername = localUsername;
+    _localAvatarUrl = localAvatarUrl;
+    _localChessElo = localChessElo;
 
     final resolvedColor = switch (colorPref) {
       ChessColorPref.white => Bishop.white,
@@ -241,7 +300,7 @@ class ChessController extends ChangeNotifier {
         Random().nextBool() ? Bishop.white : Bishop.black,
     };
 
-    final activeRoom = mode == ChessPlayMode.online
+    final activeRoom = mode.isOnlineMultiplayer
         ? (roomCode ?? _generateRoomCode())
         : null;
 
@@ -271,12 +330,21 @@ class ChessController extends ChangeNotifier {
       winnerColour: null,
       isDraw: false,
       onlineRoomCode: activeRoom,
-      onlineWaiting: mode == ChessPlayMode.online,
+      onlineWaiting: mode.isOnlineMultiplayer,
       pendingPromotionMoves: null,
+      onlineMatchId: matchId,
+      opponentUserId: opponentUserId,
+      opponentUsername: opponentUsername,
+      opponentAvatarUrl: opponentAvatarUrl,
+      opponentElo: opponentElo,
     );
 
-    if (mode == ChessPlayMode.online && activeRoom != null) {
-      _joinOnlineRoom(activeRoom, isHost: isHost);
+    if (mode.isOnlineMultiplayer && activeRoom != null) {
+      _joinOnlineRoom(
+        activeRoom,
+        isHost: isHost,
+        isMatchmade: mode == ChessPlayMode.findMatch,
+      );
     }
 
     notifyListeners();
@@ -387,7 +455,7 @@ class ChessController extends ChangeNotifier {
     if (_state.mode == ChessPlayMode.vsAi && _game.turn != _state.playerColor) {
       return;
     }
-    if (_state.mode == ChessPlayMode.online &&
+    if (_state.mode.isOnlineMultiplayer &&
         _game.turn != _state.playerColor) {
       return;
     }
@@ -470,7 +538,7 @@ class ChessController extends ChangeNotifier {
     final ok = _game.makeMove(move);
     if (!ok) return;
 
-    if (_state.isPractice && _state.mode != ChessPlayMode.online) {
+    if (_state.isPractice && !_state.mode.isOnlineMultiplayer) {
       if (_practiceHistory.length >= 40) {
         _practiceHistory.removeAt(0);
       }
@@ -513,10 +581,10 @@ class ChessController extends ChangeNotifier {
     );
     _recomputeMaterialAndCaptures();
 
-    if (_state.mode == ChessPlayMode.online && !fromRemote) {
+    if (_state.mode.isOnlineMultiplayer && !fromRemote) {
       _channel?.sendBroadcastMessage(
         event: 'chess_move',
-        payload: {'alg': alg},
+        payload: {'alg': alg, 'color': preTurn},
       );
     }
 
@@ -589,7 +657,7 @@ class ChessController extends ChangeNotifier {
 
   void practiceRewind(int steps) {
     if (!_state.isPractice ||
-        _state.mode == ChessPlayMode.online ||
+        _state.mode.isOnlineMultiplayer ||
         _practiceHistory.isEmpty) {
       return;
     }
@@ -673,13 +741,13 @@ class ChessController extends ChangeNotifier {
         ? _game.turn
         : _state.playerColor;
     final winner = loser.opponent;
-    if (_state.mode == ChessPlayMode.online) {
+    if (_state.mode.isOnlineMultiplayer) {
       _channel?.sendBroadcastMessage(
         event: 'chess_resign',
-        payload: {'winner': winner},
+        payload: {'winner': winner, 'resignerColor': loser},
       );
     }
-    _endGame(winnerColour: winner, isDraw: false);
+    _endGame(winnerColour: winner, isDraw: false, isResignOrAbandon: true);
   }
 
   bool _checkGameEnd() {
@@ -693,18 +761,31 @@ class ChessController extends ChangeNotifier {
     return true;
   }
 
-  void _endGame({required int? winnerColour, required bool isDraw}) {
+  void _endGame({
+    required int? winnerColour,
+    required bool isDraw,
+    bool isResignOrAbandon = false,
+  }) {
     _generation++;
     _stopTimer();
+    _cancelDisconnectTimer();
     _leaveOnlineRoom();
-    final playerWon = !isDraw && winnerColour == _state.playerColor;
+
+    final abortedTooShort =
+        _state.mode.isOnlineMultiplayer &&
+        _state.moveSans.length < ChessUiState.minRankedOnlinePlies &&
+        (isResignOrAbandon || _game.result is! WonGame);
+
+    final playerWon =
+        !abortedTooShort && !isDraw && winnerColour == _state.playerColor;
     _audio.playSfx(playerWon ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
     _state = _state.copyWith(
       isGameOver: true,
-      winnerColour: winnerColour,
-      clearWinner: winnerColour == null,
-      isDraw: isDraw,
+      winnerColour: abortedTooShort ? null : winnerColour,
+      clearWinner: abortedTooShort || winnerColour == null,
+      isDraw: !abortedTooShort && isDraw,
       isAiThinking: false,
+      isAbortedUnrated: abortedTooShort,
     );
     notifyListeners();
     onFinished(_state);
@@ -754,37 +835,186 @@ class ChessController extends ChangeNotifier {
     );
   }
 
-  void _joinOnlineRoom(String code, {required bool isHost}) {
-    final ch = _supabase.createChessRoomChannel(code);
+  void _cancelDisconnectTimer() {
+    _disconnectGraceTimer?.cancel();
+    _disconnectGraceTimer = null;
+  }
+
+  void _joinOnlineRoom(
+    String code, {
+    required bool isHost,
+    bool isMatchmade = false,
+  }) {
+    final ch = _supabase.createChessRoomChannel(
+      code,
+      presenceKey: _localUserId ?? '',
+    );
     if (ch == null) {
       _state = _state.copyWith(onlineWaiting: false);
       return;
     }
     _channel = ch;
     ch
+        .onPresenceSync((_) {
+          if (!isMatchmade || !_state.onlineWaiting) return;
+          final states = ch.presenceState();
+          final hasOpponent = states.any(
+            (s) =>
+                s.key.isNotEmpty &&
+                (_localUserId == null || s.key != _localUserId),
+          );
+          if (hasOpponent) {
+            _state = _state.copyWith(onlineWaiting: false);
+            notifyListeners();
+          }
+        })
+        .onPresenceJoin((payload) {
+          if (payload.key.isEmpty || payload.key == _localUserId) return;
+          _cancelDisconnectTimer();
+          if (isMatchmade && _state.onlineWaiting) {
+            _state = _state.copyWith(onlineWaiting: false);
+            notifyListeners();
+          }
+        })
+        .onPresenceLeave((payload) {
+          if (_state.isGameOver ||
+              _state.onlineWaiting ||
+              !_state.mode.isOnlineMultiplayer) {
+            return;
+          }
+          if (payload.key.isEmpty || payload.key == _localUserId) return;
+          if (_state.opponentUserId != null &&
+              _state.opponentUserId!.isNotEmpty &&
+              payload.key != _state.opponentUserId) {
+            return;
+          }
+          if (payload.currentPresences.isNotEmpty) return;
+
+          _cancelDisconnectTimer();
+          _disconnectGraceTimer = Timer(const Duration(seconds: 10), () {
+            if (_state.isGameOver ||
+                _state.onlineWaiting ||
+                !_state.mode.isOnlineMultiplayer) {
+              return;
+            }
+            _endGame(
+              winnerColour: _state.playerColor,
+              isDraw: false,
+              isResignOrAbandon: true,
+            );
+          });
+        })
+        .onBroadcast(
+          event: 'chess_host_here',
+          callback: (payload) {
+            if (isMatchmade || isHost || !_state.onlineWaiting) return;
+            ch.sendBroadcastMessage(
+              event: 'chess_join',
+              payload: {
+                'userId': _localUserId,
+                'username': _localUsername,
+                'avatarUrl': _localAvatarUrl,
+                'chessElo': _localChessElo,
+              },
+            );
+          },
+        )
         .onBroadcast(
           event: 'chess_join',
           callback: (payload) {
-            if (_state.onlineWaiting) {
-              _state = _state.copyWith(onlineWaiting: false);
-              notifyListeners();
-              ch.sendBroadcastMessage(
-                event: 'chess_ready',
-                payload: {'hostColor': _state.playerColor},
-              );
-            }
+            if (isMatchmade || !isHost) return;
+            final guestUserId = payload['userId'] as String?;
+            final guestUsername = payload['username'] as String?;
+            final guestAvatarUrl = payload['avatarUrl'] as String?;
+            final guestElo = (payload['chessElo'] as num?)?.toInt();
+
+            _state = _state.copyWith(
+              onlineWaiting: false,
+              opponentUserId: guestUserId ?? _state.opponentUserId,
+              opponentUsername: guestUsername ?? _state.opponentUsername,
+              opponentAvatarUrl: guestAvatarUrl ?? _state.opponentAvatarUrl,
+              opponentElo: guestElo ?? _state.opponentElo,
+            );
+            notifyListeners();
+            ch.sendBroadcastMessage(
+              event: 'chess_ready',
+              payload: {
+                'hostColor': _state.playerColor,
+                'timeControl': _state.timeControl.name,
+                'userId': _localUserId,
+                'username': _localUsername,
+                'avatarUrl': _localAvatarUrl,
+                'chessElo': _localChessElo,
+              },
+            );
           },
         )
         .onBroadcast(
           event: 'chess_ready',
           callback: (payload) {
-            _state = _state.copyWith(onlineWaiting: false);
+            if (isMatchmade || isHost) return;
+            final hostColor = (payload['hostColor'] as num?)?.toInt();
+            final guestColor = hostColor == Bishop.black
+                ? Bishop.white
+                : Bishop.black;
+            final tcName = payload['timeControl'] as String?;
+            final syncedTc = ChessTimeControl.values.firstWhere(
+              (t) => t.name == tcName,
+              orElse: () => _state.timeControl,
+            );
+            final hostUserId = payload['userId'] as String?;
+            final hostUsername = payload['username'] as String?;
+            final hostAvatarUrl = payload['avatarUrl'] as String?;
+            final hostElo = (payload['chessElo'] as num?)?.toInt();
+
+            final shouldSyncClock =
+                _state.moveSans.isEmpty && syncedTc != _state.timeControl;
+            _state = _state.copyWith(
+              timeControl: shouldSyncClock ? syncedTc : null,
+              whiteTimeMs: shouldSyncClock ? syncedTc.initialMs : null,
+              blackTimeMs: shouldSyncClock ? syncedTc.initialMs : null,
+              playerColor: guestColor,
+              flipped: guestColor == Bishop.black,
+              onlineWaiting: false,
+              opponentUserId: hostUserId ?? _state.opponentUserId,
+              opponentUsername: hostUsername ?? _state.opponentUsername,
+              opponentAvatarUrl: hostAvatarUrl ?? _state.opponentAvatarUrl,
+              opponentElo: hostElo ?? _state.opponentElo,
+            );
             notifyListeners();
+          },
+        )
+        .onBroadcast(
+          event: 'chess_peer_ready',
+          callback: (payload) {
+            if (!isMatchmade) return;
+            final senderId = payload['userId'] as String?;
+            if (_localUserId != null &&
+                senderId != null &&
+                senderId == _localUserId) {
+              return;
+            }
+            if (_state.onlineWaiting) {
+              _state = _state.copyWith(onlineWaiting: false);
+              notifyListeners();
+            }
+            if (payload['isReply'] != true) {
+              ch.sendBroadcastMessage(
+                event: 'chess_peer_ready',
+                payload: {
+                  'isReply': true,
+                  'userId': _localUserId,
+                  'color': _state.playerColor,
+                },
+              );
+            }
           },
         )
         .onBroadcast(
           event: 'chess_move',
           callback: (payload) {
+            if (!_state.mode.isOnlineMultiplayer || _state.isGameOver) return;
+            if (_game.turn == _state.playerColor) return;
             final alg = payload['alg'] as String?;
             if (alg == null) return;
             final move = _game.getMove(alg);
@@ -796,20 +1026,59 @@ class ChessController extends ChangeNotifier {
         .onBroadcast(
           event: 'chess_resign',
           callback: (payload) {
-            final winner = (payload['winner'] as num?)?.toInt();
-            _endGame(winnerColour: winner, isDraw: false);
+            if (!_state.mode.isOnlineMultiplayer || _state.isGameOver) return;
+            final resignerColor = (payload['resignerColor'] as num?)?.toInt();
+            if (resignerColor != null && resignerColor == _state.playerColor) {
+              return;
+            }
+            _endGame(
+              winnerColour: _state.playerColor,
+              isDraw: false,
+              isResignOrAbandon: true,
+            );
           },
         )
         .subscribe((status, _) {
-          if (status == RealtimeSubscribeStatus.subscribed && !isHost) {
-            ch.sendBroadcastMessage(event: 'chess_join', payload: {});
-            _state = _state.copyWith(onlineWaiting: false);
-            notifyListeners();
+          if (status != RealtimeSubscribeStatus.subscribed) return;
+          if (_localUserId != null && _localUserId!.isNotEmpty) {
+            unawaited(
+              ch.track({
+                'user_id': _localUserId,
+                'username': _localUsername ?? 'player',
+                'chess_elo': _localChessElo,
+              }),
+            );
+          }
+          if (isMatchmade) {
+            ch.sendBroadcastMessage(
+              event: 'chess_peer_ready',
+              payload: {
+                'isReply': false,
+                'userId': _localUserId,
+                'color': _state.playerColor,
+              },
+            );
+          } else if (isHost) {
+            ch.sendBroadcastMessage(
+              event: 'chess_host_here',
+              payload: {'hostColor': _state.playerColor},
+            );
+          } else {
+            ch.sendBroadcastMessage(
+              event: 'chess_join',
+              payload: {
+                'userId': _localUserId,
+                'username': _localUsername,
+                'avatarUrl': _localAvatarUrl,
+                'chessElo': _localChessElo,
+              },
+            );
           }
         });
   }
 
   void _leaveOnlineRoom() {
+    _cancelDisconnectTimer();
     _channel?.unsubscribe();
     _channel = null;
   }
@@ -823,7 +1092,7 @@ class ChessController extends ChangeNotifier {
   void pause({bool save = true}) {
     if (_state.isGameOver ||
         _state.isPaused ||
-        _state.mode == ChessPlayMode.online) {
+        _state.mode.isOnlineMultiplayer) {
       return;
     }
     _stopTimer();
@@ -890,6 +1159,18 @@ class ChessController extends ChangeNotifier {
   @override
   void dispose() {
     _stopTimer();
+    _cancelDisconnectTimer();
+    if (_channel != null &&
+        !_state.isGameOver &&
+        !_state.onlineWaiting &&
+        _state.mode.isOnlineMultiplayer) {
+      final resigner = _state.playerColor;
+      final winner = resigner == Bishop.white ? Bishop.black : Bishop.white;
+      _channel!.sendBroadcastMessage(
+        event: 'chess_resign',
+        payload: {'winner': winner, 'resignerColor': resigner},
+      );
+    }
     _leaveOnlineRoom();
     super.dispose();
   }
