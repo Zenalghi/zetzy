@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -230,7 +232,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                                     const SizedBox(height: 16),
                                     _buildActionToolbar(s, p, l10n),
                                     const SizedBox(height: 16),
-                                    _buildDigitPad(s, p),
+                                    _buildDigitPad(s, p, keyHeight: 62),
                                     const SizedBox(height: 12),
                                     Text(
                                       l10n.sudokuDigitLockHint,
@@ -248,21 +250,30 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                         );
                       }
 
+                      final digitKeyHeight =
+                          (constraints.maxHeight * 0.092).clamp(52.0, 70.0);
+
                       return SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
+                            horizontal: 6,
                             vertical: 6,
                           ),
                           child: Column(
                             children: [
-                              _buildStatusRow(s, p, l10n),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: _buildStatusRow(s, p, l10n),
+                              ),
                               const SizedBox(height: 8),
                               Expanded(child: Center(child: _buildGrid(s, p))),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               _buildActionToolbar(s, p, l10n),
                               const SizedBox(height: 8),
-                              _buildDigitPad(s, p),
+                              _buildDigitPad(s, p, keyHeight: digitKeyHeight),
+                              const SizedBox(height: 4),
                             ],
                           ),
                         ),
@@ -411,41 +422,55 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     final highlightDigit = s.highlightedDigit;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
+      constraints: const BoxConstraints(maxWidth: 580, maxHeight: 580),
       child: AspectRatio(
         aspectRatio: 1,
-        child: Container(
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: p.accent.withValues(alpha: 0.6), width: 2),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var r = 0; r < 9; r++)
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var c = 0; c < 9; c++)
-                        _buildCell(
-                          s: s,
-                          p: p,
-                          row: r,
-                          col: c,
-                          sel: sel,
-                          selRow: selRow,
-                          selCol: selCol,
-                          selBox: selBox,
-                          highlightDigit: highlightDigit,
-                        ),
-                    ],
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final boardSize = math.min(
+              constraints.maxWidth,
+              constraints.maxHeight,
+            );
+            final cellSize = boardSize / 9.0;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: p.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: p.accent.withValues(alpha: 0.65),
+                  width: 2,
                 ),
-            ],
-          ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var r = 0; r < 9; r++)
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var c = 0; c < 9; c++)
+                            _buildCell(
+                              s: s,
+                              p: p,
+                              row: r,
+                              col: c,
+                              cellSize: cellSize,
+                              sel: sel,
+                              selRow: selRow,
+                              selCol: selCol,
+                              selBox: selBox,
+                              highlightDigit: highlightDigit,
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -456,6 +481,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     required ZetzyPalette p,
     required int row,
     required int col,
+    required double cellSize,
     required int? sel,
     required int selRow,
     required int selCol,
@@ -468,20 +494,23 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     final isSelected = sel == idx;
     final isError = s.errorCells.contains(idx);
     final box = (row ~/ 3) * 3 + (col ~/ 3);
-    final isRelated = row == selRow || col == selCol || box == selBox;
+    final isRelated =
+        sel != null && (row == selRow || col == selCol || box == selBox);
     final isSameDigit = highlightDigit != null && val == highlightDigit;
 
     Color bg = p.surface;
     if (isSelected) {
-      bg = p.accent.withValues(alpha: 0.30);
+      bg = p.accent.withValues(alpha: 0.38);
     } else if (isSameDigit) {
-      bg = p.accentSecondary.withValues(alpha: 0.24);
+      bg = p.accent.withValues(alpha: 0.22);
     } else if (isRelated) {
       bg = p.surfaceElevated;
     }
 
     final rightThick = (col + 1) % 3 == 0 && col != 8;
     final bottomThick = (row + 1) % 3 == 0 && row != 8;
+    final digitFontSize = (cellSize * 0.62).clamp(16.0, 40.0);
+    final noteFontSize = (cellSize * 0.26).clamp(8.5, 16.0);
 
     return Expanded(
       child: GestureDetector(
@@ -500,7 +529,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                   ? BorderSide.none
                   : BorderSide(
                       color: rightThick
-                          ? p.accent.withValues(alpha: 0.5)
+                          ? p.accent.withValues(alpha: 0.55)
                           : p.border,
                       width: rightThick ? 2 : 0.6,
                     ),
@@ -508,7 +537,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                   ? BorderSide.none
                   : BorderSide(
                       color: bottomThick
-                          ? p.accent.withValues(alpha: 0.5)
+                          ? p.accent.withValues(alpha: 0.55)
                           : p.border,
                       width: bottomThick ? 2 : 0.6,
                     ),
@@ -521,26 +550,36 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                     child: Text(
                       '$val',
                       style: ZetzyThemes.monoStyle(
-                        fontSize: 22,
-                        fontWeight: isGiven ? FontWeight.w800 : FontWeight.w600,
+                        fontSize: digitFontSize,
+                        fontWeight: isGiven ? FontWeight.w700 : FontWeight.w600,
                         color: isError
                             ? p.danger
                             : (isGiven ? p.textPrimary : p.accent),
-                      ),
+                      ).copyWith(height: 1.0),
                     ),
                   ),
                 )
-              : _buildNotesGrid(s.notes[idx], p),
+              : _buildNotesGrid(
+                  s.notes[idx],
+                  p,
+                  fontSize: noteFontSize,
+                  highlightDigit: highlightDigit,
+                ),
         ),
       ),
     );
   }
 
-  Widget _buildNotesGrid(Set<int> cellNotes, ZetzyPalette p) {
+  Widget _buildNotesGrid(
+    Set<int> cellNotes,
+    ZetzyPalette p, {
+    required double fontSize,
+    required int? highlightDigit,
+  }) {
     if (cellNotes.isEmpty) return const SizedBox.expand();
     return SizedBox.expand(
       child: Padding(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(1.5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -551,19 +590,30 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                   children: [
                     for (var c = 0; c < 3; c++)
                       Expanded(
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              cellNotes.contains(r * 3 + c + 1)
-                                  ? '${r * 3 + c + 1}'
-                                  : '',
-                              style: ZetzyThemes.monoStyle(
-                                fontSize: 9,
-                                color: p.textSecondary,
+                        child: Builder(
+                          builder: (_) {
+                            final noteDigit = r * 3 + c + 1;
+                            final hasNote = cellNotes.contains(noteDigit);
+                            final isHighlighted =
+                                hasNote && highlightDigit == noteDigit;
+                            return Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  hasNote ? '$noteDigit' : '',
+                                  style: ZetzyThemes.monoStyle(
+                                    fontSize: fontSize,
+                                    fontWeight: isHighlighted
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isHighlighted
+                                        ? p.accent
+                                        : p.textSecondary,
+                                  ).copyWith(height: 1.0),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ),
                   ],
@@ -631,15 +681,22 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     );
   }
 
-  Widget _buildDigitPad(SudokuGameState s, ZetzyPalette p) {
+  Widget _buildDigitPad(
+    SudokuGameState s,
+    ZetzyPalette p, {
+    required double keyHeight,
+  }) {
+    final activeHighlight = s.highlightedDigit;
     return Row(
       children: [
         for (var d = 1; d <= 9; d++)
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
               child: _DigitKey(
                 digit: d,
+                height: keyHeight,
+                isHighlighted: activeHighlight == d,
                 isLocked: s.lockedDigit == d,
                 isCompleted: s.countDigit(d) >= 9,
                 palette: p,
@@ -683,25 +740,29 @@ class _ActionIcon extends StatelessWidget {
 
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
           color: active ? p.accent.withValues(alpha: 0.16) : p.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: active ? p.accent : p.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 2),
+            Icon(icon, size: 22, color: color),
+            const SizedBox(height: 3),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 label,
                 maxLines: 1,
-                style: TextStyle(fontSize: 10, color: color),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
             ),
           ],
@@ -714,6 +775,8 @@ class _ActionIcon extends StatelessWidget {
 class _DigitKey extends StatelessWidget {
   const _DigitKey({
     required this.digit,
+    required this.height,
+    required this.isHighlighted,
     required this.isLocked,
     required this.isCompleted,
     required this.palette,
@@ -722,6 +785,8 @@ class _DigitKey extends StatelessWidget {
   });
 
   final int digit;
+  final double height;
+  final bool isHighlighted;
   final bool isLocked;
   final bool isCompleted;
   final ZetzyPalette palette;
@@ -730,33 +795,59 @@ class _DigitKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final digitFontSize = (height * 0.46).clamp(24.0, 32.0);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onLongPress: onLongPress,
       child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: isCompleted && !isLocked ? 0.32 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        opacity: isCompleted && !isHighlighted ? 0.42 : 1.0,
         child: Container(
-          height: 48,
+          height: height,
           decoration: BoxDecoration(
-            color: isLocked
-                ? palette.accent.withValues(alpha: 0.22)
+            color: isHighlighted
+                ? palette.accent.withValues(alpha: isLocked ? 0.26 : 0.18)
                 : palette.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isLocked ? palette.accent : palette.border,
-              width: isLocked ? 1.8 : 1,
+              color: isHighlighted ? palette.accent : palette.border,
+              width: isLocked ? 2.0 : (isHighlighted ? 1.5 : 1.0),
             ),
           ),
-          child: Center(
-            child: Text(
-              '$digit',
-              style: ZetzyThemes.monoStyle(
-                fontSize: 20,
-                color: isLocked ? palette.accent : palette.textPrimary,
+          child: Stack(
+            children: [
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$digit',
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: digitFontSize,
+                      fontWeight: isHighlighted
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: isHighlighted
+                          ? palette.accent
+                          : palette.textPrimary,
+                    ).copyWith(height: 1.0),
+                  ),
+                ),
               ),
-            ),
+              if (isLocked)
+                Positioned(
+                  top: 4,
+                  right: 5,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: palette.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

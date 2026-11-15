@@ -1143,6 +1143,12 @@ abstract class AppLocalizations {
   /// **'Account & Data Management'**
   String get profileDangerZone;
 
+  /// No description provided for @profileAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Zetzy v{version}'**
+  String profileAppVersion(String version);
+
   /// No description provided for @settingsAppearance.
   ///
   /// In en, this message translates to:

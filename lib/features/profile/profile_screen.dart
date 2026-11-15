@@ -258,6 +258,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final settingsCtrl = ref.read(settingsProvider.notifier);
     final supa = ref.watch(supabaseServiceProvider);
     final hasAudio = ref.watch(audioServiceProvider).hasAudioAssets;
+    final appVersionAsync = ref.watch(appVersionProvider);
 
     return SafeArea(
       child: Center(
@@ -711,6 +712,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
+              appVersionAsync.whenOrNull(
+                    data: (version) => version == null
+                        ? null
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 18, bottom: 8),
+                            child: Center(
+                              child: Text(
+                                l10n.profileAppVersion(version),
+                                style: ZetzyThemes.monoStyle(
+                                  fontSize: 12,
+                                  color: p.textSecondary.withValues(
+                                    alpha: 0.72,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ) ??
+                  const SizedBox.shrink(),
             ],
           ),
         ),

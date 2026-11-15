@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/app.dart';
@@ -942,6 +943,51 @@ void main() {
     await tester.pump();
     expect(find.text('Undo'), findsOneWidget);
     expect(find.text('Undo Notes'), findsNothing);
+  });
+
+  testWidgets('ProfileScreen displays pubspec app version quietly at bottom while Home omits it', (
+    WidgetTester tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'Zetzy',
+      packageName: 'com.example.zetzy',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Home must not display the app version footer.
+    expect(find.text('Zetzy v1.0.0+1'), findsNothing);
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Zetzy v1.0.0+1'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Zetzy v1.0.0+1'), findsOneWidget);
   });
 }
 

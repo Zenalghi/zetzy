@@ -586,6 +586,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDangerZone => 'Account & Data Management';
 
   @override
+  String profileAppVersion(String version) {
+    return 'Zetzy v$version';
+  }
+
+  @override
   String get settingsAppearance => 'Appearance & Language';
 
   @override

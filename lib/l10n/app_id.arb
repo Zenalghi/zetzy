@@ -214,6 +214,14 @@
   "profileResetStats": "Reset Semua Statistik",
   "profileDeleteAccount": "Hapus Akun Permanen",
   "profileDangerZone": "Manajemen Akun & Data",
+  "profileAppVersion": "Zetzy v{version}",
+  "@profileAppVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
 
   "settingsAppearance": "Tampilan & Bahasa",
   "settingsTheme": "Skin Tema",

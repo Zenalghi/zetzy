@@ -301,6 +301,54 @@ void main() {
 
       ctrl.dispose();
     });
+
+    test('SudokuController supports deselecting cell/highlight and highlighting from bottom keypad', () async {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.normal,
+        isPractice: false,
+      );
+
+      final givenIdx = ctrl.state.givens.indexWhere((v) => v != 0);
+      final givenDigit = ctrl.state.givens[givenIdx];
+      final otherDigit = givenDigit == 9 ? 1 : givenDigit + 1;
+
+      // Tap given cell to select & highlight; tap same cell again to deselect
+      ctrl.selectCell(givenIdx);
+      expect(ctrl.state.selectedCell, equals(givenIdx));
+      expect(ctrl.state.highlightedDigit, equals(givenDigit));
+
+      ctrl.selectCell(givenIdx);
+      expect(ctrl.state.selectedCell, isNull);
+      expect(ctrl.state.highlightedDigit, isNull);
+
+      // Select given cell, then switch highlight from bottom digit pad
+      ctrl.selectCell(givenIdx);
+      ctrl.onDigitTap(otherDigit);
+      expect(ctrl.state.lockedDigit, equals(otherDigit));
+      expect(ctrl.state.highlightedDigit, equals(otherDigit));
+      expect(ctrl.state.selectedCell, isNull);
+
+      // Tap same bottom digit again to deselect highlight
+      ctrl.onDigitTap(otherDigit);
+      expect(ctrl.state.lockedDigit, isNull);
+      expect(ctrl.state.highlightedDigit, isNull);
+
+      // Tap bottom digit with no cell selected -> highlights; tap again -> deselects
+      ctrl.onDigitTap(givenDigit);
+      expect(ctrl.state.lockedDigit, equals(givenDigit));
+      expect(ctrl.state.highlightedDigit, equals(givenDigit));
+      ctrl.onDigitTap(givenDigit);
+      expect(ctrl.state.highlightedDigit, isNull);
+
+      ctrl.dispose();
+    });
   });
 
   group('Minesweeper Engine & Controller', () {

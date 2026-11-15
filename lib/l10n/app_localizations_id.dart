@@ -585,6 +585,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get profileDangerZone => 'Manajemen Akun & Data';
 
   @override
+  String profileAppVersion(String version) {
+    return 'Zetzy v$version';
+  }
+
+  @override
   String get settingsAppearance => 'Tampilan & Bahasa';
 
   @override

@@ -1,6 +1,9 @@
-name: Build & Deploy Zetzy (Manual Multi-Platform)
+name: Build & Deploy Zetzy (Multi-Platform)
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       target:
@@ -19,11 +22,11 @@ on:
         required: false
         default: true
         type: boolean
-      release_tag:
-        description: "Optional Git tag for GitHub Release (e.g. v1.0.0) — leave empty to only produce artifacts"
+      publish_release:
+        description: "Publish GitHub Release using version from pubspec.yaml (e.g. v1.0.0)"
         required: false
-        default: ""
-        type: string
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -31,19 +34,87 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "zetzy-manual-build-${{ github.ref }}"
+  group: "zetzy-build-${{ github.ref }}"
   cancel-in-progress: false
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────────
-  # 1. Automated Verification (L10n + Unit & Widget Tests)
+  # 1. Version Sync Check + Automated Verification (L10n, Analyze & Tests)
   # ────────────────────────────────────────────────────────────────────────────
   test:
-    name: Verify & Test
+    name: Verify, Version Check & Test
     runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      build_number: ${{ steps.version.outputs.build_number }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      should_release: ${{ steps.version.outputs.should_release }}
+      run_android: ${{ steps.version.outputs.run_android }}
+      run_web: ${{ steps.version.outputs.run_web }}
+      run_deploy_pages: ${{ steps.version.outputs.run_deploy_pages }}
+      run_windows: ${{ steps.version.outputs.run_windows }}
+      run_linux: ${{ steps.version.outputs.run_linux }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Resolve & Validate Version from pubspec.yaml
+        id: version
+        shell: bash
+        run: |
+          RAW_VERSION=$(awk -F': ' '/^version:/ {gsub(/[[:space:]]/, "", $2); print $2; exit}' pubspec.yaml)
+          if [ -z "$RAW_VERSION" ]; then
+            echo "::error::Could not find 'version:' in pubspec.yaml"
+            exit 1
+          fi
+
+          VERSION_NAME="${RAW_VERSION%%+*}"
+          if [[ "$RAW_VERSION" == *"+"* ]]; then
+            BUILD_NUMBER="${RAW_VERSION#*+}"
+          else
+            BUILD_NUMBER="1"
+          fi
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            TAG_CORE="${TAG_NAME#v}"
+            TAG_CORE="${TAG_CORE%%-*}"
+            if [ "$TAG_CORE" != "$VERSION_NAME" ]; then
+              echo "::error::Git tag '$TAG_NAME' does not match pubspec.yaml version '$VERSION_NAME' ($RAW_VERSION). Update pubspec.yaml first!"
+              exit 1
+            fi
+            PRERELEASE=$([[ "$TAG_NAME" == *-* ]] && echo "true" || echo "false")
+            SHOULD_RELEASE="true"
+            TARGET="all"
+            DEPLOY_PAGES="true"
+          else
+            TAG_NAME="v${VERSION_NAME}"
+            PRERELEASE="false"
+            SHOULD_RELEASE="${{ inputs.publish_release }}"
+            TARGET="${{ inputs.target }}"
+            DEPLOY_PAGES="${{ inputs.deploy_pages }}"
+          fi
+
+          RUN_ANDROID=$([[ "$TARGET" = "all" || "$TARGET" = "android" ]] && echo "true" || echo "false")
+          RUN_WEB=$([[ "$TARGET" = "all" || "$TARGET" = "web" ]] && echo "true" || echo "false")
+          RUN_DEPLOY_PAGES=$([[ "$RUN_WEB" = "true" && "$DEPLOY_PAGES" = "true" ]] && echo "true" || echo "false")
+          RUN_WINDOWS=$([[ "$TARGET" = "all" || "$TARGET" = "windows" ]] && echo "true" || echo "false")
+          RUN_LINUX=$([[ "$TARGET" = "all" || "$TARGET" = "linux" ]] && echo "true" || echo "false")
+
+          echo "Resolved release version: pubspec=$RAW_VERSION tag=$TAG_NAME prerelease=$PRERELEASE release=$SHOULD_RELEASE"
+          {
+            echo "version_name=$VERSION_NAME"
+            echo "build_number=$BUILD_NUMBER"
+            echo "tag_name=$TAG_NAME"
+            echo "prerelease=$PRERELEASE"
+            echo "should_release=$SHOULD_RELEASE"
+            echo "run_android=$RUN_ANDROID"
+            echo "run_web=$RUN_WEB"
+            echo "run_deploy_pages=$RUN_DEPLOY_PAGES"
+            echo "run_windows=$RUN_WINDOWS"
+            echo "run_linux=$RUN_LINUX"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -56,8 +127,10 @@ jobs:
           flutter pub get
           flutter gen-l10n
 
-      - name: Run unit & widget tests
-        run: flutter test
+      - name: Run static analysis & tests
+        run: |
+          flutter analyze
+          flutter test
 
   # ────────────────────────────────────────────────────────────────────────────
   # 2. Android Release APK (Split per ABI: arm64-v8a, armeabi-v7a, x86_64)
@@ -65,7 +138,7 @@ jobs:
   build_android:
     name: Build Android (Split per ABI)
     needs: test
-    if: ${{ inputs.target == 'all' || inputs.target == 'android' }}
+    if: ${{ needs.test.outputs.run_android == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -130,7 +203,7 @@ jobs:
   build_web:
     name: Build Web (SPA + Deferred Chunks)
     needs: test
-    if: ${{ inputs.target == 'all' || inputs.target == 'web' }}
+    if: ${{ needs.test.outputs.run_web == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -160,15 +233,15 @@ jobs:
           path: build/web
 
       - name: Upload GitHub Pages Artifact
-        if: ${{ inputs.deploy_pages }}
+        if: ${{ needs.test.outputs.run_deploy_pages == 'true' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
   deploy_pages:
     name: Deploy to GitHub Pages
-    needs: build_web
-    if: ${{ (inputs.target == 'all' || inputs.target == 'web') && inputs.deploy_pages }}
+    needs: [test, build_web]
+    if: ${{ needs.test.outputs.run_deploy_pages == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -187,7 +260,7 @@ jobs:
   build_windows:
     name: Build Windows (x64)
     needs: test
-    if: ${{ inputs.target == 'all' || inputs.target == 'windows' }}
+    if: ${{ needs.test.outputs.run_windows == 'true' }}
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -228,7 +301,7 @@ jobs:
   build_linux:
     name: Build Linux (x64)
     needs: test
-    if: ${{ inputs.target == 'all' || inputs.target == 'linux' }}
+    if: ${{ needs.test.outputs.run_linux == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -276,12 +349,12 @@ jobs:
           if-no-files-found: error
 
   # ────────────────────────────────────────────────────────────────────────────
-  # 6. Optional GitHub Release Publisher (when release_tag is provided)
+  # 6. GitHub Release Publisher (Synced with pubspec.yaml version)
   # ────────────────────────────────────────────────────────────────────────────
   publish_release:
     name: Publish GitHub Release
-    needs: [build_android, build_windows, build_linux]
-    if: ${{ always() && inputs.release_tag != '' && (needs.build_android.result == 'success' || needs.build_windows.result == 'success' || needs.build_linux.result == 'success') }}
+    needs: [test, build_android, build_windows, build_linux]
+    if: ${{ always() && needs.test.outputs.should_release == 'true' && (needs.build_android.result == 'success' || needs.build_windows.result == 'success' || needs.build_linux.result == 'success') }}
     runs-on: ubuntu-latest
     steps:
       - name: Download Built Artifacts
@@ -290,13 +363,14 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: List Release Assets
+        run: find release-assets -type f | sort
+
       - name: Create / Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
-          name: "Zetzy ${{ inputs.release_tag }}"
+          tag_name: ${{ needs.test.outputs.tag_name }}
+          name: "Zetzy ${{ needs.test.outputs.tag_name }} (Build ${{ needs.test.outputs.build_number }})"
+          prerelease: ${{ needs.test.outputs.prerelease == 'true' }}
           generate_release_notes: true
-          files: |
-            release-assets/*.apk
-            release-assets/*.zip
-            release-assets/*.tar.gz
+          files: release-assets/*

@@ -303,12 +303,49 @@ class SudokuController extends ChangeNotifier {
 
   void selectCell(int index) {
     if (_state.isLoading || _state.isPaused || _state.isGameOver) return;
-    _state = _state.copyWith(selectedCell: index);
-    if (_state.lockedDigit != null) {
-      _applyDigitToCell(index, _state.lockedDigit!);
-    } else {
+    final currentLocked = _state.lockedDigit;
+    if (currentLocked != null) {
+      if (!_state.isCellLocked(index)) {
+        if (_state.values[index] == currentLocked) {
+          if (_state.selectedCell == index) {
+            _state = _state.copyWith(
+              clearSelected: true,
+              clearLockedDigit: true,
+            );
+          } else {
+            _state = _state.copyWith(selectedCell: index);
+          }
+          _haptics.selection();
+          notifyListeners();
+          return;
+        }
+        _state = _state.copyWith(selectedCell: index);
+        _applyDigitToCell(index, currentLocked);
+        return;
+      }
+
+      // Tapping a locked/clue cell while a digit is highlighted/locked:
+      // second tap on the same cell clears selection/highlight; tapping a
+      // different clue value switches highlight to that clue's digit.
+      if (_state.selectedCell == index) {
+        _state = _state.copyWith(clearSelected: true, clearLockedDigit: true);
+      } else if (_state.values[index] != 0 &&
+          _state.values[index] != currentLocked) {
+        _state = _state.copyWith(selectedCell: index, clearLockedDigit: true);
+      } else {
+        _state = _state.copyWith(selectedCell: index);
+      }
+      _haptics.selection();
       notifyListeners();
+      return;
     }
+
+    if (_state.selectedCell == index) {
+      _state = _state.copyWith(clearSelected: true);
+    } else {
+      _state = _state.copyWith(selectedCell: index);
+    }
+    notifyListeners();
   }
 
   void moveSelection(int dRow, int dCol) {
@@ -325,10 +362,11 @@ class SudokuController extends ChangeNotifier {
   }
 
   void toggleDigitLock(int digit) {
+    if (_state.isLoading || _state.isPaused || _state.isGameOver) return;
     if (_state.lockedDigit == digit) {
-      _state = _state.copyWith(clearLockedDigit: true);
+      _state = _state.copyWith(clearLockedDigit: true, clearSelected: true);
     } else {
-      _state = _state.copyWith(lockedDigit: digit);
+      _state = _state.copyWith(lockedDigit: digit, clearSelected: true);
     }
     _haptics.selection();
     notifyListeners();
@@ -336,23 +374,55 @@ class SudokuController extends ChangeNotifier {
 
   void onDigitTap(int digit) {
     if (_state.isLoading || _state.isPaused || _state.isGameOver) return;
-    if (_state.lockedDigit == digit) {
-      _state = _state.copyWith(clearLockedDigit: true);
-      notifyListeners();
-      return;
-    }
     if (_state.lockedDigit != null) {
-      _state = _state.copyWith(lockedDigit: digit);
+      if (_state.lockedDigit == digit) {
+        _state = _state.copyWith(clearLockedDigit: true, clearSelected: true);
+      } else {
+        _state = _state.copyWith(lockedDigit: digit, clearSelected: true);
+      }
+      _haptics.selection();
       notifyListeners();
       return;
     }
+
     final sel = _state.selectedCell;
     if (sel == null) {
-      // Digit-first quick selection if no cell chosen yet
+      // Highlight matching cells from bottom keypad when no cell is selected
       _state = _state.copyWith(lockedDigit: digit);
+      _haptics.selection();
       notifyListeners();
       return;
     }
+
+    if (_state.isCellLocked(sel)) {
+      // Selected clue/answered cell: tapping same digit deselects; tapping another
+      // digit switches highlight across the board from the bottom keypad.
+      if (_state.values[sel] == digit) {
+        _state = _state.copyWith(clearSelected: true, clearLockedDigit: true);
+      } else {
+        _state = _state.copyWith(lockedDigit: digit, clearSelected: true);
+      }
+      _haptics.selection();
+      notifyListeners();
+      return;
+    }
+
+    if (!_state.notesMode && _state.values[sel] == digit) {
+      _state = _state.copyWith(clearSelected: true);
+      _haptics.selection();
+      notifyListeners();
+      return;
+    }
+
+    if (!_state.notesMode &&
+        _state.checksAnswerKeyImmediately &&
+        _state.countDigit(digit) >= 9) {
+      _state = _state.copyWith(lockedDigit: digit, clearSelected: true);
+      _haptics.selection();
+      notifyListeners();
+      return;
+    }
+
     _applyDigitToCell(sel, digit);
   }
 

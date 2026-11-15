@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/audio_service.dart';
@@ -41,6 +42,19 @@ final hapticServiceProvider = Provider<HapticService>((ref) => HapticService());
 final wakelockServiceProvider = Provider<WakelockService>(
   (ref) => WakelockService(),
 );
+
+/// App version string read from compiled `pubspec.yaml` metadata.
+final appVersionProvider = FutureProvider<String?>((ref) async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    if (info.version.isEmpty) return null;
+    return info.buildNumber.isNotEmpty
+        ? '${info.version}+${info.buildNumber}'
+        : info.version;
+  } catch (_) {
+    return null;
+  }
+});
 
 // ── Settings Notifier ──────────────────────────────────────────────────────
 
