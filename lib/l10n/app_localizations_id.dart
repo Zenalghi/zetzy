@@ -585,6 +585,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get profileDangerZone => 'Manajemen Akun & Data';
 
   @override
+  String profileAppVersion(String version) {
+    return 'Zetzy v$version';
+  }
+
+  @override
   String get settingsAppearance => 'Tampilan & Bahasa';
 
   @override
@@ -694,4 +699,171 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get invalidPassword =>
       'Minimal 8 karakter dengan kombinasi huruf dan angka.';
+
+  @override
+  String get reviewBoard => 'Lihat Papan';
+
+  @override
+  String get viewResult => 'Lihat Hasil';
+
+  @override
+  String wrongFlagsCount(int count) {
+    return '$count bendera salah';
+  }
+
+  @override
+  String get minesRevealedHint =>
+      'Semua ranjau & bendera terlihat. Cubit atau geser untuk periksa.';
+
+  @override
+  String get chessReviewTitle => 'Analisis Langkah';
+
+  @override
+  String chessMoveStep(int current, int total) {
+    return 'Langkah $current/$total';
+  }
+
+  @override
+  String get sudokuShowSolution => 'Lihat Jawaban';
+
+  @override
+  String get sudokuHideSolution => 'Sembunyikan Jawaban';
+
+  @override
+  String get sudokuMistakeReviewHint =>
+      'Angka yang salah ditandai warna merah.';
+
+  @override
+  String get snakeDeathWall => 'Menabrak dinding arena.';
+
+  @override
+  String get snakeDeathObstacle => 'Menabrak blok rintangan.';
+
+  @override
+  String get snakeDeathSelf => 'Menabrak tubuh sendiri.';
+
+  @override
+  String get snakeDeathStarvation => 'Energi habis sebelum mencapai makanan.';
+
+  @override
+  String get snakeAllCleared => 'Arena berhasil diselesaikan!';
+
+  @override
+  String get settingsInGameTitle => 'Pengaturan Cepat';
+
+  @override
+  String get settingsInGameSubtitle => 'Aman diubah tanpa mengulang permainan';
+
+  @override
+  String get settingsSudokuAutoFinish => 'Selesai Otomatis';
+
+  @override
+  String get settingsSudokuAutoFinishDesc =>
+      'Tampilkan tombol Selesai Otomatis saat hanya sedikit kotak tersisa.';
+
+  @override
+  String get settingsSudokuAutoFinishThreshold => 'Batas Sisa Kotak';
+
+  @override
+  String sudokuRemainingCellsOption(int count) {
+    return '$count Kotak';
+  }
+
+  @override
+  String sudokuAutoFinishAction(int count) {
+    return 'Selesai Otomatis ($count)';
+  }
+
+  @override
+  String get settingsSudokuHighlightSame => 'Sorot Angka yang Sama';
+
+  @override
+  String get settingsSudokuAutoClearNotes => 'Hapus Catatan Otomatis';
+
+  @override
+  String get settingsChessLegalMoves => 'Tampilkan Titik Langkah Legal';
+
+  @override
+  String get settingsChessCoordinates => 'Tampilkan Koordinat Papan';
+
+  @override
+  String get settingsMinesweeperQuickChord => 'Ketuk Angka untuk Chord';
+
+  @override
+  String get settingsMinesweeperQuickChordDesc =>
+      'Buka kotak sekitar saat jumlah bendera sudah sesuai.';
+
+  @override
+  String get settingsSnakeGridLines => 'Tampilkan Garis Grid Arena';
+
+  @override
+  String get settingsPracticeSection => 'Mode Latihan';
+
+  @override
+  String get settingsSudokuStreakStats => 'Streak Bebas Salah & Akurasi';
+
+  @override
+  String get settingsSudokuStreakStatsDesc =>
+      'Tampilkan streak beruntun & akurasi di papan dan ringkasan.';
+
+  @override
+  String get settingsSudokuSmartNotes => 'Catatan Kandidat Otomatis';
+
+  @override
+  String get settingsSudokuSmartNotesDesc =>
+      'Isi kandidat valid otomatis di Mode Latihan atau Lv 1–2.';
+
+  @override
+  String get sudokuFillCandidates => 'Kandidat';
+
+  @override
+  String sudokuStreakBadge(int count) {
+    return 'Streak $count';
+  }
+
+  @override
+  String get sudokuBestStreakLabel => 'Streak Terbaik';
+
+  @override
+  String get sudokuAccuracyLabel => 'Akurasi';
+
+  @override
+  String get settingsMinesweeperSwapTapFlag => 'Tukar Tap & Bendera (1 Tangan)';
+
+  @override
+  String get settingsMinesweeperSwapTapFlagDesc =>
+      'Ketuk singkat memasang bendera, tekan lama untuk menggali.';
+
+  @override
+  String get mineTapFlagActive => '1-Tap: Bendera';
+
+  @override
+  String get mineTapDigActive => '1-Tap: Gali';
+
+  @override
+  String get settingsChessMoveConfirm => 'Konfirmasi Langkah Sentuh';
+
+  @override
+  String get settingsChessConfirmOff => 'Mati';
+
+  @override
+  String get settingsChessConfirmFast => 'Bullet/Blitz';
+
+  @override
+  String get settingsChessConfirmAlways => 'Selalu';
+
+  @override
+  String get settingsChessAutoFlipPassPlay => 'Putar Otomatis Pass & Play';
+
+  @override
+  String chessConfirmMovePrompt(String move) {
+    return 'Konfirmasi $move?';
+  }
+
+  @override
+  String get settingsSnakeAssistOverlay => 'Bayangan Dinding & Arah Swipe';
+
+  @override
+  String get settingsSnakeAssistOverlayDesc =>
+      'Tampilkan pratinjau rintangan & panah arah belokan.';
 }

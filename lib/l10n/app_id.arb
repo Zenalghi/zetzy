@@ -214,6 +214,14 @@
   "profileResetStats": "Reset Semua Statistik",
   "profileDeleteAccount": "Hapus Akun Permanen",
   "profileDangerZone": "Manajemen Akun & Data",
+  "profileAppVersion": "Zetzy v{version}",
+  "@profileAppVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
 
   "settingsAppearance": "Tampilan & Bahasa",
   "settingsTheme": "Skin Tema",
@@ -251,5 +259,99 @@
   "requiredHint": "* Wajib diisi",
   "optionalLabel": "Opsional",
   "invalidUsername": "3–16 karakter: huruf kecil, angka, atau _ saja.",
-  "invalidPassword": "Minimal 8 karakter dengan kombinasi huruf dan angka."
+  "invalidPassword": "Minimal 8 karakter dengan kombinasi huruf dan angka.",
+  "reviewBoard": "Lihat Papan",
+  "viewResult": "Lihat Hasil",
+  "wrongFlagsCount": "{count} bendera salah",
+  "@wrongFlagsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "minesRevealedHint": "Semua ranjau & bendera terlihat. Cubit atau geser untuk periksa.",
+  "chessReviewTitle": "Analisis Langkah",
+  "chessMoveStep": "Langkah {current}/{total}",
+  "@chessMoveStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuShowSolution": "Lihat Jawaban",
+  "sudokuHideSolution": "Sembunyikan Jawaban",
+  "sudokuMistakeReviewHint": "Angka yang salah ditandai warna merah.",
+  "snakeDeathWall": "Menabrak dinding arena.",
+  "snakeDeathObstacle": "Menabrak blok rintangan.",
+  "snakeDeathSelf": "Menabrak tubuh sendiri.",
+  "snakeDeathStarvation": "Energi habis sebelum mencapai makanan.",
+  "snakeAllCleared": "Arena berhasil diselesaikan!",
+  "settingsInGameTitle": "Pengaturan Cepat",
+  "settingsInGameSubtitle": "Aman diubah tanpa mengulang permainan",
+  "settingsSudokuAutoFinish": "Selesai Otomatis",
+  "settingsSudokuAutoFinishDesc": "Tampilkan tombol Selesai Otomatis saat hanya sedikit kotak tersisa.",
+  "settingsSudokuAutoFinishThreshold": "Batas Sisa Kotak",
+  "sudokuRemainingCellsOption": "{count} Kotak",
+  "@sudokuRemainingCellsOption": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuAutoFinishAction": "Selesai Otomatis ({count})",
+  "@sudokuAutoFinishAction": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSudokuHighlightSame": "Sorot Angka yang Sama",
+  "settingsSudokuAutoClearNotes": "Hapus Catatan Otomatis",
+  "settingsChessLegalMoves": "Tampilkan Titik Langkah Legal",
+  "settingsChessCoordinates": "Tampilkan Koordinat Papan",
+  "settingsMinesweeperQuickChord": "Ketuk Angka untuk Chord",
+  "settingsMinesweeperQuickChordDesc": "Buka kotak sekitar saat jumlah bendera sudah sesuai.",
+  "settingsSnakeGridLines": "Tampilkan Garis Grid Arena",
+  "settingsPracticeSection": "Mode Latihan",
+
+  "settingsSudokuStreakStats": "Streak Bebas Salah & Akurasi",
+  "settingsSudokuStreakStatsDesc": "Tampilkan streak beruntun & akurasi di papan dan ringkasan.",
+  "settingsSudokuSmartNotes": "Catatan Kandidat Otomatis",
+  "settingsSudokuSmartNotesDesc": "Isi kandidat valid otomatis di Mode Latihan atau Lv 1–2.",
+  "sudokuFillCandidates": "Kandidat",
+  "sudokuStreakBadge": "Streak {count}",
+  "@sudokuStreakBadge": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sudokuBestStreakLabel": "Streak Terbaik",
+  "sudokuAccuracyLabel": "Akurasi",
+
+  "settingsMinesweeperSwapTapFlag": "Tukar Tap & Bendera (1 Tangan)",
+  "settingsMinesweeperSwapTapFlagDesc": "Ketuk singkat memasang bendera, tekan lama untuk menggali.",
+  "mineTapFlagActive": "1-Tap: Bendera",
+  "mineTapDigActive": "1-Tap: Gali",
+
+  "settingsChessMoveConfirm": "Konfirmasi Langkah Sentuh",
+  "settingsChessConfirmOff": "Mati",
+  "settingsChessConfirmFast": "Bullet/Blitz",
+  "settingsChessConfirmAlways": "Selalu",
+  "settingsChessAutoFlipPassPlay": "Putar Otomatis Pass & Play",
+  "chessConfirmMovePrompt": "Konfirmasi {move}?",
+  "@chessConfirmMovePrompt": {
+    "placeholders": {
+      "move": { "type": "String" }
+    }
+  },
+
+  "settingsSnakeAssistOverlay": "Bayangan Dinding & Arah Swipe",
+  "settingsSnakeAssistOverlayDesc": "Tampilkan pratinjau rintangan & panah arah belokan."
 }

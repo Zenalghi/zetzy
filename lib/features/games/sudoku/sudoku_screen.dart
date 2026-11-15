@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
 import 'package:zetzy/core/widgets/game_lifecycle_guard.dart';
 import 'package:zetzy/core/widgets/game_timer_badge.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/features/games/sudoku/sudoku_controller.dart';
@@ -28,20 +31,34 @@ class SudokuScreen extends ConsumerStatefulWidget {
   ConsumerState<SudokuScreen> createState() => _SudokuScreenState();
 }
 
-class _SudokuScreenState extends ConsumerState<SudokuScreen> {
+class _SudokuScreenState extends ConsumerState<SudokuScreen>
+    with SingleTickerProviderStateMixin {
   late final SudokuController _controller;
   late final AutoSaveSlotsNotifier _autoSaveSlots;
+  late final AnimationController _waveCtrl;
   final FocusNode _focusNode = FocusNode();
+  int _lastWaveId = 0;
+  ({SudokuGameState state, int score, bool isNewRecord})? _finishedSummary;
 
   @override
   void initState() {
     super.initState();
+    _waveCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 780),
+    );
     _autoSaveSlots = ref.read(autoSaveSlotsProvider.notifier);
     _controller = SudokuController(
       audio: ref.read(audioServiceProvider),
       haptics: ref.read(hapticServiceProvider),
       onFinished: _handleGameFinished,
       onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
+    )..addListener(_onControllerChanged);
+
+    final initialSettings = ref.read(settingsProvider);
+    _controller.setAutoClearNotes(initialSettings.sudokuAutoClearNotes);
+    _controller.setSmartCandidateNotes(
+      initialSettings.sudokuSmartCandidateNotes,
     );
 
     if (widget.resumeSlot != null) {
@@ -52,6 +69,45 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
         isPractice: widget.isPractice,
       );
     }
+    _lastWaveId = _controller.state.completionWaveId;
+  }
+
+  void _onControllerChanged() {
+    final waveId = _controller.state.completionWaveId;
+    if (waveId != _lastWaveId) {
+      _lastWaveId = waveId;
+      if (waveId > 0 && mounted) {
+        _waveCtrl.forward(from: 0);
+      }
+    }
+  }
+
+  Future<void> _openInGameSettings() async {
+    final wasRunning =
+        !_controller.state.isPaused && !_controller.state.isGameOver;
+    if (wasRunning) {
+      _controller.pause(save: false);
+    }
+    await showInGameSettingsSheet(
+      context: context,
+      gameType: GameType.sudoku,
+      sudokuSmartNotesEligible: _controller.state.isSmartNotesEligible,
+    );
+    if (!mounted) return;
+    if (wasRunning) {
+      _controller.resume();
+    }
+    _focusNode.requestFocus();
+  }
+
+  void _startNewGame() {
+    _finishedSummary = null;
+    _lastWaveId = 0;
+    _waveCtrl.reset();
+    _controller.startNew(
+      difficulty: widget.difficulty,
+      isPractice: widget.isPractice,
+    );
   }
 
   Future<void> _handleGameFinished(SudokuGameState finalState) async {
@@ -75,7 +131,17 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
           metadata: {'mistakes': finalState.mistakes},
         );
 
+    final summary = (state: finalState, score: score, isNewRecord: isNewRecord);
+    _finishedSummary = summary;
+
     if (!mounted) return;
+    await _showResultDialog(summary);
+  }
+
+  Future<void> _showResultDialog(
+    ({SudokuGameState state, int score, bool isNewRecord}) summary,
+  ) async {
+    final finalState = summary.state;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -89,20 +155,26 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
       difficulty: finalState.difficulty,
       isWon: finalState.isWon,
       durationMs: finalState.elapsedMs,
-      score: score,
-      isNewRecord: isNewRecord,
+      score: summary.score,
+      isNewRecord: summary.isNewRecord,
       isPractice: finalState.isPractice,
       extraMetrics: [
         (label: l10n.mistakesLabel, value: '${finalState.mistakes}'),
+        (label: l10n.sudokuBestStreakLabel, value: '${finalState.bestStreak}'),
+        (
+          label: l10n.sudokuAccuracyLabel,
+          value: '${finalState.accuracyPercent.toStringAsFixed(0)}%',
+        ),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.undoPractice(steps: settings.practiceRewindSteps)
+          ? () {
+              _finishedSummary = null;
+              _controller.undoPractice(steps: settings.practiceRewindSteps);
+            }
           : null,
-      onPlayAgain: () => _controller.startNew(
-        difficulty: finalState.difficulty,
-        isPractice: finalState.isPractice,
-      ),
+      onReviewBoard: () {},
+      onPlayAgain: _startNewGame,
       onExit: () => Navigator.of(context).pop(),
     );
   }
@@ -153,6 +225,8 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     if (!_controller.state.isLoading && !_controller.state.isGameOver) {
       _autoSaveSlots.saveSlot(_controller.exportSlot());
     }
+    _controller.removeListener(_onControllerChanged);
+    _waveCtrl.dispose();
     _focusNode.dispose();
     _controller.dispose();
     super.dispose();
@@ -162,6 +236,9 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.watch(settingsProvider);
+    _controller.setAutoClearNotes(settings.sudokuAutoClearNotes);
+    _controller.setSmartCandidateNotes(settings.sudokuSmartCandidateNotes);
 
     return GameLifecycleGuard(
       onAutoPause: () => _controller.pause(),
@@ -178,12 +255,20 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
               ListenableBuilder(
                 listenable: _controller,
                 builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     GameTimerBadge(
                       elapsedMs: _controller.state.elapsedMs,
                       isPaused: _controller.state.isPaused,
                     ),
                     IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: l10n.settingsInGameTitle,
+                      onPressed: _openInGameSettings,
+                      icon: const Icon(Icons.settings_outlined, size: 21),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();
@@ -209,6 +294,9 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
               if (s.isLoading) {
                 return const Center(child: CircularProgressIndicator());
               }
+              final showAutoFinish = settings.sudokuAutoFinish &&
+                  s.canAutoFinish(settings.sudokuAutoFinishThreshold);
+
               return Stack(
                 children: [
                   LayoutBuilder(
@@ -219,27 +307,65 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
-                              Expanded(child: Center(child: _buildGrid(s, p))),
+                              Expanded(
+                                child: Center(
+                                  child: _buildGrid(
+                                    s,
+                                    p,
+                                    highlightSameDigits:
+                                        settings.sudokuHighlightSameDigits,
+                                  ),
+                                ),
+                              ),
                               const SizedBox(width: 24),
                               SizedBox(
                                 width: 360,
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    _buildStatusRow(s, p, l10n),
-                                    const SizedBox(height: 16),
-                                    _buildActionToolbar(s, p, l10n),
-                                    const SizedBox(height: 16),
-                                    _buildDigitPad(s, p),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      l10n.sudokuDigitLockHint,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: p.textSecondary,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                    _buildStatusRow(
+                                      s,
+                                      p,
+                                      l10n,
+                                      showStreakStats:
+                                          settings.sudokuShowStreakStats,
                                     ),
+                                    const SizedBox(height: 14),
+                                    if (s.isGameOver)
+                                      _buildReviewBar(s, p, l10n)
+                                    else ...[
+                                      if (showAutoFinish) ...[
+                                        _buildAutoFinishButton(
+                                          s,
+                                          p,
+                                          l10n,
+                                          settings.sudokuAutoFinishThreshold,
+                                        ),
+                                        const SizedBox(height: 10),
+                                      ],
+                                      if (s.isSmartNotesEligible) ...[
+                                        _buildSmartNotesButton(p, l10n),
+                                        const SizedBox(height: 8),
+                                      ],
+                                      _buildActionToolbar(s, p, l10n),
+                                      const SizedBox(height: 16),
+                                      _buildDigitPad(
+                                        s,
+                                        p,
+                                        keyHeight: 62,
+                                        highlightSameDigits: settings
+                                            .sudokuHighlightSameDigits,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        l10n.sudokuDigitLockHint,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: p.textSecondary,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -248,21 +374,68 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                         );
                       }
 
+                      final digitKeyHeight =
+                          (constraints.maxHeight * 0.092).clamp(52.0, 70.0);
+
                       return SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
+                            horizontal: 6,
                             vertical: 6,
                           ),
                           child: Column(
                             children: [
-                              _buildStatusRow(s, p, l10n),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: _buildStatusRow(
+                                  s,
+                                  p,
+                                  l10n,
+                                  showStreakStats:
+                                      settings.sudokuShowStreakStats,
+                                ),
+                              ),
                               const SizedBox(height: 8),
-                              Expanded(child: Center(child: _buildGrid(s, p))),
-                              const SizedBox(height: 8),
-                              _buildActionToolbar(s, p, l10n),
-                              const SizedBox(height: 8),
-                              _buildDigitPad(s, p),
+                              Expanded(
+                                child: Center(
+                                  child: _buildGrid(
+                                    s,
+                                    p,
+                                    highlightSameDigits:
+                                        settings.sudokuHighlightSameDigits,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              if (s.isGameOver)
+                                _buildReviewBar(s, p, l10n)
+                              else ...[
+                                if (showAutoFinish) ...[
+                                  _buildAutoFinishButton(
+                                    s,
+                                    p,
+                                    l10n,
+                                    settings.sudokuAutoFinishThreshold,
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                                if (s.isSmartNotesEligible) ...[
+                                  _buildSmartNotesButton(p, l10n),
+                                  const SizedBox(height: 6),
+                                ],
+                                _buildActionToolbar(s, p, l10n),
+                                const SizedBox(height: 8),
+                                _buildDigitPad(
+                                  s,
+                                  p,
+                                  keyHeight: digitKeyHeight,
+                                  highlightSameDigits:
+                                      settings.sudokuHighlightSameDigits,
+                                ),
+                                const SizedBox(height: 4),
+                              ],
                             ],
                           ),
                         ),
@@ -293,33 +466,65 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
   Widget _buildStatusRow(
     SudokuGameState s,
     ZetzyPalette p,
-    AppLocalizations l10n,
-  ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.favorite_rounded,
-              size: 18,
-              color: s.unlimitedLives ? p.accent : p.danger,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              s.unlimitedLives
-                  ? '${l10n.sudokuLives}: ∞'
-                  : '${l10n.sudokuLives}: ${s.livesLeft}/${s.maxLives}',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: p.textPrimary,
+    AppLocalizations l10n, {
+    required bool showStreakStats,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.favorite_rounded,
+                size: 18,
+                color: s.unlimitedLives ? p.accent : p.danger,
               ),
+              const SizedBox(width: 6),
+              Text(
+                s.unlimitedLives
+                    ? '${l10n.sudokuLives}: ∞'
+                    : '${l10n.sudokuLives}: ${s.livesLeft}/${s.maxLives}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: p.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          if (showStreakStats)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _SudokuStatChip(
+                  icon: Icons.local_fire_department_rounded,
+                  label: l10n.sudokuStreakBadge(s.currentStreak),
+                  color: s.currentStreak > 0 ? p.accent : p.textSecondary,
+                  palette: p,
+                ),
+                _SudokuStatChip(
+                  icon: Icons.verified_outlined,
+                  label: '${s.accuracyPercent.toStringAsFixed(0)}%',
+                  color: s.mistakes == 0 ? p.success : p.textPrimary,
+                  palette: p,
+                ),
+                if (s.mistakes > 0)
+                  _SudokuStatChip(
+                    icon: Icons.error_outline_rounded,
+                    label: '${l10n.mistakesLabel}: ${s.mistakes}',
+                    color: p.danger,
+                    palette: p,
+                  ),
+              ],
             ),
-          ],
-        ),
-        if (!s.checksAnswerKeyImmediately)
-          Flexible(
-            child: InkWell(
+          if (!s.checksAnswerKeyImmediately)
+            InkWell(
               onTap: () => _showConflictModeDialog(p, l10n),
               borderRadius: BorderRadius.circular(10),
               child: Container(
@@ -335,6 +540,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                     Flexible(
                       child: Text(
                         l10n.sudokuConflictOnlyNote,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
@@ -353,8 +559,8 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -403,49 +609,67 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     );
   }
 
-  Widget _buildGrid(SudokuGameState s, ZetzyPalette p) {
+  Widget _buildGrid(
+    SudokuGameState s,
+    ZetzyPalette p, {
+    required bool highlightSameDigits,
+  }) {
     final sel = s.selectedCell;
     final selRow = sel != null ? sel ~/ 9 : -1;
     final selCol = sel != null ? sel % 9 : -1;
     final selBox = sel != null ? (selRow ~/ 3) * 3 + (selCol ~/ 3) : -1;
-    final highlightDigit = s.highlightedDigit;
+    final highlightDigit = highlightSameDigits ? s.highlightedDigit : null;
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520, maxHeight: 520),
+      constraints: const BoxConstraints(maxWidth: 580, maxHeight: 580),
       child: AspectRatio(
         aspectRatio: 1,
-        child: Container(
-          decoration: BoxDecoration(
-            color: p.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: p.accent.withValues(alpha: 0.6), width: 2),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var r = 0; r < 9; r++)
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var c = 0; c < 9; c++)
-                        _buildCell(
-                          s: s,
-                          p: p,
-                          row: r,
-                          col: c,
-                          sel: sel,
-                          selRow: selRow,
-                          selCol: selCol,
-                          selBox: selBox,
-                          highlightDigit: highlightDigit,
-                        ),
-                    ],
-                  ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final boardSize = math.min(
+              constraints.maxWidth,
+              constraints.maxHeight,
+            );
+            final cellSize = boardSize / 9.0;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: p.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: p.accent.withValues(alpha: 0.65),
+                  width: 2,
                 ),
-            ],
-          ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var r = 0; r < 9; r++)
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var c = 0; c < 9; c++)
+                            _buildCell(
+                              s: s,
+                              p: p,
+                              row: r,
+                              col: c,
+                              cellSize: cellSize,
+                              sel: sel,
+                              selRow: selRow,
+                              selCol: selCol,
+                              selBox: selBox,
+                              highlightDigit: highlightDigit,
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -456,6 +680,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     required ZetzyPalette p,
     required int row,
     required int col,
+    required double cellSize,
     required int? sel,
     required int selRow,
     required int selCol,
@@ -466,22 +691,111 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     final val = s.values[idx];
     final isGiven = s.givens[idx] != 0;
     final isSelected = sel == idx;
-    final isError = s.errorCells.contains(idx);
+    final isWrongEntry = s.isGameOver && val != 0 && val != s.solution[idx];
+    final showSolutionCell =
+        s.isGameOver && s.showSolutionInReview && (val == 0 || isWrongEntry);
+    final displayVal = showSolutionCell ? s.solution[idx] : val;
+    final isError = s.errorCells.contains(idx) || isWrongEntry;
     final box = (row ~/ 3) * 3 + (col ~/ 3);
-    final isRelated = row == selRow || col == selCol || box == selBox;
-    final isSameDigit = highlightDigit != null && val == highlightDigit;
+    final isRelated =
+        sel != null && (row == selRow || col == selCol || box == selBox);
+    final isSameDigit = highlightDigit != null && displayVal == highlightDigit;
 
     Color bg = p.surface;
-    if (isSelected) {
-      bg = p.accent.withValues(alpha: 0.30);
+    if (isWrongEntry) {
+      bg = p.danger.withValues(alpha: 0.16);
+    } else if (showSolutionCell) {
+      bg = p.success.withValues(alpha: 0.14);
+    } else if (isSelected) {
+      bg = p.accent.withValues(alpha: 0.38);
     } else if (isSameDigit) {
-      bg = p.accentSecondary.withValues(alpha: 0.24);
+      bg = p.accent.withValues(alpha: 0.22);
     } else if (isRelated) {
       bg = p.surfaceElevated;
     }
 
     final rightThick = (col + 1) % 3 == 0 && col != 8;
     final bottomThick = (row + 1) % 3 == 0 && row != 8;
+    final digitFontSize = (cellSize * 0.62).clamp(16.0, 40.0);
+    final noteFontSize = (cellSize * 0.26).clamp(8.5, 16.0);
+    final waveStep = s.completionWaveSteps[idx];
+    final cellBorder = Border(
+      right: col == 8
+          ? BorderSide.none
+          : BorderSide(
+              color: rightThick
+                  ? p.accent.withValues(alpha: 0.55)
+                  : p.border,
+              width: rightThick ? 2 : 0.6,
+            ),
+      bottom: row == 8
+          ? BorderSide.none
+          : BorderSide(
+              color: bottomThick
+                  ? p.accent.withValues(alpha: 0.55)
+                  : p.border,
+              width: bottomThick ? 2 : 0.6,
+            ),
+    );
+
+    final Widget cellChild = showSolutionCell && isWrongEntry
+        ? Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$displayVal',
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: digitFontSize,
+                      fontWeight: FontWeight.w700,
+                      color: p.success,
+                    ).copyWith(height: 1.0),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 2,
+                top: 1,
+                child: Text(
+                  '$val',
+                  style: ZetzyThemes.monoStyle(
+                    fontSize: (cellSize * 0.26).clamp(8.0, 13.0),
+                    fontWeight: FontWeight.w700,
+                    color: p.danger,
+                  ).copyWith(
+                    height: 1.0,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ),
+            ],
+          )
+        : displayVal != 0
+        ? Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                '$displayVal',
+                style: ZetzyThemes.monoStyle(
+                  fontSize: digitFontSize,
+                  fontWeight: isGiven ? FontWeight.w700 : FontWeight.w600,
+                  color: showSolutionCell
+                      ? p.success
+                      : isError
+                      ? p.danger
+                      : (isGiven ? p.textPrimary : p.accent),
+                ).copyWith(height: 1.0),
+              ),
+            ),
+          )
+        : _buildNotesGrid(
+            s.notes[idx],
+            p,
+            fontSize: noteFontSize,
+            highlightDigit: highlightDigit,
+          );
 
     return Expanded(
       child: GestureDetector(
@@ -490,57 +804,57 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
           _controller.selectCell(idx);
           _focusNode.requestFocus();
         },
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            color: bg,
-            border: Border(
-              right: col == 8
-                  ? BorderSide.none
-                  : BorderSide(
-                      color: rightThick
-                          ? p.accent.withValues(alpha: 0.5)
-                          : p.border,
-                      width: rightThick ? 2 : 0.6,
-                    ),
-              bottom: row == 8
-                  ? BorderSide.none
-                  : BorderSide(
-                      color: bottomThick
-                          ? p.accent.withValues(alpha: 0.5)
-                          : p.border,
-                      width: bottomThick ? 2 : 0.6,
-                    ),
-            ),
-          ),
-          child: val != 0
-              ? Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '$val',
-                      style: ZetzyThemes.monoStyle(
-                        fontSize: 22,
-                        fontWeight: isGiven ? FontWeight.w800 : FontWeight.w600,
-                        color: isError
-                            ? p.danger
-                            : (isGiven ? p.textPrimary : p.accent),
-                      ),
-                    ),
+        child: waveStep == null
+            ? Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: BoxDecoration(color: bg, border: cellBorder),
+                child: cellChild,
+              )
+            : AnimatedBuilder(
+                animation: _waveCtrl,
+                builder: (_, child) => Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    color: _waveCellColor(bg, p, waveStep),
+                    border: cellBorder,
                   ),
-                )
-              : _buildNotesGrid(s.notes[idx], p),
-        ),
+                  child: child,
+                ),
+                child: cellChild,
+              ),
       ),
     );
   }
 
-  Widget _buildNotesGrid(Set<int> cellNotes, ZetzyPalette p) {
+  Color _waveCellColor(Color baseBg, ZetzyPalette p, int step) {
+    final t = _waveCtrl.value;
+    if (t <= 0 || t >= 1) return baseBg;
+    final start = (step * 0.055).clamp(0.0, 0.56);
+    const span = 0.44;
+    if (t < start || t > start + span) return baseBg;
+    final localT = (t - start) / span;
+    final intensity = math.sin(localT * math.pi);
+    final isDark = baseBg.computeLuminance() < 0.45;
+    final flash = Color.lerp(
+      p.accent,
+      Colors.white,
+      isDark ? 0.38 : 0.50,
+    )!;
+    return Color.lerp(baseBg, flash, intensity * 0.65)!;
+  }
+
+  Widget _buildNotesGrid(
+    Set<int> cellNotes,
+    ZetzyPalette p, {
+    required double fontSize,
+    required int? highlightDigit,
+  }) {
     if (cellNotes.isEmpty) return const SizedBox.expand();
     return SizedBox.expand(
       child: Padding(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(1.5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -551,19 +865,30 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
                   children: [
                     for (var c = 0; c < 3; c++)
                       Expanded(
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              cellNotes.contains(r * 3 + c + 1)
-                                  ? '${r * 3 + c + 1}'
-                                  : '',
-                              style: ZetzyThemes.monoStyle(
-                                fontSize: 9,
-                                color: p.textSecondary,
+                        child: Builder(
+                          builder: (_) {
+                            final noteDigit = r * 3 + c + 1;
+                            final hasNote = cellNotes.contains(noteDigit);
+                            final isHighlighted =
+                                hasNote && highlightDigit == noteDigit;
+                            return Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  hasNote ? '$noteDigit' : '',
+                                  style: ZetzyThemes.monoStyle(
+                                    fontSize: fontSize,
+                                    fontWeight: isHighlighted
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isHighlighted
+                                        ? p.accent
+                                        : p.textSecondary,
+                                  ).copyWith(height: 1.0),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ),
                   ],
@@ -571,6 +896,95 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReviewBar(
+    SudokuGameState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    final summary = _finishedSummary;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: (s.isWon ? p.success : p.danger).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!s.isWon) ...[
+            Row(
+              children: [
+                Icon(Icons.visibility_outlined, size: 17, color: p.danger),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.sudokuMistakeReviewHint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: s.showSolutionInReview
+                    ? p.accent.withValues(alpha: 0.14)
+                    : p.surfaceElevated,
+                foregroundColor:
+                    s.showSolutionInReview ? p.accent : p.textPrimary,
+                side: BorderSide(
+                  color: s.showSolutionInReview ? p.accent : p.border,
+                ),
+              ),
+              onPressed: _controller.toggleReviewSolution,
+              icon: Icon(
+                s.showSolutionInReview
+                    ? Icons.visibility_off_outlined
+                    : Icons.auto_fix_high_outlined,
+                size: 18,
+              ),
+              label: Text(
+                s.showSolutionInReview
+                    ? l10n.sudokuHideSolution
+                    : l10n.sudokuShowSolution,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              if (summary != null) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showResultDialog(summary),
+                    icon: const Icon(Icons.assessment_outlined, size: 18),
+                    label: Text(l10n.viewResult),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _startNewGame,
+                  icon: const Icon(Icons.replay_rounded, size: 18),
+                  label: Text(l10n.playAgain),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -631,15 +1045,88 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
     );
   }
 
-  Widget _buildDigitPad(SudokuGameState s, ZetzyPalette p) {
+  Widget _buildAutoFinishButton(
+    SudokuGameState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+    int threshold,
+  ) {
+    final fg = ThemeData.estimateBrightnessForColor(p.accent) == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: p.accent,
+          foregroundColor: fg,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: () {
+          _controller.autoFinish(maxRemaining: threshold);
+          _focusNode.requestFocus();
+        },
+        icon: const Icon(Icons.bolt_rounded, size: 20),
+        label: Text(
+          l10n.sudokuAutoFinishAction(s.remainingEmptyCount),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSmartNotesButton(
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: p.accent,
+          side: BorderSide(color: p.accent.withValues(alpha: 0.45)),
+          backgroundColor: p.accent.withValues(alpha: 0.08),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        onPressed: () {
+          _controller.fillSmartCandidates();
+          _focusNode.requestFocus();
+        },
+        icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+        label: Text(
+          l10n.sudokuFillCandidates,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDigitPad(
+    SudokuGameState s,
+    ZetzyPalette p, {
+    required double keyHeight,
+    required bool highlightSameDigits,
+  }) {
+    final activeHighlight =
+        highlightSameDigits ? s.highlightedDigit : s.lockedDigit;
     return Row(
       children: [
         for (var d = 1; d <= 9; d++)
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
               child: _DigitKey(
                 digit: d,
+                height: keyHeight,
+                isHighlighted: activeHighlight == d,
                 isLocked: s.lockedDigit == d,
                 isCompleted: s.countDigit(d) >= 9,
                 palette: p,
@@ -683,25 +1170,29 @@ class _ActionIcon extends StatelessWidget {
 
     return InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
           color: active ? p.accent.withValues(alpha: 0.16) : p.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: active ? p.accent : p.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 2),
+            Icon(icon, size: 22, color: color),
+            const SizedBox(height: 3),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 label,
                 maxLines: 1,
-                style: TextStyle(fontSize: 10, color: color),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
             ),
           ],
@@ -714,6 +1205,8 @@ class _ActionIcon extends StatelessWidget {
 class _DigitKey extends StatelessWidget {
   const _DigitKey({
     required this.digit,
+    required this.height,
+    required this.isHighlighted,
     required this.isLocked,
     required this.isCompleted,
     required this.palette,
@@ -722,6 +1215,8 @@ class _DigitKey extends StatelessWidget {
   });
 
   final int digit;
+  final double height;
+  final bool isHighlighted;
   final bool isLocked;
   final bool isCompleted;
   final ZetzyPalette palette;
@@ -730,35 +1225,102 @@ class _DigitKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final digitFontSize = (height * 0.46).clamp(24.0, 32.0);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onLongPress: onLongPress,
       child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: isCompleted && !isLocked ? 0.32 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        opacity: isCompleted && !isHighlighted ? 0.42 : 1.0,
         child: Container(
-          height: 48,
+          height: height,
           decoration: BoxDecoration(
-            color: isLocked
-                ? palette.accent.withValues(alpha: 0.22)
+            color: isHighlighted
+                ? palette.accent.withValues(alpha: isLocked ? 0.26 : 0.18)
                 : palette.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isLocked ? palette.accent : palette.border,
-              width: isLocked ? 1.8 : 1,
+              color: isHighlighted ? palette.accent : palette.border,
+              width: isLocked ? 2.0 : (isHighlighted ? 1.5 : 1.0),
             ),
           ),
-          child: Center(
-            child: Text(
-              '$digit',
-              style: ZetzyThemes.monoStyle(
-                fontSize: 20,
-                color: isLocked ? palette.accent : palette.textPrimary,
+          child: Stack(
+            children: [
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$digit',
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: digitFontSize,
+                      fontWeight: isHighlighted
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: isHighlighted
+                          ? palette.accent
+                          : palette.textPrimary,
+                    ).copyWith(height: 1.0),
+                  ),
+                ),
               ),
-            ),
+              if (isLocked)
+                Positioned(
+                  top: 4,
+                  right: 5,
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: palette.accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SudokuStatChip extends StatelessWidget {
+  const _SudokuStatChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.palette,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final ZetzyPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:bishop/bishop.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -298,6 +299,54 @@ void main() {
       expect(ctrl.state.isWon, isFalse);
       expect(finished, isTrue);
       expect(finalState.livesLeft, equals(0));
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController supports deselecting cell/highlight and highlighting from bottom keypad', () async {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.normal,
+        isPractice: false,
+      );
+
+      final givenIdx = ctrl.state.givens.indexWhere((v) => v != 0);
+      final givenDigit = ctrl.state.givens[givenIdx];
+      final otherDigit = givenDigit == 9 ? 1 : givenDigit + 1;
+
+      // Tap given cell to select & highlight; tap same cell again to deselect
+      ctrl.selectCell(givenIdx);
+      expect(ctrl.state.selectedCell, equals(givenIdx));
+      expect(ctrl.state.highlightedDigit, equals(givenDigit));
+
+      ctrl.selectCell(givenIdx);
+      expect(ctrl.state.selectedCell, isNull);
+      expect(ctrl.state.highlightedDigit, isNull);
+
+      // Select given cell, then switch highlight from bottom digit pad
+      ctrl.selectCell(givenIdx);
+      ctrl.onDigitTap(otherDigit);
+      expect(ctrl.state.lockedDigit, equals(otherDigit));
+      expect(ctrl.state.highlightedDigit, equals(otherDigit));
+      expect(ctrl.state.selectedCell, isNull);
+
+      // Tap same bottom digit again to deselect highlight
+      ctrl.onDigitTap(otherDigit);
+      expect(ctrl.state.lockedDigit, isNull);
+      expect(ctrl.state.highlightedDigit, isNull);
+
+      // Tap bottom digit with no cell selected -> highlights; tap again -> deselects
+      ctrl.onDigitTap(givenDigit);
+      expect(ctrl.state.lockedDigit, equals(givenDigit));
+      expect(ctrl.state.highlightedDigit, equals(givenDigit));
+      ctrl.onDigitTap(givenDigit);
+      expect(ctrl.state.highlightedDigit, isNull);
 
       ctrl.dispose();
     });
@@ -663,6 +712,811 @@ void main() {
       expect(ctrl.state.isPaused, isTrue);
       expect(ctrl.state.snake.first.x, lessThan(ctrl.state.gridSize - 1));
       expect(ctrl.state.snake.first.x, greaterThan(startHead.x));
+
+      ctrl.dispose();
+    });
+  });
+
+  group('Post-Game Board Review', () {
+    test('MinesweeperController reveals all mines on both loss and win and counts wrong flags', () {
+      final ctrl = MinesweeperController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      // Loss case (Lv5 Pro has no defuse shield): wrong flag + mine hit reveals all mines
+      ctrl.startNew(difficulty: DifficultyLevel.pro, isPractice: false);
+      ctrl.onCellTap(4, 4);
+
+      (int, int)? safeUnrevealed;
+      (int, int)? mineCell;
+      for (var r = 0; r < ctrl.state.rows; r++) {
+        for (var c = 0; c < ctrl.state.cols; c++) {
+          final cell = ctrl.state.grid[r][c];
+          if (!cell.isMine && !cell.isRevealed && safeUnrevealed == null) {
+            safeUnrevealed = (r, c);
+          }
+          if (cell.isMine && mineCell == null) {
+            mineCell = (r, c);
+          }
+        }
+      }
+      expect(safeUnrevealed, isNotNull);
+      expect(mineCell, isNotNull);
+
+      ctrl.toggleMark(safeUnrevealed!.$1, safeUnrevealed.$2);
+      expect(ctrl.state.wrongFlagCount, equals(1));
+
+      ctrl.onCellTap(mineCell!.$1, mineCell.$2);
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.wrongFlagCount, equals(1));
+      expect(
+        ctrl.state.grid[mineCell.$1][mineCell.$2].isExploded,
+        isTrue,
+      );
+      for (final row in ctrl.state.grid) {
+        for (final cell in row) {
+          if (cell.isMine) {
+            expect(cell.isRevealed, isTrue);
+          }
+        }
+      }
+
+      // Win case: clearing all safe cells reveals all remaining unflagged & flagged mines
+      ctrl.startNew(difficulty: DifficultyLevel.pro, isPractice: false);
+      ctrl.onCellTap(4, 4);
+      var flaggedOneMine = false;
+      for (var r = 0; r < ctrl.state.rows; r++) {
+        for (var c = 0; c < ctrl.state.cols; c++) {
+          final cell = ctrl.state.grid[r][c];
+          if (cell.isMine && !flaggedOneMine) {
+            ctrl.toggleMark(r, c);
+            flaggedOneMine = true;
+          } else if (!cell.isMine && !cell.isRevealed) {
+            ctrl.onCellTap(r, c);
+          }
+        }
+      }
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isTrue);
+      expect(ctrl.state.wrongFlagCount, equals(0));
+      var revealedFlaggedMines = 0;
+      for (final row in ctrl.state.grid) {
+        for (final cell in row) {
+          if (cell.isMine) {
+            expect(cell.isRevealed, isTrue);
+            expect(cell.isExploded, isFalse);
+            if (cell.mark == MineCellMark.flag) revealedFlaggedMines++;
+          }
+        }
+      }
+      expect(revealedFlaggedMines, equals(1));
+
+      ctrl.dispose();
+    });
+
+    test('ChessController move review steps backward and forward cleanly after game ends', () {
+      final ctrl = ChessController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        supabase: SupabaseService(),
+        autoQueen: true,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(
+        difficulty: DifficultyLevel.pro,
+        isPractice: false,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+
+      for (var i = 0; i < 3; i++) {
+        final m = ctrl.game.generateLegalMoves().first;
+        ctrl.onSquareTap(m.from);
+        ctrl.onSquareTap(m.to);
+      }
+      ctrl.resign();
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.effectiveReviewPly, equals(3));
+      expect(ctrl.state.canReviewBack, isTrue);
+      expect(ctrl.state.canReviewForward, isFalse);
+
+      ctrl.reviewFirst();
+      expect(ctrl.state.reviewPly, equals(0));
+      expect(ctrl.state.turn, equals(Bishop.white));
+      expect(ctrl.state.lastFrom, isNull);
+      expect(ctrl.state.canReviewBack, isFalse);
+      expect(ctrl.state.canReviewForward, isTrue);
+
+      ctrl.reviewNext();
+      expect(ctrl.state.reviewPly, equals(1));
+      expect(ctrl.state.turn, equals(Bishop.black));
+      expect(ctrl.state.lastFrom, isNotNull);
+
+      ctrl.reviewLast();
+      expect(ctrl.state.reviewPly, isNull);
+      expect(ctrl.state.effectiveReviewPly, equals(3));
+      expect(ctrl.state.canReviewForward, isFalse);
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController toggleReviewSolution toggles solution overlay after loss', () async {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.god, // 1 life -> single mistake ends game
+        isPractice: false,
+      );
+
+      // Pick an empty cell and a conflicting digit from a given clue in its row/col/box
+      // so Lv7 conflict-only detection triggers immediately on every seed.
+      int? targetIdx;
+      int? conflictingDigit;
+      for (var i = 0; i < 81 && targetIdx == null; i++) {
+        if (ctrl.state.givens[i] != 0) continue;
+        final r = i ~/ 9;
+        final c = i % 9;
+        final br = (r ~/ 3) * 3;
+        final bc = (c ~/ 3) * 3;
+        for (var k = 0; k < 9 && conflictingDigit == null; k++) {
+          final candidates = [r * 9 + k, k * 9 + c, (br + k ~/ 3) * 9 + (bc + k % 3)];
+          for (final p in candidates) {
+            if (p != i && ctrl.state.givens[p] != 0) {
+              targetIdx = i;
+              conflictingDigit = ctrl.state.givens[p];
+              break;
+            }
+          }
+        }
+      }
+
+      ctrl.selectCell(targetIdx!);
+      ctrl.onDigitTap(conflictingDigit!);
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.showSolutionInReview, isFalse);
+
+      ctrl.toggleReviewSolution();
+      expect(ctrl.state.showSolutionInReview, isTrue);
+      ctrl.toggleReviewSolution();
+      expect(ctrl.state.showSolutionInReview, isFalse);
+
+      ctrl.dispose();
+    });
+
+    test('SnakeController records wall deathReason and crashPoint on wall impact', () {
+      final ctrl = SnakeController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: false);
+
+      var steps = 0;
+      while (!ctrl.state.isGameOver && steps < 25) {
+        ctrl.stepForTest();
+        steps++;
+      }
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.deathReason, equals(SnakeDeathReason.wall));
+      expect(ctrl.state.crashPoint, isNotNull);
+      expect(ctrl.state.crashPoint!.x, equals(ctrl.state.gridSize - 1));
+
+      ctrl.dispose();
+    });
+  });
+
+  group('Settings & Gameplay Enhancements', () {
+    const validSolution = <int>[
+      5, 3, 4, 6, 7, 8, 9, 1, 2,
+      6, 7, 2, 1, 9, 5, 3, 4, 8,
+      1, 9, 8, 3, 4, 2, 5, 6, 7,
+      8, 5, 9, 7, 6, 1, 4, 2, 3,
+      4, 2, 6, 8, 5, 3, 7, 9, 1,
+      7, 1, 3, 9, 2, 4, 8, 5, 6,
+      9, 6, 1, 5, 3, 7, 2, 8, 4,
+      2, 8, 7, 4, 1, 9, 6, 3, 5,
+      3, 4, 5, 2, 8, 6, 1, 7, 9,
+    ];
+
+    AutoSaveSlot makeSudokuSlot({
+      required List<int> givens,
+      required List<int> values,
+      DifficultyLevel difficulty = DifficultyLevel.easy,
+      List<Set<int>>? notes,
+      bool isPractice = false,
+    }) {
+      final notesJson = (notes ?? List.generate(81, (_) => <int>{}))
+          .map((s) => s.toList())
+          .toList();
+      return AutoSaveSlot(
+        gameType: GameType.sudoku,
+        difficulty: difficulty.level,
+        elapsedMs: 12000,
+        updatedAt: DateTime(2026, 11, 15),
+        stateJson: {
+          'isPractice': isPractice,
+          'givens': givens,
+          'values': values,
+          'solution': validSolution,
+          'notes': notesJson,
+          'errorCells': const <int>[],
+          'livesLeft': 3,
+          'mistakes': 0,
+          'hintsLeft': 3,
+        },
+      );
+    }
+
+    test('SettingsRepository persists per-game gameplay QoL preferences', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final initial = repo.load();
+      expect(initial.sudokuAutoFinish, isTrue);
+      expect(initial.sudokuAutoFinishThreshold, equals(5));
+      expect(initial.sudokuHighlightSameDigits, isTrue);
+      expect(initial.sudokuAutoClearNotes, isTrue);
+      expect(initial.chessShowLegalMoves, isTrue);
+      expect(initial.chessShowCoordinates, isTrue);
+      expect(initial.minesweeperQuickChord, isTrue);
+      expect(initial.snakeShowGridLines, isTrue);
+
+      final updated = initial.copyWith(
+        sudokuAutoFinish: false,
+        sudokuAutoFinishThreshold: 7,
+        sudokuHighlightSameDigits: false,
+        sudokuAutoClearNotes: false,
+        chessShowLegalMoves: false,
+        chessShowCoordinates: false,
+        minesweeperQuickChord: false,
+        snakeShowGridLines: false,
+      );
+      await repo.save(updated);
+
+      final reloaded = repo.load();
+      expect(reloaded.sudokuAutoFinish, isFalse);
+      expect(reloaded.sudokuAutoFinishThreshold, equals(7));
+      expect(reloaded.sudokuHighlightSameDigits, isFalse);
+      expect(reloaded.sudokuAutoClearNotes, isFalse);
+      expect(reloaded.chessShowLegalMoves, isFalse);
+      expect(reloaded.chessShowCoordinates, isFalse);
+      expect(reloaded.minesweeperQuickChord, isFalse);
+      expect(reloaded.snakeShowGridLines, isFalse);
+    });
+
+    test('SudokuController computes directional completion waves for top and center placements', () {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      // Case A: top cell (0,4) completes col 4 -> sweeps downward 0..8.
+      // Leave (0,3) blank too so row 0 & box 1 do not simultaneously complete.
+      final topValues = List<int>.from(validSolution)
+        ..[0 * 9 + 4] = 0
+        ..[0 * 9 + 3] = 0;
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(givens: topValues, values: List<int>.from(topValues)),
+      );
+      ctrl.resume();
+      ctrl.selectCell(0 * 9 + 4);
+      ctrl.onDigitTap(validSolution[0 * 9 + 4]);
+
+      expect(ctrl.state.completionWaveId, equals(1));
+      for (var r = 0; r < 9; r++) {
+        expect(ctrl.state.completionWaveSteps[r * 9 + 4], equals(r));
+      }
+
+      // Case B: middle cell (4,4) completes col 4 -> expands upward and downward.
+      // Leave (4,3) blank so row 4 & box 4 stay incomplete.
+      final midValues = List<int>.from(validSolution)
+        ..[4 * 9 + 4] = 0
+        ..[4 * 9 + 3] = 0;
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(givens: midValues, values: List<int>.from(midValues)),
+      );
+      ctrl.resume();
+      ctrl.selectCell(4 * 9 + 4);
+      ctrl.onDigitTap(validSolution[4 * 9 + 4]);
+
+      expect(ctrl.state.completionWaveSteps[4 * 9 + 4], equals(0));
+      expect(ctrl.state.completionWaveSteps[3 * 9 + 4], equals(1));
+      expect(ctrl.state.completionWaveSteps[5 * 9 + 4], equals(1));
+      expect(ctrl.state.completionWaveSteps[0 * 9 + 4], equals(4));
+      expect(ctrl.state.completionWaveSteps[8 * 9 + 4], equals(4));
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController autoFinish enforces threshold & valid filled state across difficulties', () {
+      var wonCount = 0;
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (s) {
+          if (s.isWon) wonCount++;
+        },
+        onAutoSave: (_) {},
+      );
+
+      // 6 blank cells on Level 5 (PRO)
+      final blanks = [0, 1, 10, 20, 30, 40];
+      final values = List<int>.from(validSolution);
+      for (final i in blanks) {
+        values[i] = 0;
+      }
+      final givens = List<int>.from(values);
+
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: givens,
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.pro,
+        ),
+      );
+      ctrl.resume();
+
+      expect(ctrl.state.remainingEmptyCount, equals(6));
+      expect(ctrl.state.canAutoFinish(5), isFalse);
+      expect(ctrl.state.canAutoFinish(7), isTrue);
+
+      // Putting a wrong number in blank index 40 (even without local conflict, or conflicting)
+      // must block canAutoFinish until corrected.
+      final wrongValues = List<int>.from(values)
+        ..[40] = validSolution[40] == 9 ? 1 : validSolution[40] + 1;
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: givens,
+          values: wrongValues,
+          difficulty: DifficultyLevel.pro,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.canAutoFinish(7), isFalse);
+
+      // With valid state & 5 blanks, autoFinish solves and wins.
+      final fiveBlankValues = List<int>.from(validSolution);
+      for (final i in blanks.take(5)) {
+        fiveBlankValues[i] = 0;
+      }
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: fiveBlankValues,
+          values: List<int>.from(fiveBlankValues),
+          difficulty: DifficultyLevel.pro,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.canAutoFinish(5), isTrue);
+      ctrl.autoFinish(maxRemaining: 5);
+
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isTrue);
+      expect(ctrl.state.remainingEmptyCount, equals(0));
+      expect(wonCount, equals(1));
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController setAutoClearNotes controls peer note removal', () {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      final values = List<int>.from(validSolution)
+        ..[0] = 0
+        ..[1] = 0;
+      final notes = List.generate(81, (_) => <int>{});
+      notes[1].add(validSolution[0]);
+
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: values,
+          values: List<int>.from(values),
+          notes: notes,
+        ),
+      );
+      ctrl.resume();
+      ctrl.setAutoClearNotes(false);
+      ctrl.selectCell(0);
+      ctrl.onDigitTap(validSolution[0]);
+
+      expect(ctrl.state.notes[1].contains(validSolution[0]), isTrue);
+
+      // Re-run with autoClearNotes enabled
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: values,
+          values: List<int>.from(values),
+          notes: List.generate(81, (i) => i == 1 ? {validSolution[0]} : <int>{}),
+        ),
+      );
+      ctrl.resume();
+      ctrl.setAutoClearNotes(true);
+      ctrl.selectCell(0);
+      ctrl.onDigitTap(validSolution[0]);
+
+      expect(ctrl.state.notes[1].contains(validSolution[0]), isFalse);
+      ctrl.dispose();
+    });
+
+    test('MinesweeperController setQuickChord gates single-tap chording', () {
+      final ctrl = MinesweeperController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: false);
+      ctrl.onCellTap(4, 4);
+
+      (int, int)? chordTarget;
+      List<(int, int)> mineNeighbors = [];
+      List<(int, int)> unrevealedSafe = [];
+
+      for (var r = 0; r < ctrl.state.rows && chordTarget == null; r++) {
+        for (var c = 0; c < ctrl.state.cols; c++) {
+          final cell = ctrl.state.grid[r][c];
+          if (!cell.isRevealed || cell.adjacentMines == 0) continue;
+
+          final mines = <(int, int)>[];
+          final safe = <(int, int)>[];
+          for (var dr = -1; dr <= 1; dr++) {
+            for (var dc = -1; dc <= 1; dc++) {
+              if (dr == 0 && dc == 0) continue;
+              final nr = r + dr;
+              final nc = c + dc;
+              if (nr < 0 ||
+                  nc < 0 ||
+                  nr >= ctrl.state.rows ||
+                  nc >= ctrl.state.cols) {
+                continue;
+              }
+              final n = ctrl.state.grid[nr][nc];
+              if (n.isMine) {
+                mines.add((nr, nc));
+              } else if (!n.isRevealed) {
+                safe.add((nr, nc));
+              }
+            }
+          }
+          if (mines.isNotEmpty && safe.isNotEmpty) {
+            chordTarget = (r, c);
+            mineNeighbors = mines;
+            unrevealedSafe = safe;
+            break;
+          }
+        }
+      }
+
+      expect(chordTarget, isNotNull);
+      for (final (mr, mc) in mineNeighbors) {
+        if (ctrl.state.grid[mr][mc].mark != MineCellMark.flag) {
+          ctrl.onCellLongPressOrRightClick(mr, mc);
+        }
+      }
+
+      ctrl.setQuickChord(false);
+      ctrl.onCellTap(chordTarget!.$1, chordTarget.$2);
+      final (sr, sc) = unrevealedSafe.first;
+      expect(ctrl.state.grid[sr][sc].isRevealed, isFalse);
+
+      ctrl.setQuickChord(true);
+      ctrl.onCellTap(chordTarget.$1, chordTarget.$2);
+      expect(ctrl.state.grid[sr][sc].isRevealed, isTrue);
+
+      ctrl.dispose();
+    });
+
+    test('SettingsRepository persists new game-assist defaults and updates', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final initial = repo.load();
+      expect(initial.sudokuShowStreakStats, isTrue);
+      expect(initial.sudokuSmartCandidateNotes, isFalse);
+      expect(initial.minesweeperSwapTapFlag, isFalse);
+      expect(initial.chessMoveConfirmMode, equals(ChessMoveConfirmMode.off));
+      expect(initial.chessAutoFlipPassPlay, isFalse);
+      expect(initial.snakeAssistOverlay, isTrue);
+
+      final updated = initial.copyWith(
+        sudokuShowStreakStats: false,
+        sudokuSmartCandidateNotes: true,
+        minesweeperSwapTapFlag: true,
+        chessMoveConfirmMode: ChessMoveConfirmMode.fastOnly,
+        chessAutoFlipPassPlay: true,
+        snakeAssistOverlay: false,
+      );
+      await repo.save(updated);
+
+      var reloaded = repo.load();
+      expect(reloaded.sudokuShowStreakStats, isFalse);
+      expect(reloaded.sudokuSmartCandidateNotes, isTrue);
+      expect(reloaded.minesweeperSwapTapFlag, isTrue);
+      expect(
+        reloaded.chessMoveConfirmMode,
+        equals(ChessMoveConfirmMode.fastOnly),
+      );
+      expect(reloaded.chessAutoFlipPassPlay, isTrue);
+      expect(reloaded.snakeAssistOverlay, isFalse);
+
+      await repo.save(
+        reloaded.copyWith(chessMoveConfirmMode: ChessMoveConfirmMode.always),
+      );
+      reloaded = repo.load();
+      expect(
+        reloaded.chessMoveConfirmMode,
+        equals(ChessMoveConfirmMode.always),
+      );
+    });
+
+    test('SudokuController tracks streak, accuracy, and restores them on Practice Undo', () {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      final values = List<int>.from(validSolution)
+        ..[0] = 0
+        ..[1] = 0
+        ..[2] = 0
+        ..[3] = 0;
+
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: values,
+          isPractice: true,
+          difficulty: DifficultyLevel.easy,
+        ),
+      );
+      ctrl.resume();
+
+      ctrl.selectCell(0);
+      ctrl.onDigitTap(validSolution[0]);
+      ctrl.selectCell(1);
+      ctrl.onDigitTap(validSolution[1]);
+
+      expect(ctrl.state.currentStreak, equals(2));
+      expect(ctrl.state.bestStreak, equals(2));
+      expect(ctrl.state.cleanPlacements, equals(2));
+      expect(ctrl.state.totalPlacements, equals(2));
+      expect(ctrl.state.accuracyPercent, equals(100.0));
+
+      // Deliberate mistake (cell 3's digit has count 8 < 9) resets currentStreak
+      final wrongDigit = validSolution[3];
+      ctrl.selectCell(2);
+      ctrl.onDigitTap(wrongDigit);
+
+      expect(ctrl.state.mistakes, equals(1));
+      expect(ctrl.state.currentStreak, equals(0));
+      expect(ctrl.state.bestStreak, equals(2));
+      expect(ctrl.state.cleanPlacements, equals(2));
+      expect(ctrl.state.totalPlacements, equals(3));
+      expect(ctrl.state.accuracyPercent, closeTo(66.66, 0.2));
+
+      // Practice undo restores streak & accuracy counters cleanly
+      ctrl.undoPractice();
+      expect(ctrl.state.currentStreak, equals(2));
+      expect(ctrl.state.bestStreak, equals(2));
+      expect(ctrl.state.cleanPlacements, equals(2));
+      expect(ctrl.state.totalPlacements, equals(2));
+      expect(ctrl.state.accuracyPercent, equals(100.0));
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController gates Smart Candidate Notes to Practice or Beginner Lv 1-2', () {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      final values = List<int>.from(validSolution)
+        ..[0] = 0
+        ..[1] = 0;
+
+      // Eligible: Ranked Easy (Lv 1)
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.easy,
+          isPractice: false,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.isSmartNotesEligible, isTrue);
+      ctrl.fillSmartCandidates();
+      expect(ctrl.state.notes[0], equals({validSolution[0]}));
+      expect(ctrl.state.notes[1], equals({validSolution[1]}));
+      expect(ctrl.state.notes[2], isEmpty);
+
+      // Eligible: High difficulty in Practice Mode
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.god,
+          isPractice: true,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.isSmartNotesEligible, isTrue);
+      ctrl.fillSmartCandidates();
+      expect(ctrl.state.notes[0], equals({validSolution[0]}));
+      expect(ctrl.state.notes[1], equals({validSolution[1]}));
+
+      // Blocked: Ranked Lv 5 (PRO)
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.pro,
+          isPractice: false,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.isSmartNotesEligible, isFalse);
+      ctrl.fillSmartCandidates();
+      expect(ctrl.state.notes[0], isEmpty);
+
+      ctrl.dispose();
+    });
+
+    test('MinesweeperController setSwapTapFlag swaps primary tap and long-press on unrevealed cells', () {
+      final ctrl = MinesweeperController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: false);
+      ctrl.setSwapTapFlag(true);
+
+      // Default tool is dig, but swapped mode flags on short tap
+      ctrl.onCellTap(2, 2);
+      expect(ctrl.state.grid[2][2].isRevealed, isFalse);
+      expect(ctrl.state.grid[2][2].mark, equals(MineCellMark.flag));
+
+      // Selecting flag tool in swapped mode digs on short tap
+      ctrl.setTool(MineTapTool.flag);
+      ctrl.onCellTap(3, 3);
+      expect(ctrl.state.grid[3][3].isRevealed, isTrue);
+
+      // Long-press in swapped mode digs unrevealed cells
+      ctrl.onCellLongPressOrRightClick(4, 4);
+      expect(ctrl.state.grid[4][4].isRevealed, isTrue);
+
+      ctrl.dispose();
+    });
+
+    test('ChessController handles Move Confirmation modes and Pass & Play Auto-Flip', () {
+      final ctrl = ChessController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        supabase: SupabaseService(),
+        autoQueen: true,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(
+        difficulty: DifficultyLevel.normal,
+        isPractice: true,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+
+      final e2 = ctrl.game.size.square(4, 1);
+      final e4 = ctrl.game.size.square(4, 3);
+      final e7 = ctrl.game.size.square(4, 6);
+      final e5 = ctrl.game.size.square(4, 4);
+      final d2 = ctrl.game.size.square(3, 1);
+      final d4 = ctrl.game.size.square(3, 3);
+
+      // fastOnly does NOT confirm on untimed matches
+      ctrl.setMoveConfirmMode(ChessMoveConfirmMode.fastOnly);
+      ctrl.onSquareTap(e2);
+      ctrl.onSquareTap(e4);
+      expect(ctrl.state.hasPendingConfirm, isFalse);
+      expect(ctrl.state.moveSans, equals(['e4']));
+
+      // always stages pending move and cancels cleanly
+      ctrl.setMoveConfirmMode(ChessMoveConfirmMode.always);
+      ctrl.onSquareTap(e7);
+      ctrl.onSquareTap(e5);
+      expect(ctrl.state.hasPendingConfirm, isTrue);
+      expect(ctrl.state.pendingConfirmSan, equals('e5'));
+      expect(ctrl.state.moveSans.length, equals(1));
+      ctrl.cancelPendingMove();
+      expect(ctrl.state.hasPendingConfirm, isFalse);
+      expect(ctrl.state.moveSans.length, equals(1));
+
+      // Re-tapping staged target square confirms & executes + Auto-Flip toggles back to white
+      ctrl.setAutoFlipPassPlay(true);
+      ctrl.onSquareTap(e7);
+      ctrl.onSquareTap(e5);
+      expect(ctrl.state.hasPendingConfirm, isTrue);
+      ctrl.onSquareTap(e5);
+      expect(ctrl.state.hasPendingConfirm, isFalse);
+      expect(ctrl.state.moveSans, equals(['e4', 'e5']));
+      expect(ctrl.state.flipped, isFalse);
+
+      // White move with autoFlip flips to black
+      ctrl.onSquareTap(d2);
+      ctrl.onSquareTap(d4);
+      ctrl.confirmPendingMove();
+      expect(ctrl.state.moveSans, equals(['e4', 'e5', 'd4']));
+      expect(ctrl.state.flipped, isTrue);
+
+      // Bullet match with fastOnly confirms moves
+      ctrl.startNew(
+        difficulty: DifficultyLevel.normal,
+        isPractice: false,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.bullet1,
+      );
+      ctrl.setMoveConfirmMode(ChessMoveConfirmMode.fastOnly);
+      ctrl.onSquareTap(e2);
+      ctrl.onSquareTap(e4);
+      expect(ctrl.state.hasPendingConfirm, isTrue);
+      ctrl.confirmPendingMove();
+      expect(ctrl.state.moveSans, equals(['e4']));
+
+      ctrl.dispose();
+    });
+
+    test('SnakeController exposes 2-step queuedDirections buffer and drains per step', () {
+      final ctrl = SnakeController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.god, isPractice: false);
+
+      ctrl.queueDirection(SnakeDirection.up);
+      ctrl.queueDirection(SnakeDirection.left);
+      ctrl.queueDirection(SnakeDirection.down); // Exceeds 2-step buffer
+
+      expect(
+        ctrl.state.queuedDirections,
+        equals([SnakeDirection.up, SnakeDirection.left]),
+      );
+
+      ctrl.stepForTest();
+      expect(ctrl.state.direction, equals(SnakeDirection.up));
+      expect(ctrl.state.queuedDirections, equals([SnakeDirection.left]));
+
+      ctrl.stepForTest();
+      expect(ctrl.state.direction, equals(SnakeDirection.left));
+      expect(ctrl.state.queuedDirections, isEmpty);
 
       ctrl.dispose();
     });

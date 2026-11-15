@@ -11,6 +11,7 @@ import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
 import 'package:zetzy/core/widgets/game_lifecycle_guard.dart';
 import 'package:zetzy/core/widgets/game_timer_badge.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
@@ -46,6 +47,15 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
   ChessColorPref _selectedColor = ChessColorPref.white;
   ChessTimeControl _selectedTime = ChessTimeControl.blitz5;
   final TextEditingController _roomCodeCtrl = TextEditingController();
+  ({
+    ChessUiState state,
+    int score,
+    bool effectiveWon,
+    bool aborted,
+    bool isUnratedForDialog,
+    bool isNewRecord,
+  })?
+  _finishedSummary;
 
   @override
   void initState() {
@@ -122,7 +132,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               : ChessColorPref.white)
         : (joinRoomCode != null ? ChessColorPref.black : _selectedColor);
 
-    setState(() => _inLobby = false);
+    setState(() {
+      _finishedSummary = null;
+      _inLobby = false;
+    });
     _controller.startNew(
       difficulty: widget.difficulty,
       isPractice: widget.isPractice,
@@ -172,7 +185,7 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               winnerColour: finalState.isDraw ? null : finalState.winnerColour,
               isDraw: finalState.isDraw,
               moveCount: finalState.moveSans.length,
-              pgn: _controller.game.pgn(),
+              pgn: _controller.livePgn,
             );
         if (serverResult != null) {
           if (serverResult.status == 'aborted') {
@@ -232,13 +245,40 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               'opponentElo': finalState.opponentElo,
             if (finalState.opponentUsername != null)
               'opponentUsername': finalState.opponentUsername,
-            'pgn': _controller.game.pgn(),
+            'pgn': _controller.livePgn,
             'moves': finalState.moveSans.length,
             if (aborted) 'aborted': true,
           },
         );
 
+    final summary = (
+      state: finalState,
+      score: score,
+      effectiveWon: effectiveWon,
+      aborted: aborted,
+      isUnratedForDialog: isUnratedForDialog,
+      isNewRecord: isNewRecord,
+    );
+    _finishedSummary = summary;
+
     if (!mounted) return;
+    await _showResultDialog(summary);
+  }
+
+  Future<void> _showResultDialog(
+    ({
+      ChessUiState state,
+      int score,
+      bool effectiveWon,
+      bool aborted,
+      bool isUnratedForDialog,
+      bool isNewRecord,
+    })
+    summary,
+  ) async {
+    final finalState = summary.state;
+    final aborted = summary.aborted;
+    final effectiveWon = summary.effectiveWon;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -270,9 +310,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       isWon: effectiveWon,
       isDraw: aborted || finalState.isDraw,
       durationMs: finalState.elapsedMs,
-      score: score,
-      isNewRecord: isNewRecord,
-      isPractice: isUnratedForDialog,
+      score: summary.score,
+      isNewRecord: summary.isNewRecord,
+      isPractice: summary.isUnratedForDialog,
       titleOverride: aborted ? l10n.chessAbortedTooShortTitle : null,
       subtitleOverride: subtitleOverride,
       noteText: noteText,
@@ -287,8 +327,12 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          ? () {
+              _finishedSummary = null;
+              _controller.practiceRewind(settings.practiceRewindSteps);
+            }
           : null,
+      onReviewBoard: () {},
       onPlayAgain: () => setState(() => _inLobby = true),
       onExit: () => Navigator.of(context).pop(),
     );
@@ -307,12 +351,33 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     super.dispose();
   }
 
+  Future<void> _openInGameSettings() async {
+    final canAutoPause =
+        !_inLobby &&
+        !_controller.state.mode.isOnlineMultiplayer &&
+        !_controller.state.isPaused &&
+        !_controller.state.isGameOver;
+    if (canAutoPause) {
+      _controller.pause(save: false);
+    }
+    await showInGameSettingsSheet(
+      context: context,
+      gameType: GameType.chess,
+    );
+    if (!mounted) return;
+    if (canAutoPause) {
+      _controller.resume();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.watch(settingsProvider);
     _controller.setAutoQueen(settings.chessAutoQueen);
+    _controller.setMoveConfirmMode(settings.chessMoveConfirmMode);
+    _controller.setAutoFlipPassPlay(settings.chessAutoFlipPassPlay);
 
     if (_inLobby) {
       return Scaffold(
@@ -336,13 +401,42 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
             ListenableBuilder(
               listenable: _controller,
               builder: (context, _) => Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   GameTimerBadge(
                     elapsedMs: _controller.state.elapsedMs,
                     isPaused: _controller.state.isPaused,
                   ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 34,
+                      minHeight: 34,
+                    ),
+                    tooltip: l10n.chessFlipBoard,
+                    onPressed: _controller.flipBoard,
+                    icon: const Icon(Icons.swap_vert_rounded, size: 20),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 34,
+                      minHeight: 34,
+                    ),
+                    tooltip: l10n.settingsInGameTitle,
+                    onPressed: _openInGameSettings,
+                    icon: const Icon(Icons.settings_outlined, size: 20),
+                  ),
                   if (!_controller.state.mode.isOnlineMultiplayer)
                     IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 34,
+                        minHeight: 34,
+                      ),
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();
@@ -381,6 +475,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                                   s,
                                   p,
                                   settings.chessPieceSet,
+                                  showLegalMoves: settings.chessShowLegalMoves,
+                                  showCoordinates:
+                                      settings.chessShowCoordinates,
                                 ),
                               ),
                             ),
@@ -425,6 +522,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                                   s,
                                   p,
                                   settings.chessPieceSet,
+                                  showLegalMoves: settings.chessShowLegalMoves,
+                                  showCoordinates:
+                                      settings.chessShowCoordinates,
                                 ),
                               ),
                             ),
@@ -437,6 +537,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                               pieceSet: settings.chessPieceSet,
                             ),
                             const SizedBox(height: 8),
+                            if (s.hasPendingConfirm && !s.isGameOver) ...[
+                              _buildMoveConfirmBar(s, p, l10n),
+                              const SizedBox(height: 8),
+                            ],
                             _buildControlsRow(s, p, l10n),
                           ],
                         ),
@@ -1242,7 +1346,13 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     );
   }
 
-  Widget _buildBoard(ChessUiState s, ZetzyPalette p, ChessPieceSet pieceSet) {
+  Widget _buildBoard(
+    ChessUiState s,
+    ZetzyPalette p,
+    ChessPieceSet pieceSet, {
+    required bool showLegalMoves,
+    required bool showCoordinates,
+  }) {
     final game = _controller.game;
 
     return AspectRatio(
@@ -1269,6 +1379,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                           game: game,
                           rank: s.flipped ? visualRow : 7 - visualRow,
                           file: s.flipped ? 7 - visualCol : visualCol,
+                          showRankLabel: showCoordinates && visualCol == 0,
+                          showFileLabel: showCoordinates && visualRow == 7,
+                          showLegalMoves: showLegalMoves,
                         ),
                     ],
                   ),
@@ -1287,6 +1400,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     required Game game,
     required int rank,
     required int file,
+    required bool showRankLabel,
+    required bool showFileLabel,
+    required bool showLegalMoves,
   }) {
     final sqIdx = game.size.square(file, rank);
     final sq = game.board[sqIdx];
@@ -1294,6 +1410,8 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     final isSelected = s.selectedSquare == sqIdx;
     final isLastMove = s.lastFrom == sqIdx || s.lastTo == sqIdx;
     final isTarget = s.legalTargets.contains(sqIdx);
+    final isPendingFrom = s.pendingConfirmFrom == sqIdx;
+    final isPendingTo = s.pendingConfirmTo == sqIdx;
 
     final isKingInCheck =
         s.inCheck &&
@@ -1304,6 +1422,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     Color bg = isLight ? p.boardLight : p.boardDark;
     if (isKingInCheck) {
       bg = p.danger.withValues(alpha: 0.72);
+    } else if (isPendingTo) {
+      bg = Color.alphaBlend(p.accent.withValues(alpha: 0.48), bg);
+    } else if (isPendingFrom) {
+      bg = Color.alphaBlend(p.accent.withValues(alpha: 0.30), bg);
     } else if (isSelected) {
       bg = p.accent.withValues(alpha: 0.55);
     } else if (isLastMove) {
@@ -1316,21 +1438,59 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       final pieceCode = game.variant.pieces[sq.type].symbol.toUpperCase();
       pieceAsset = pieceSet.pieceAsset(colorPrefix, pieceCode);
     }
+    final coordColor = (isLight ? p.boardDark : p.boardLight).withValues(
+      alpha: 0.85,
+    );
 
     return Expanded(
       child: GestureDetector(
         onTap: () => _controller.onSquareTap(sqIdx),
         child: Container(
-          color: bg,
+          decoration: BoxDecoration(
+            color: bg,
+            border: isPendingTo
+                ? Border.all(color: p.accent, width: 2.5)
+                : null,
+          ),
           child: Stack(
             alignment: Alignment.center,
             children: [
+              if (showRankLabel)
+                Positioned(
+                  left: 3,
+                  top: 1.5,
+                  child: IgnorePointer(
+                    child: Text(
+                      '${rank + 1}',
+                      style: ZetzyThemes.monoStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: coordColor,
+                      ).copyWith(height: 1.0),
+                    ),
+                  ),
+                ),
+              if (showFileLabel)
+                Positioned(
+                  right: 3,
+                  bottom: 1.5,
+                  child: IgnorePointer(
+                    child: Text(
+                      String.fromCharCode('a'.codeUnitAt(0) + file),
+                      style: ZetzyThemes.monoStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: coordColor,
+                      ).copyWith(height: 1.0),
+                    ),
+                  ),
+                ),
               if (pieceAsset != null)
                 Padding(
                   padding: const EdgeInsets.all(3),
                   child: SvgPicture.asset(pieceAsset),
                 ),
-              if (isTarget)
+              if (showLegalMoves && isTarget)
                 Container(
                   width: sq.isNotEmpty ? 42 : 14,
                   height: sq.isNotEmpty ? 42 : 14,
@@ -1452,13 +1612,65 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     );
   }
 
+  Widget _buildMoveConfirmBar(
+    ChessUiState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    final prompt = l10n.chessConfirmMovePrompt(s.pendingConfirmSan ?? '');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: p.accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.accent.withValues(alpha: 0.65)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.touch_app_rounded, size: 18, color: p.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              prompt,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: p.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          IconButton.outlined(
+            visualDensity: VisualDensity.compact,
+            tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+            onPressed: _controller.cancelPendingMove,
+            icon: Icon(Icons.close_rounded, size: 18, color: p.danger),
+          ),
+          const SizedBox(width: 6),
+          IconButton.filled(
+            visualDensity: VisualDensity.compact,
+            tooltip: prompt,
+            onPressed: _controller.confirmPendingMove,
+            icon: const Icon(Icons.check_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildControlsRow(
     ChessUiState s,
     ZetzyPalette p,
     AppLocalizations l10n,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    if (s.isGameOver) {
+      return _buildReviewControls(s, p, l10n);
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.spaceEvenly,
       children: [
         if (s.isPractice && !s.mode.isOnlineMultiplayer)
           OutlinedButton.icon(
@@ -1493,6 +1705,123 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
           label: Text(l10n.chessResign, style: TextStyle(color: p.danger)),
         ),
       ],
+    );
+  }
+
+  Widget _buildReviewControls(
+    ChessUiState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    final summary = _finishedSummary;
+    final totalPlies = s.moveSans.length;
+    final currentPly = s.effectiveReviewPly;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: p.accent.withValues(alpha: 0.45)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewBack ? _controller.reviewFirst : null,
+                icon: const Icon(Icons.first_page_rounded, size: 19),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewBack ? _controller.reviewPrev : null,
+                icon: const Icon(Icons.chevron_left_rounded, size: 19),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    l10n.chessMoveStep(currentPly, totalPlies),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: ZetzyThemes.monoStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewForward ? _controller.reviewNext : null,
+                icon: const Icon(Icons.chevron_right_rounded, size: 19),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                onPressed: s.canReviewForward ? _controller.reviewLast : null,
+                icon: const Icon(Icons.last_page_rounded, size: 19),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 32),
+                padding: EdgeInsets.zero,
+                tooltip: l10n.chessFlipBoard,
+                onPressed: _controller.flipBoard,
+                icon: const Icon(Icons.swap_vert_rounded, size: 19),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              if (summary != null) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
+                    ),
+                    onPressed: () => _showResultDialog(summary),
+                    icon: const Icon(Icons.assessment_outlined, size: 16),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(l10n.viewResult, maxLines: 1),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 10,
+                    ),
+                  ),
+                  onPressed: () => setState(() => _inLobby = true),
+                  icon: const Icon(Icons.replay_rounded, size: 16),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(l10n.playAgain, maxLines: 1),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1556,19 +1885,63 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
               child: ListView.builder(
                 itemCount: (s.moveSans.length + 1) ~/ 2,
                 itemBuilder: (context, idx) {
+                  final whitePly = idx * 2 + 1;
+                  final blackPly = idx * 2 + 2;
                   final whiteMove = s.moveSans[idx * 2];
-                  final blackMove = idx * 2 + 1 < s.moveSans.length
-                      ? s.moveSans[idx * 2 + 1]
-                      : '';
+                  final hasBlack = idx * 2 + 1 < s.moveSans.length;
+                  final blackMove = hasBlack ? s.moveSans[idx * 2 + 1] : '';
+
+                  Widget buildMoveChip(String san, int ply) {
+                    final active = s.isGameOver && s.effectiveReviewPly == ply;
+                    final chip = Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? p.accent.withValues(alpha: 0.22)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        san,
+                        style: ZetzyThemes.monoStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              active ? FontWeight.w800 : FontWeight.w500,
+                          color: active ? p.accent : p.textPrimary,
+                        ),
+                      ),
+                    );
+                    if (!s.isGameOver) return chip;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: () => _controller.jumpToReviewPly(ply),
+                      child: chip,
+                    );
+                  }
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text(
-                      '${idx + 1}. $whiteMove  $blackMove',
-                      style: ZetzyThemes.monoStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: p.textPrimary,
-                      ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 30,
+                          child: Text(
+                            '${idx + 1}.',
+                            style: ZetzyThemes.monoStyle(
+                              fontSize: 12,
+                              color: p.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: buildMoveChip(whiteMove, whitePly)),
+                        if (hasBlack)
+                          Expanded(child: buildMoveChip(blackMove, blackPly))
+                        else
+                          const Spacer(),
+                      ],
                     ),
                   );
                 },
@@ -1584,6 +1957,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
             pieceSet: pieceSet,
           ),
           const SizedBox(height: 10),
+          if (s.hasPendingConfirm && !s.isGameOver) ...[
+            _buildMoveConfirmBar(s, p, l10n),
+            const SizedBox(height: 8),
+          ],
           _buildControlsRow(s, p, l10n),
         ],
       ),

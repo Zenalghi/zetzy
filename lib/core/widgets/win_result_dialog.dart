@@ -30,6 +30,7 @@ Future<void> showGameResultDialog({
   List<({String label, String value})> extraMetrics = const [],
   int rewindSteps = 1,
   VoidCallback? onRewindContinue,
+  VoidCallback? onReviewBoard,
   required VoidCallback onPlayAgain,
   required VoidCallback onExit,
 }) {
@@ -51,6 +52,7 @@ Future<void> showGameResultDialog({
       extraMetrics: extraMetrics,
       rewindSteps: rewindSteps,
       onRewindContinue: onRewindContinue,
+      onReviewBoard: onReviewBoard,
       onPlayAgain: onPlayAgain,
       onExit: onExit,
     ),
@@ -73,6 +75,7 @@ class _GameResultDialog extends StatefulWidget {
     required this.extraMetrics,
     this.rewindSteps = 1,
     this.onRewindContinue,
+    this.onReviewBoard,
     required this.onPlayAgain,
     required this.onExit,
   });
@@ -91,6 +94,7 @@ class _GameResultDialog extends StatefulWidget {
   final List<({String label, String value})> extraMetrics;
   final int rewindSteps;
   final VoidCallback? onRewindContinue;
+  final VoidCallback? onReviewBoard;
   final VoidCallback onPlayAgain;
   final VoidCallback onExit;
 
@@ -383,6 +387,25 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                if (widget.onReviewBoard != null) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: p.accent.withValues(alpha: 0.1),
+                        foregroundColor: p.accent,
+                        side: BorderSide(color: p.accent.withValues(alpha: 0.55)),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onReviewBoard!();
+                      },
+                      icon: const Icon(Icons.visibility_outlined, size: 18),
+                      label: Text(l10n.reviewBoard),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(

@@ -279,6 +279,12 @@
   "profileResetStats": "Reset All Statistics",
   "profileDeleteAccount": "Delete Account Permanently",
   "profileDangerZone": "Account & Data Management",
+  "profileAppVersion": "Zetzy v{version}",
+  "@profileAppVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
 
   "settingsAppearance": "Appearance & Language",
   "settingsTheme": "Theme Skin",
@@ -321,5 +327,99 @@
   "requiredHint": "* Required",
   "optionalLabel": "Optional",
   "invalidUsername": "3–16 chars: lowercase letters, numbers, or _ only.",
-  "invalidPassword": "Min 8 characters with both letters and numbers."
+  "invalidPassword": "Min 8 characters with both letters and numbers.",
+  "reviewBoard": "View Board",
+  "viewResult": "View Result",
+  "wrongFlagsCount": "{count} wrong flag(s)",
+  "@wrongFlagsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "minesRevealedHint": "All mines & flags revealed. Pinch or drag to inspect.",
+  "chessReviewTitle": "Move Review",
+  "chessMoveStep": "Ply {current}/{total}",
+  "@chessMoveStep": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuShowSolution": "Show Answer",
+  "sudokuHideSolution": "Hide Answer",
+  "sudokuMistakeReviewHint": "Incorrect entries are highlighted in red.",
+  "snakeDeathWall": "Crashed into the arena wall.",
+  "snakeDeathObstacle": "Crashed into an obstacle block.",
+  "snakeDeathSelf": "Collided with your own body.",
+  "snakeDeathStarvation": "Energy ran out before reaching food.",
+  "snakeAllCleared": "Cleared the arena!",
+  "settingsInGameTitle": "Quick Settings",
+  "settingsInGameSubtitle": "Safe to adjust during an active match",
+  "settingsSudokuAutoFinish": "Auto-Finish Endgame",
+  "settingsSudokuAutoFinishDesc": "Show Auto-Finish button when only a few cells remain.",
+  "settingsSudokuAutoFinishThreshold": "Remaining Empty Cells",
+  "sudokuRemainingCellsOption": "{count} Cells",
+  "@sudokuRemainingCellsOption": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sudokuAutoFinishAction": "Auto-Finish ({count})",
+  "@sudokuAutoFinishAction": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSudokuHighlightSame": "Highlight Matching Digits",
+  "settingsSudokuAutoClearNotes": "Auto-Clear Peer Notes",
+  "settingsChessLegalMoves": "Show Legal Move Hints",
+  "settingsChessCoordinates": "Show Board Coordinates",
+  "settingsMinesweeperQuickChord": "Tap Number to Chord",
+  "settingsMinesweeperQuickChordDesc": "Open adjacent tiles when surrounding flags match.",
+  "settingsSnakeGridLines": "Show Arena Grid Lines",
+  "settingsPracticeSection": "Practice Mode",
+
+  "settingsSudokuStreakStats": "Mistake-Free Streak & Accuracy",
+  "settingsSudokuStreakStatsDesc": "Show live streak and accuracy percentage on board & summary.",
+  "settingsSudokuSmartNotes": "Smart Candidate Notes",
+  "settingsSudokuSmartNotesDesc": "Auto-fill valid candidates in Practice Mode or Beginner Lv 1–2.",
+  "sudokuFillCandidates": "Smart Notes",
+  "sudokuStreakBadge": "Streak {count}",
+  "@sudokuStreakBadge": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sudokuBestStreakLabel": "Best Streak",
+  "sudokuAccuracyLabel": "Accuracy",
+
+  "settingsMinesweeperSwapTapFlag": "Swap Tap & Flag (One-Handed)",
+  "settingsMinesweeperSwapTapFlagDesc": "Short tap places flags and long-press digs instead.",
+  "mineTapFlagActive": "1-Tap: Flag",
+  "mineTapDigActive": "1-Tap: Dig",
+
+  "settingsChessMoveConfirm": "Touch Move Confirmation",
+  "settingsChessConfirmOff": "Off",
+  "settingsChessConfirmFast": "Bullet/Blitz",
+  "settingsChessConfirmAlways": "Always",
+  "settingsChessAutoFlipPassPlay": "Auto-Flip in Pass & Play",
+  "chessConfirmMovePrompt": "Confirm {move}?",
+  "@chessConfirmMovePrompt": {
+    "placeholders": {
+      "move": { "type": "String" }
+    }
+  },
+
+  "settingsSnakeAssistOverlay": "Ghost Wall & Turn Guide",
+  "settingsSnakeAssistOverlayDesc": "Show obstacle warning preview and swipe direction arrows."
 }

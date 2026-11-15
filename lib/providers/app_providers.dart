@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/audio_service.dart';
@@ -41,6 +42,19 @@ final hapticServiceProvider = Provider<HapticService>((ref) => HapticService());
 final wakelockServiceProvider = Provider<WakelockService>(
   (ref) => WakelockService(),
 );
+
+/// App version string read from compiled `pubspec.yaml` metadata.
+final appVersionProvider = FutureProvider<String?>((ref) async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    if (info.version.isEmpty) return null;
+    return info.buildNumber.isNotEmpty
+        ? '${info.version}+${info.buildNumber}'
+        : info.version;
+  } catch (_) {
+    return null;
+  }
+});
 
 // ── Settings Notifier ──────────────────────────────────────────────────────
 
@@ -89,11 +103,53 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setSnakeControl(SnakeControlMode mode) =>
       _commit(state.copyWith(snakeControlMode: mode));
 
+  Future<void> setSnakeShowGridLines(bool enabled) =>
+      _commit(state.copyWith(snakeShowGridLines: enabled));
+
+  Future<void> setSnakeAssistOverlay(bool enabled) =>
+      _commit(state.copyWith(snakeAssistOverlay: enabled));
+
   Future<void> setChessPieceSet(ChessPieceSet pieceSet) =>
       _commit(state.copyWith(chessPieceSet: pieceSet));
 
   Future<void> setChessAutoQueen(bool autoQueen) =>
       _commit(state.copyWith(chessAutoQueen: autoQueen));
+
+  Future<void> setChessShowLegalMoves(bool enabled) =>
+      _commit(state.copyWith(chessShowLegalMoves: enabled));
+
+  Future<void> setChessShowCoordinates(bool enabled) =>
+      _commit(state.copyWith(chessShowCoordinates: enabled));
+
+  Future<void> setChessMoveConfirmMode(ChessMoveConfirmMode mode) =>
+      _commit(state.copyWith(chessMoveConfirmMode: mode));
+
+  Future<void> setChessAutoFlipPassPlay(bool enabled) =>
+      _commit(state.copyWith(chessAutoFlipPassPlay: enabled));
+
+  Future<void> setSudokuAutoFinish(bool enabled) =>
+      _commit(state.copyWith(sudokuAutoFinish: enabled));
+
+  Future<void> setSudokuAutoFinishThreshold(int cells) =>
+      _commit(state.copyWith(sudokuAutoFinishThreshold: cells >= 7 ? 7 : 5));
+
+  Future<void> setSudokuHighlightSameDigits(bool enabled) =>
+      _commit(state.copyWith(sudokuHighlightSameDigits: enabled));
+
+  Future<void> setSudokuAutoClearNotes(bool enabled) =>
+      _commit(state.copyWith(sudokuAutoClearNotes: enabled));
+
+  Future<void> setSudokuShowStreakStats(bool enabled) =>
+      _commit(state.copyWith(sudokuShowStreakStats: enabled));
+
+  Future<void> setSudokuSmartCandidateNotes(bool enabled) =>
+      _commit(state.copyWith(sudokuSmartCandidateNotes: enabled));
+
+  Future<void> setMinesweeperQuickChord(bool enabled) =>
+      _commit(state.copyWith(minesweeperQuickChord: enabled));
+
+  Future<void> setMinesweeperSwapTapFlag(bool enabled) =>
+      _commit(state.copyWith(minesweeperSwapTapFlag: enabled));
 
   Future<void> setPracticeRewindOnLoss(bool enabled) =>
       _commit(state.copyWith(practiceRewindOnLoss: enabled));

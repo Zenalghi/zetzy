@@ -1143,6 +1143,12 @@ abstract class AppLocalizations {
   /// **'Account & Data Management'**
   String get profileDangerZone;
 
+  /// No description provided for @profileAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Zetzy v{version}'**
+  String profileAppVersion(String version);
+
   /// No description provided for @settingsAppearance.
   ///
   /// In en, this message translates to:
@@ -1352,6 +1358,300 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Min 8 characters with both letters and numbers.'**
   String get invalidPassword;
+
+  /// No description provided for @reviewBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'View Board'**
+  String get reviewBoard;
+
+  /// No description provided for @viewResult.
+  ///
+  /// In en, this message translates to:
+  /// **'View Result'**
+  String get viewResult;
+
+  /// No description provided for @wrongFlagsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} wrong flag(s)'**
+  String wrongFlagsCount(int count);
+
+  /// No description provided for @minesRevealedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'All mines & flags revealed. Pinch or drag to inspect.'**
+  String get minesRevealedHint;
+
+  /// No description provided for @chessReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move Review'**
+  String get chessReviewTitle;
+
+  /// No description provided for @chessMoveStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Ply {current}/{total}'**
+  String chessMoveStep(int current, int total);
+
+  /// No description provided for @sudokuShowSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Answer'**
+  String get sudokuShowSolution;
+
+  /// No description provided for @sudokuHideSolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Answer'**
+  String get sudokuHideSolution;
+
+  /// No description provided for @sudokuMistakeReviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect entries are highlighted in red.'**
+  String get sudokuMistakeReviewHint;
+
+  /// No description provided for @snakeDeathWall.
+  ///
+  /// In en, this message translates to:
+  /// **'Crashed into the arena wall.'**
+  String get snakeDeathWall;
+
+  /// No description provided for @snakeDeathObstacle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crashed into an obstacle block.'**
+  String get snakeDeathObstacle;
+
+  /// No description provided for @snakeDeathSelf.
+  ///
+  /// In en, this message translates to:
+  /// **'Collided with your own body.'**
+  String get snakeDeathSelf;
+
+  /// No description provided for @snakeDeathStarvation.
+  ///
+  /// In en, this message translates to:
+  /// **'Energy ran out before reaching food.'**
+  String get snakeDeathStarvation;
+
+  /// No description provided for @snakeAllCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared the arena!'**
+  String get snakeAllCleared;
+
+  /// No description provided for @settingsInGameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Settings'**
+  String get settingsInGameTitle;
+
+  /// No description provided for @settingsInGameSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Safe to adjust during an active match'**
+  String get settingsInGameSubtitle;
+
+  /// No description provided for @settingsSudokuAutoFinish.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Finish Endgame'**
+  String get settingsSudokuAutoFinish;
+
+  /// No description provided for @settingsSudokuAutoFinishDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Auto-Finish button when only a few cells remain.'**
+  String get settingsSudokuAutoFinishDesc;
+
+  /// No description provided for @settingsSudokuAutoFinishThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining Empty Cells'**
+  String get settingsSudokuAutoFinishThreshold;
+
+  /// No description provided for @sudokuRemainingCellsOption.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Cells'**
+  String sudokuRemainingCellsOption(int count);
+
+  /// No description provided for @sudokuAutoFinishAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Finish ({count})'**
+  String sudokuAutoFinishAction(int count);
+
+  /// No description provided for @settingsSudokuHighlightSame.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight Matching Digits'**
+  String get settingsSudokuHighlightSame;
+
+  /// No description provided for @settingsSudokuAutoClearNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Clear Peer Notes'**
+  String get settingsSudokuAutoClearNotes;
+
+  /// No description provided for @settingsChessLegalMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Legal Move Hints'**
+  String get settingsChessLegalMoves;
+
+  /// No description provided for @settingsChessCoordinates.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Board Coordinates'**
+  String get settingsChessCoordinates;
+
+  /// No description provided for @settingsMinesweeperQuickChord.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Number to Chord'**
+  String get settingsMinesweeperQuickChord;
+
+  /// No description provided for @settingsMinesweeperQuickChordDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open adjacent tiles when surrounding flags match.'**
+  String get settingsMinesweeperQuickChordDesc;
+
+  /// No description provided for @settingsSnakeGridLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Arena Grid Lines'**
+  String get settingsSnakeGridLines;
+
+  /// No description provided for @settingsPracticeSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Mode'**
+  String get settingsPracticeSection;
+
+  /// No description provided for @settingsSudokuStreakStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Mistake-Free Streak & Accuracy'**
+  String get settingsSudokuStreakStats;
+
+  /// No description provided for @settingsSudokuStreakStatsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show live streak and accuracy percentage on board & summary.'**
+  String get settingsSudokuStreakStatsDesc;
+
+  /// No description provided for @settingsSudokuSmartNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Candidate Notes'**
+  String get settingsSudokuSmartNotes;
+
+  /// No description provided for @settingsSudokuSmartNotesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-fill valid candidates in Practice Mode or Beginner Lv 1–2.'**
+  String get settingsSudokuSmartNotesDesc;
+
+  /// No description provided for @sudokuFillCandidates.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Notes'**
+  String get sudokuFillCandidates;
+
+  /// No description provided for @sudokuStreakBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Streak {count}'**
+  String sudokuStreakBadge(int count);
+
+  /// No description provided for @sudokuBestStreakLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Streak'**
+  String get sudokuBestStreakLabel;
+
+  /// No description provided for @sudokuAccuracyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy'**
+  String get sudokuAccuracyLabel;
+
+  /// No description provided for @settingsMinesweeperSwapTapFlag.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap Tap & Flag (One-Handed)'**
+  String get settingsMinesweeperSwapTapFlag;
+
+  /// No description provided for @settingsMinesweeperSwapTapFlagDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Short tap places flags and long-press digs instead.'**
+  String get settingsMinesweeperSwapTapFlagDesc;
+
+  /// No description provided for @mineTapFlagActive.
+  ///
+  /// In en, this message translates to:
+  /// **'1-Tap: Flag'**
+  String get mineTapFlagActive;
+
+  /// No description provided for @mineTapDigActive.
+  ///
+  /// In en, this message translates to:
+  /// **'1-Tap: Dig'**
+  String get mineTapDigActive;
+
+  /// No description provided for @settingsChessMoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch Move Confirmation'**
+  String get settingsChessMoveConfirm;
+
+  /// No description provided for @settingsChessConfirmOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get settingsChessConfirmOff;
+
+  /// No description provided for @settingsChessConfirmFast.
+  ///
+  /// In en, this message translates to:
+  /// **'Bullet/Blitz'**
+  String get settingsChessConfirmFast;
+
+  /// No description provided for @settingsChessConfirmAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get settingsChessConfirmAlways;
+
+  /// No description provided for @settingsChessAutoFlipPassPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Flip in Pass & Play'**
+  String get settingsChessAutoFlipPassPlay;
+
+  /// No description provided for @chessConfirmMovePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm {move}?'**
+  String chessConfirmMovePrompt(String move);
+
+  /// No description provided for @settingsSnakeAssistOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Ghost Wall & Turn Guide'**
+  String get settingsSnakeAssistOverlay;
+
+  /// No description provided for @settingsSnakeAssistOverlayDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show obstacle warning preview and swipe direction arrows.'**
+  String get settingsSnakeAssistOverlayDesc;
 }
 
 class _AppLocalizationsDelegate

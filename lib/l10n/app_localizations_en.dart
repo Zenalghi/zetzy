@@ -586,6 +586,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDangerZone => 'Account & Data Management';
 
   @override
+  String profileAppVersion(String version) {
+    return 'Zetzy v$version';
+  }
+
+  @override
   String get settingsAppearance => 'Appearance & Language';
 
   @override
@@ -701,4 +706,171 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get invalidPassword =>
       'Min 8 characters with both letters and numbers.';
+
+  @override
+  String get reviewBoard => 'View Board';
+
+  @override
+  String get viewResult => 'View Result';
+
+  @override
+  String wrongFlagsCount(int count) {
+    return '$count wrong flag(s)';
+  }
+
+  @override
+  String get minesRevealedHint =>
+      'All mines & flags revealed. Pinch or drag to inspect.';
+
+  @override
+  String get chessReviewTitle => 'Move Review';
+
+  @override
+  String chessMoveStep(int current, int total) {
+    return 'Ply $current/$total';
+  }
+
+  @override
+  String get sudokuShowSolution => 'Show Answer';
+
+  @override
+  String get sudokuHideSolution => 'Hide Answer';
+
+  @override
+  String get sudokuMistakeReviewHint =>
+      'Incorrect entries are highlighted in red.';
+
+  @override
+  String get snakeDeathWall => 'Crashed into the arena wall.';
+
+  @override
+  String get snakeDeathObstacle => 'Crashed into an obstacle block.';
+
+  @override
+  String get snakeDeathSelf => 'Collided with your own body.';
+
+  @override
+  String get snakeDeathStarvation => 'Energy ran out before reaching food.';
+
+  @override
+  String get snakeAllCleared => 'Cleared the arena!';
+
+  @override
+  String get settingsInGameTitle => 'Quick Settings';
+
+  @override
+  String get settingsInGameSubtitle => 'Safe to adjust during an active match';
+
+  @override
+  String get settingsSudokuAutoFinish => 'Auto-Finish Endgame';
+
+  @override
+  String get settingsSudokuAutoFinishDesc =>
+      'Show Auto-Finish button when only a few cells remain.';
+
+  @override
+  String get settingsSudokuAutoFinishThreshold => 'Remaining Empty Cells';
+
+  @override
+  String sudokuRemainingCellsOption(int count) {
+    return '$count Cells';
+  }
+
+  @override
+  String sudokuAutoFinishAction(int count) {
+    return 'Auto-Finish ($count)';
+  }
+
+  @override
+  String get settingsSudokuHighlightSame => 'Highlight Matching Digits';
+
+  @override
+  String get settingsSudokuAutoClearNotes => 'Auto-Clear Peer Notes';
+
+  @override
+  String get settingsChessLegalMoves => 'Show Legal Move Hints';
+
+  @override
+  String get settingsChessCoordinates => 'Show Board Coordinates';
+
+  @override
+  String get settingsMinesweeperQuickChord => 'Tap Number to Chord';
+
+  @override
+  String get settingsMinesweeperQuickChordDesc =>
+      'Open adjacent tiles when surrounding flags match.';
+
+  @override
+  String get settingsSnakeGridLines => 'Show Arena Grid Lines';
+
+  @override
+  String get settingsPracticeSection => 'Practice Mode';
+
+  @override
+  String get settingsSudokuStreakStats => 'Mistake-Free Streak & Accuracy';
+
+  @override
+  String get settingsSudokuStreakStatsDesc =>
+      'Show live streak and accuracy percentage on board & summary.';
+
+  @override
+  String get settingsSudokuSmartNotes => 'Smart Candidate Notes';
+
+  @override
+  String get settingsSudokuSmartNotesDesc =>
+      'Auto-fill valid candidates in Practice Mode or Beginner Lv 1–2.';
+
+  @override
+  String get sudokuFillCandidates => 'Smart Notes';
+
+  @override
+  String sudokuStreakBadge(int count) {
+    return 'Streak $count';
+  }
+
+  @override
+  String get sudokuBestStreakLabel => 'Best Streak';
+
+  @override
+  String get sudokuAccuracyLabel => 'Accuracy';
+
+  @override
+  String get settingsMinesweeperSwapTapFlag => 'Swap Tap & Flag (One-Handed)';
+
+  @override
+  String get settingsMinesweeperSwapTapFlagDesc =>
+      'Short tap places flags and long-press digs instead.';
+
+  @override
+  String get mineTapFlagActive => '1-Tap: Flag';
+
+  @override
+  String get mineTapDigActive => '1-Tap: Dig';
+
+  @override
+  String get settingsChessMoveConfirm => 'Touch Move Confirmation';
+
+  @override
+  String get settingsChessConfirmOff => 'Off';
+
+  @override
+  String get settingsChessConfirmFast => 'Bullet/Blitz';
+
+  @override
+  String get settingsChessConfirmAlways => 'Always';
+
+  @override
+  String get settingsChessAutoFlipPassPlay => 'Auto-Flip in Pass & Play';
+
+  @override
+  String chessConfirmMovePrompt(String move) {
+    return 'Confirm $move?';
+  }
+
+  @override
+  String get settingsSnakeAssistOverlay => 'Ghost Wall & Turn Guide';
+
+  @override
+  String get settingsSnakeAssistOverlayDesc =>
+      'Show obstacle warning preview and swipe direction arrows.';
 }

@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
+import 'package:zetzy/core/widgets/game_type_icon.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
@@ -258,6 +260,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final settingsCtrl = ref.read(settingsProvider.notifier);
     final supa = ref.watch(supabaseServiceProvider);
     final hasAudio = ref.watch(audioServiceProvider).hasAudioAssets;
+    final appVersionAsync = ref.watch(appVersionProvider);
 
     return SafeArea(
       child: Center(
@@ -520,7 +523,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              // Gameplay & Controls
+              // Audio & Device Feedback
               TactileCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -532,89 +535,99 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         fontSize: 16,
                       ),
                     ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: settings.sfxEnabled,
-                      onChanged: settingsCtrl.setSfx,
-                      title: Text(l10n.settingsAudioSfx),
-                      subtitle: hasAudio
-                          ? null
-                          : Text(
-                              l10n.settingsAudioPending,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: p.textSecondary,
-                              ),
-                            ),
+                    ...GameSettingsControls.sharedAudioFeedback(
+                      settings,
+                      settingsCtrl,
+                      p,
+                      l10n,
+                      hasAudio: hasAudio,
                     ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: settings.bgmEnabled,
-                      onChanged: settingsCtrl.setBgm,
-                      title: Text(l10n.settingsAudioBgm),
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: settings.hapticsEnabled,
-                      onChanged: settingsCtrl.setHaptics,
-                      title: Text(l10n.settingsHaptics),
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: settings.wakelockEnabled,
-                      onChanged: settingsCtrl.setWakelock,
-                      title: Text(l10n.settingsWakelock),
-                    ),
-                    const Divider(),
-                    Text(
-                      l10n.settingsSnakeControl,
-                      style: TextStyle(fontSize: 12, color: p.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    SegmentedButton<SnakeControlMode>(
-                      selected: {settings.snakeControlMode},
-                      onSelectionChanged: (s) =>
-                          settingsCtrl.setSnakeControl(s.first),
-                      segments: [
-                        ButtonSegment(
-                          value: SnakeControlMode.swipe,
-                          label: Text(l10n.settingsSnakeSwipe),
-                        ),
-                        ButtonSegment(
-                          value: SnakeControlMode.dpad,
-                          label: Text(l10n.settingsSnakeDpad),
-                        ),
-                        ButtonSegment(
-                          value: SnakeControlMode.splitTap,
-                          label: Text(l10n.settingsSnakeSplit),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      l10n.settingsChessPieces,
-                      style: TextStyle(fontSize: 12, color: p.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Sudoku Settings Card
+              _buildGameSettingsCard(
+                game: GameType.sudoku,
+                p: p,
+                l10n: l10n,
+                children: GameSettingsControls.sudoku(
+                  settings,
+                  settingsCtrl,
+                  p,
+                  l10n,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Chess Settings Card
+              _buildGameSettingsCard(
+                game: GameType.chess,
+                p: p,
+                l10n: l10n,
+                children: GameSettingsControls.chess(
+                  settings,
+                  settingsCtrl,
+                  p,
+                  l10n,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Minesweeper Settings Card
+              _buildGameSettingsCard(
+                game: GameType.minesweeper,
+                p: p,
+                l10n: l10n,
+                children: GameSettingsControls.minesweeper(
+                  settings,
+                  settingsCtrl,
+                  p,
+                  l10n,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Snake Settings Card
+              _buildGameSettingsCard(
+                game: GameType.snake,
+                p: p,
+                l10n: l10n,
+                children: GameSettingsControls.snake(
+                  settings,
+                  settingsCtrl,
+                  p,
+                  l10n,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Practice Mode Card
+              TactileCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        for (final set in ChessPieceSet.values)
-                          ChoiceChip(
-                            selected: settings.chessPieceSet == set,
-                            onSelected: (_) =>
-                                settingsCtrl.setChessPieceSet(set),
-                            label: Text(set.label),
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: p.accentSecondary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
                           ),
+                          child: Icon(
+                            Icons.history_rounded,
+                            size: 18,
+                            color: p.accentSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          l10n.settingsPracticeSection,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
                       ],
                     ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value: settings.chessAutoQueen,
-                      onChanged: settingsCtrl.setChessAutoQueen,
-                      title: Text(l10n.settingsChessAutoQueen),
-                    ),
-                    const Divider(),
+                    const SizedBox(height: 8),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
                       value: settings.practiceRewindOnLoss,
@@ -711,9 +724,65 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
+              appVersionAsync.whenOrNull(
+                    data: (version) => version == null
+                        ? null
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 18, bottom: 8),
+                            child: Center(
+                              child: Text(
+                                l10n.profileAppVersion(version),
+                                style: ZetzyThemes.monoStyle(
+                                  fontSize: 12,
+                                  color: p.textSecondary.withValues(
+                                    alpha: 0.72,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ) ??
+                  const SizedBox.shrink(),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGameSettingsCard({
+    required GameType game,
+    required ZetzyPalette p,
+    required AppLocalizations l10n,
+    required List<Widget> children,
+  }) {
+    return TactileCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: p.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: GameTypeIcon(game: game, size: 18, color: p.accent),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                game.localizedTitle(l10n),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...children,
+        ],
       ),
     );
   }

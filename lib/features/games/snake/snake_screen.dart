@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
@@ -9,6 +10,7 @@ import 'package:zetzy/core/utils/platform_detector.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
 import 'package:zetzy/core/widgets/game_lifecycle_guard.dart';
 import 'package:zetzy/core/widgets/game_timer_badge.dart';
+import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/features/games/snake/snake_controller.dart';
@@ -41,6 +43,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   ui.Image? _scissorsImg;
   ui.Image? _poisonImg;
   ui.Image? _wallImg;
+  ({SnakeGameState state, bool isNewRecord})? _finishedSummary;
 
   @override
   void initState() {
@@ -94,6 +97,25 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
     });
   }
 
+  void _startNewGame() {
+    _finishedSummary = null;
+    _controller.startNew(
+      difficulty: widget.difficulty,
+      isPractice: widget.isPractice,
+    );
+  }
+
+  String _reviewReasonText(SnakeGameState s, AppLocalizations l10n) {
+    if (s.isWon) return l10n.snakeAllCleared;
+    return switch (s.deathReason) {
+      SnakeDeathReason.wall => l10n.snakeDeathWall,
+      SnakeDeathReason.obstacle => l10n.snakeDeathObstacle,
+      SnakeDeathReason.selfCollision => l10n.snakeDeathSelf,
+      SnakeDeathReason.starvation => l10n.snakeDeathStarvation,
+      null => l10n.gameOver,
+    };
+  }
+
   Future<void> _handleGameFinished(SnakeGameState finalState) async {
     await ref.read(autoSaveSlotsProvider.notifier).clearSlot(GameType.snake);
     final isNewRecord = await ref
@@ -111,7 +133,17 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
           },
         );
 
+    final summary = (state: finalState, isNewRecord: isNewRecord);
+    _finishedSummary = summary;
+
     if (!mounted) return;
+    await _showResultDialog(summary);
+  }
+
+  Future<void> _showResultDialog(
+    ({SnakeGameState state, bool isNewRecord}) summary,
+  ) async {
+    final finalState = summary.state;
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.read(settingsProvider);
     final canRewind =
@@ -126,19 +158,21 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
       isWon: finalState.isWon,
       durationMs: finalState.elapsedMs,
       score: finalState.score,
-      isNewRecord: isNewRecord,
+      isNewRecord: summary.isNewRecord,
       isPractice: finalState.isPractice,
+      noteText: finalState.isWon ? null : _reviewReasonText(finalState, l10n),
       extraMetrics: [
         (label: l10n.snakeLength, value: '${finalState.snake.length}'),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
-          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          ? () {
+              _finishedSummary = null;
+              _controller.practiceRewind(settings.practiceRewindSteps);
+            }
           : null,
-      onPlayAgain: () => _controller.startNew(
-        difficulty: finalState.difficulty,
-        isPractice: finalState.isPractice,
-      ),
+      onReviewBoard: () {},
+      onPlayAgain: _startNewGame,
       onExit: () => Navigator.of(context).pop(),
     );
   }
@@ -181,6 +215,23 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
     super.dispose();
   }
 
+  Future<void> _openInGameSettings() async {
+    final wasRunning =
+        !_controller.state.isPaused && !_controller.state.isGameOver;
+    if (wasRunning) {
+      _controller.pause(save: false);
+    }
+    await showInGameSettingsSheet(
+      context: context,
+      gameType: GameType.snake,
+    );
+    if (!mounted) return;
+    if (wasRunning) {
+      _controller.resume();
+    }
+    _focusNode.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -202,9 +253,11 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
               ListenableBuilder(
                 listenable: _controller,
                 builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_controller.state.isPractice)
                       IconButton(
+                        visualDensity: VisualDensity.compact,
                         tooltip: l10n.practiceUndo,
                         onPressed:
                             _controller.state.canPracticeUndo &&
@@ -218,6 +271,13 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                       isPaused: _controller.state.isPaused,
                     ),
                     IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: l10n.settingsInGameTitle,
+                      onPressed: _openInGameSettings,
+                      icon: const Icon(Icons.settings_outlined, size: 21),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();
@@ -256,6 +316,8 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                     s,
                                     p,
                                     settings.snakeControlMode,
+                                    showGridLines: settings.snakeShowGridLines,
+                                    assistOverlay: settings.snakeAssistOverlay,
                                   ),
                                 ),
                               ),
@@ -289,10 +351,15 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                   s,
                                   p,
                                   settings.snakeControlMode,
+                                  showGridLines: settings.snakeShowGridLines,
+                                  assistOverlay: settings.snakeAssistOverlay,
                                 ),
                               ),
                             ),
-                            if (!PlatformDetector.isDesktopOrWeb &&
+                            if (s.isGameOver) ...[
+                              const SizedBox(height: 8),
+                              _buildReviewBar(s, p, l10n),
+                            ] else if (!PlatformDetector.isDesktopOrWeb &&
                                 settings.snakeControlMode ==
                                     SnakeControlMode.dpad) ...[
                               const SizedBox(height: 8),
@@ -431,22 +498,110 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
         children: [
           _buildCompactHud(s, p, l10n),
           const Divider(height: 24),
-          if (s.isPractice) ...[
-            OutlinedButton.icon(
-              onPressed: s.canPracticeUndo && !s.isGameOver
-                  ? _controller.practiceUndo
-                  : null,
-              icon: const Icon(Icons.undo_rounded),
-              label: Text(l10n.practiceUndo),
+          if (s.isGameOver) ...[
+            const Spacer(),
+            _buildReviewBar(s, p, l10n, isSidebar: true),
+          ] else ...[
+            if (s.isPractice) ...[
+              OutlinedButton.icon(
+                onPressed: s.canPracticeUndo && !s.isGameOver
+                    ? _controller.practiceUndo
+                    : null,
+                icon: const Icon(Icons.undo_rounded),
+                label: Text(l10n.practiceUndo),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Text(
+              l10n.snakeDesktopHint,
+              style: TextStyle(color: p.textSecondary, fontSize: 13),
             ),
-            const SizedBox(height: 12),
+            const Spacer(),
+            _buildVirtualDpad(p),
           ],
-          Text(
-            l10n.snakeDesktopHint,
-            style: TextStyle(color: p.textSecondary, fontSize: 13),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewBar(
+    SnakeGameState s,
+    ZetzyPalette p,
+    AppLocalizations l10n, {
+    bool isSidebar = false,
+  }) {
+    final summary = _finishedSummary;
+    final color = s.isWon ? p.success : p.danger;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: p.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                s.isWon
+                    ? Icons.emoji_events_rounded
+                    : Icons.warning_amber_rounded,
+                size: 18,
+                color: color,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _reviewReasonText(s, l10n),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          _buildVirtualDpad(p),
+          SizedBox(height: isSidebar ? 12 : 8),
+          if (isSidebar) ...[
+            if (summary != null) ...[
+              OutlinedButton.icon(
+                onPressed: () => _showResultDialog(summary),
+                icon: const Icon(Icons.assessment_outlined, size: 18),
+                label: Text(l10n.viewResult),
+              ),
+              const SizedBox(height: 8),
+            ],
+            FilledButton.icon(
+              onPressed: _startNewGame,
+              icon: const Icon(Icons.replay_rounded, size: 18),
+              label: Text(l10n.playAgain),
+            ),
+          ] else
+            Row(
+              children: [
+                if (summary != null) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showResultDialog(summary),
+                      icon: const Icon(Icons.assessment_outlined, size: 18),
+                      label: Text(l10n.viewResult),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _startNewGame,
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: Text(l10n.playAgain),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -455,8 +610,10 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
   Widget _buildArena(
     SnakeGameState s,
     ZetzyPalette p,
-    SnakeControlMode controlMode,
-  ) {
+    SnakeControlMode controlMode, {
+    required bool showGridLines,
+    required bool assistOverlay,
+  }) {
     Widget board = AspectRatio(
       aspectRatio: 1,
       child: Container(
@@ -473,6 +630,8 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
           painter: _SnakeBoardPainter(
             state: s,
             palette: p,
+            showGridLines: showGridLines,
+            assistOverlay: assistOverlay,
             appleImg: _appleImg,
             goldenImg: _goldenImg,
             scissorsImg: _scissorsImg,
@@ -581,6 +740,8 @@ class _SnakeBoardPainter extends CustomPainter {
   _SnakeBoardPainter({
     required this.state,
     required this.palette,
+    this.showGridLines = false,
+    this.assistOverlay = true,
     this.appleImg,
     this.goldenImg,
     this.scissorsImg,
@@ -590,6 +751,8 @@ class _SnakeBoardPainter extends CustomPainter {
 
   final SnakeGameState state;
   final ZetzyPalette palette;
+  final bool showGridLines;
+  final bool assistOverlay;
   final ui.Image? appleImg;
   final ui.Image? goldenImg;
   final ui.Image? scissorsImg;
@@ -614,18 +777,56 @@ class _SnakeBoardPainter extends CustomPainter {
       }
     }
 
+    if (showGridLines) {
+      final gridPaint = Paint()
+        ..color = palette.border.withValues(alpha: 0.28)
+        ..strokeWidth = 0.7;
+      for (var i = 1; i < state.gridSize; i++) {
+        final dx = i * cellW;
+        final dy = i * cellH;
+        canvas.drawLine(Offset(dx, 0), Offset(dx, size.height), gridPaint);
+        canvas.drawLine(Offset(0, dy), Offset(size.width, dy), gridPaint);
+      }
+    }
+
     // Warning shadows for upcoming dynamic obstacles (2s preview)
     if (state.warningObstacles.isNotEmpty) {
+      final frac = (state.obstacleWarningRemainingMs / 2000.0).clamp(0.0, 1.0);
       final warnPaint = Paint()
-        ..color = palette.warning.withValues(alpha: 0.35);
-      for (final w in state.warningObstacles) {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(w.x * cellW + 2, w.y * cellH + 2, cellW - 4, cellH - 4),
-            const Radius.circular(4),
-          ),
-          warnPaint,
+        ..color = palette.warning.withValues(
+          alpha: assistOverlay ? 0.24 + (1 - frac) * 0.28 : 0.35,
         );
+      final borderPaint = Paint()
+        ..color = palette.warning.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6;
+      for (final w in state.warningObstacles) {
+        final rrect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            w.x * cellW + 2,
+            w.y * cellH + 2,
+            cellW - 4,
+            cellH - 4,
+          ),
+          const Radius.circular(4),
+        );
+        canvas.drawRRect(rrect, warnPaint);
+        if (assistOverlay) {
+          canvas.drawRRect(rrect, borderPaint);
+          final inset = (cellW - 6) * 0.34 * frac;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(
+                w.x * cellW + 3 + inset,
+                w.y * cellH + 3 + inset,
+                max(2.0, cellW - 6 - inset * 2),
+                max(2.0, cellH - 6 - inset * 2),
+              ),
+              const Radius.circular(3),
+            ),
+            borderPaint,
+          );
+        }
       }
     }
 
@@ -717,7 +918,255 @@ class _SnakeBoardPainter extends CustomPainter {
       canvas.drawCircle(eye2, cellW * 0.1, whitePaint);
       canvas.drawCircle(eye1 + Offset(dx * 1.2, dy * 1.2), cellW * 0.05, pupilPaint);
       canvas.drawCircle(eye2 + Offset(dx * 1.2, dy * 1.2), cellW * 0.05, pupilPaint);
+
+      if (assistOverlay && !state.isGameOver) {
+        _drawAssistOverlay(canvas, size, cellW, cellH);
+      }
     }
+
+    // Post-game crash marker to highlight collision point during review.
+    final crash = state.crashPoint;
+    if (state.isGameOver && !state.isWon && crash != null) {
+      final crashRect = Rect.fromLTWH(
+        crash.x * cellW + 1,
+        crash.y * cellH + 1,
+        cellW - 2,
+        cellH - 2,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(crashRect, const Radius.circular(6)),
+        Paint()..color = palette.danger.withValues(alpha: 0.42),
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(crashRect, const Radius.circular(6)),
+        Paint()
+          ..color = palette.danger
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0,
+      );
+      final pad = cellW * 0.24;
+      final crossPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(crash.x * cellW + pad, crash.y * cellH + pad),
+        Offset((crash.x + 1) * cellW - pad, (crash.y + 1) * cellH - pad),
+        crossPaint,
+      );
+      canvas.drawLine(
+        Offset((crash.x + 1) * cellW - pad, crash.y * cellH + pad),
+        Offset(crash.x * cellW + pad, (crash.y + 1) * cellH - pad),
+        crossPaint,
+      );
+    }
+  }
+
+  void _drawAssistOverlay(
+    Canvas canvas,
+    Size size,
+    double cellW,
+    double cellH,
+  ) {
+    final head = state.snake.first;
+    final bodySet = state.snake
+        .take(max(0, state.snake.length - 1))
+        .toSet();
+    final step1Dir = state.queuedDirections.isNotEmpty
+        ? state.queuedDirections.first
+        : state.direction;
+    final step2Dir = state.queuedDirections.length >= 2
+        ? state.queuedDirections[1]
+        : step1Dir;
+
+    ({bool isWall, bool isHazard, GridPoint point, bool wrapped}) probe(
+      GridPoint origin,
+      SnakeDirection dir,
+    ) {
+      var nx = origin.x + dir.dx;
+      var ny = origin.y + dir.dy;
+      if (nx < 0 || ny < 0 || nx >= state.gridSize || ny >= state.gridSize) {
+        if (!state.wrapWalls) {
+          return (
+            isWall: true,
+            isHazard: true,
+            point: origin,
+            wrapped: false,
+          );
+        }
+        nx = (nx + state.gridSize) % state.gridSize;
+        ny = (ny + state.gridSize) % state.gridSize;
+        final pt = GridPoint(nx, ny);
+        final hazard =
+            state.obstacles.contains(pt) ||
+            state.warningObstacles.contains(pt) ||
+            bodySet.contains(pt);
+        return (isWall: false, isHazard: hazard, point: pt, wrapped: true);
+      }
+      final pt = GridPoint(nx, ny);
+      final hazard =
+          state.obstacles.contains(pt) ||
+          state.warningObstacles.contains(pt) ||
+          bodySet.contains(pt);
+      return (isWall: false, isHazard: hazard, point: pt, wrapped: false);
+    }
+
+    final step1 = probe(head, step1Dir);
+    if (step1.isWall) {
+      _drawWallWarning(canvas, size, head, step1Dir, cellW, cellH, palette.danger);
+    } else if (step1.isHazard) {
+      _drawHazardCell(canvas, step1.point, cellW, cellH, palette.danger);
+    } else {
+      final c1 = Offset(
+        (step1.point.x + 0.5) * cellW,
+        (step1.point.y + 0.5) * cellH,
+      );
+      canvas.drawCircle(
+        c1,
+        cellW * 0.12,
+        Paint()..color = palette.accent.withValues(alpha: 0.28),
+      );
+      final step2 = probe(step1.point, step2Dir);
+      if (step2.isWall) {
+        _drawWallWarning(
+          canvas,
+          size,
+          step1.point,
+          step2Dir,
+          cellW,
+          cellH,
+          palette.warning,
+        );
+      } else if (step2.isHazard) {
+        _drawHazardCell(canvas, step2.point, cellW, cellH, palette.warning);
+      } else if (!step2.wrapped) {
+        canvas.drawCircle(
+          Offset((step2.point.x + 0.5) * cellW, (step2.point.y + 0.5) * cellH),
+          cellW * 0.08,
+          Paint()..color = palette.accent.withValues(alpha: 0.16),
+        );
+      }
+    }
+
+    // Primary / queued turn chevrons
+    final headCenter = Offset((head.x + 0.5) * cellW, (head.y + 0.5) * cellH);
+    final hasQueued = state.queuedDirections.isNotEmpty;
+    final tipOffset = Offset(
+      step1Dir.dx * cellW * 0.54,
+      step1Dir.dy * cellH * 0.54,
+    );
+    _drawChevron(
+      canvas,
+      headCenter + tipOffset,
+      step1Dir,
+      cellW * 0.24,
+      hasQueued ? palette.accent : Colors.white.withValues(alpha: 0.72),
+    );
+    if (state.queuedDirections.length >= 2 && !step1.isWall) {
+      final nextOrigin = Offset(
+        (step1.point.x + 0.5) * cellW,
+        (step1.point.y + 0.5) * cellH,
+      );
+      _drawChevron(
+        canvas,
+        nextOrigin,
+        step2Dir,
+        cellW * 0.20,
+        palette.accentSecondary.withValues(alpha: 0.9),
+      );
+    }
+  }
+
+  void _drawWallWarning(
+    Canvas canvas,
+    Size size,
+    GridPoint nearCell,
+    SnakeDirection dir,
+    double cellW,
+    double cellH,
+    Color color,
+  ) {
+    const thickness = 5.0;
+    final rect = switch (dir) {
+      SnakeDirection.left => Rect.fromLTWH(
+        0,
+        max(0, (nearCell.y - 0.5) * cellH),
+        thickness,
+        min(size.height, cellH * 2),
+      ),
+      SnakeDirection.right => Rect.fromLTWH(
+        size.width - thickness,
+        max(0, (nearCell.y - 0.5) * cellH),
+        thickness,
+        min(size.height, cellH * 2),
+      ),
+      SnakeDirection.up => Rect.fromLTWH(
+        max(0, (nearCell.x - 0.5) * cellW),
+        0,
+        min(size.width, cellW * 2),
+        thickness,
+      ),
+      SnakeDirection.down => Rect.fromLTWH(
+        max(0, (nearCell.x - 0.5) * cellW),
+        size.height - thickness,
+        min(size.width, cellW * 2),
+        thickness,
+      ),
+    };
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
+      Paint()..color = color.withValues(alpha: 0.85),
+    );
+  }
+
+  void _drawHazardCell(
+    Canvas canvas,
+    GridPoint pt,
+    double cellW,
+    double cellH,
+    Color color,
+  ) {
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(pt.x * cellW + 2, pt.y * cellH + 2, cellW - 4, cellH - 4),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: 0.22));
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = color.withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8,
+    );
+  }
+
+  void _drawChevron(
+    Canvas canvas,
+    Offset center,
+    SnakeDirection dir,
+    double size,
+    Color color,
+  ) {
+    final dx = dir.dx.toDouble();
+    final dy = dir.dy.toDouble();
+    final px = -dy;
+    final py = dx;
+    final tip = center + Offset(dx * size * 0.6, dy * size * 0.6);
+    final w1 = center + Offset(-dx * size * 0.5 + px * size * 0.7, -dy * size * 0.5 + py * size * 0.7);
+    final w2 = center + Offset(-dx * size * 0.5 - px * size * 0.7, -dy * size * 0.5 - py * size * 0.7);
+    final path = Path()
+      ..moveTo(w1.dx, w1.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..lineTo(w2.dx, w2.dy);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
   }
 
   void _drawItem(

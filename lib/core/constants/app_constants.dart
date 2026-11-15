@@ -79,6 +79,9 @@ enum DifficultyLevel {
 /// Touch control styles for Snake on mobile/touch devices.
 enum SnakeControlMode { swipe, dpad, splitTap }
 
+/// Controls when Chess asks for a second tap/confirm before submitting a move.
+enum ChessMoveConfirmMode { off, fastOnly, always }
+
 /// Available SVG chess piece themes bundled in assets/icons/chess/.
 enum ChessPieceSet {
   cburnett('cburnett', 'Cburnett'),
