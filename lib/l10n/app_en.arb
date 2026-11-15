@@ -387,5 +387,39 @@
   "settingsMinesweeperQuickChord": "Tap Number to Chord",
   "settingsMinesweeperQuickChordDesc": "Open adjacent tiles when surrounding flags match.",
   "settingsSnakeGridLines": "Show Arena Grid Lines",
-  "settingsPracticeSection": "Practice Mode"
+  "settingsPracticeSection": "Practice Mode",
+
+  "settingsSudokuStreakStats": "Mistake-Free Streak & Accuracy",
+  "settingsSudokuStreakStatsDesc": "Show live streak and accuracy percentage on board & summary.",
+  "settingsSudokuSmartNotes": "Smart Candidate Notes",
+  "settingsSudokuSmartNotesDesc": "Auto-fill valid candidates in Practice Mode or Beginner Lv 1–2.",
+  "sudokuFillCandidates": "Smart Notes",
+  "sudokuStreakBadge": "Streak {count}",
+  "@sudokuStreakBadge": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sudokuBestStreakLabel": "Best Streak",
+  "sudokuAccuracyLabel": "Accuracy",
+
+  "settingsMinesweeperSwapTapFlag": "Swap Tap & Flag (One-Handed)",
+  "settingsMinesweeperSwapTapFlagDesc": "Short tap places flags and long-press digs instead.",
+  "mineTapFlagActive": "1-Tap: Flag",
+  "mineTapDigActive": "1-Tap: Dig",
+
+  "settingsChessMoveConfirm": "Touch Move Confirmation",
+  "settingsChessConfirmOff": "Off",
+  "settingsChessConfirmFast": "Bullet/Blitz",
+  "settingsChessConfirmAlways": "Always",
+  "settingsChessAutoFlipPassPlay": "Auto-Flip in Pass & Play",
+  "chessConfirmMovePrompt": "Confirm {move}?",
+  "@chessConfirmMovePrompt": {
+    "placeholders": {
+      "move": { "type": "String" }
+    }
+  },
+
+  "settingsSnakeAssistOverlay": "Ghost Wall & Turn Guide",
+  "settingsSnakeAssistOverlayDesc": "Show obstacle warning preview and swipe direction arrows."
 }

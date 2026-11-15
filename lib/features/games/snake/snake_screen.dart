@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
@@ -316,6 +317,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                     p,
                                     settings.snakeControlMode,
                                     showGridLines: settings.snakeShowGridLines,
+                                    assistOverlay: settings.snakeAssistOverlay,
                                   ),
                                 ),
                               ),
@@ -350,6 +352,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                                   p,
                                   settings.snakeControlMode,
                                   showGridLines: settings.snakeShowGridLines,
+                                  assistOverlay: settings.snakeAssistOverlay,
                                 ),
                               ),
                             ),
@@ -609,6 +612,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
     ZetzyPalette p,
     SnakeControlMode controlMode, {
     required bool showGridLines,
+    required bool assistOverlay,
   }) {
     Widget board = AspectRatio(
       aspectRatio: 1,
@@ -627,6 +631,7 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
             state: s,
             palette: p,
             showGridLines: showGridLines,
+            assistOverlay: assistOverlay,
             appleImg: _appleImg,
             goldenImg: _goldenImg,
             scissorsImg: _scissorsImg,
@@ -736,6 +741,7 @@ class _SnakeBoardPainter extends CustomPainter {
     required this.state,
     required this.palette,
     this.showGridLines = false,
+    this.assistOverlay = true,
     this.appleImg,
     this.goldenImg,
     this.scissorsImg,
@@ -746,6 +752,7 @@ class _SnakeBoardPainter extends CustomPainter {
   final SnakeGameState state;
   final ZetzyPalette palette;
   final bool showGridLines;
+  final bool assistOverlay;
   final ui.Image? appleImg;
   final ui.Image? goldenImg;
   final ui.Image? scissorsImg;
@@ -784,16 +791,42 @@ class _SnakeBoardPainter extends CustomPainter {
 
     // Warning shadows for upcoming dynamic obstacles (2s preview)
     if (state.warningObstacles.isNotEmpty) {
+      final frac = (state.obstacleWarningRemainingMs / 2000.0).clamp(0.0, 1.0);
       final warnPaint = Paint()
-        ..color = palette.warning.withValues(alpha: 0.35);
-      for (final w in state.warningObstacles) {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(w.x * cellW + 2, w.y * cellH + 2, cellW - 4, cellH - 4),
-            const Radius.circular(4),
-          ),
-          warnPaint,
+        ..color = palette.warning.withValues(
+          alpha: assistOverlay ? 0.24 + (1 - frac) * 0.28 : 0.35,
         );
+      final borderPaint = Paint()
+        ..color = palette.warning.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6;
+      for (final w in state.warningObstacles) {
+        final rrect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            w.x * cellW + 2,
+            w.y * cellH + 2,
+            cellW - 4,
+            cellH - 4,
+          ),
+          const Radius.circular(4),
+        );
+        canvas.drawRRect(rrect, warnPaint);
+        if (assistOverlay) {
+          canvas.drawRRect(rrect, borderPaint);
+          final inset = (cellW - 6) * 0.34 * frac;
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(
+                w.x * cellW + 3 + inset,
+                w.y * cellH + 3 + inset,
+                max(2.0, cellW - 6 - inset * 2),
+                max(2.0, cellH - 6 - inset * 2),
+              ),
+              const Radius.circular(3),
+            ),
+            borderPaint,
+          );
+        }
       }
     }
 
@@ -885,6 +918,10 @@ class _SnakeBoardPainter extends CustomPainter {
       canvas.drawCircle(eye2, cellW * 0.1, whitePaint);
       canvas.drawCircle(eye1 + Offset(dx * 1.2, dy * 1.2), cellW * 0.05, pupilPaint);
       canvas.drawCircle(eye2 + Offset(dx * 1.2, dy * 1.2), cellW * 0.05, pupilPaint);
+
+      if (assistOverlay && !state.isGameOver) {
+        _drawAssistOverlay(canvas, size, cellW, cellH);
+      }
     }
 
     // Post-game crash marker to highlight collision point during review.
@@ -923,6 +960,213 @@ class _SnakeBoardPainter extends CustomPainter {
         crossPaint,
       );
     }
+  }
+
+  void _drawAssistOverlay(
+    Canvas canvas,
+    Size size,
+    double cellW,
+    double cellH,
+  ) {
+    final head = state.snake.first;
+    final bodySet = state.snake
+        .take(max(0, state.snake.length - 1))
+        .toSet();
+    final step1Dir = state.queuedDirections.isNotEmpty
+        ? state.queuedDirections.first
+        : state.direction;
+    final step2Dir = state.queuedDirections.length >= 2
+        ? state.queuedDirections[1]
+        : step1Dir;
+
+    ({bool isWall, bool isHazard, GridPoint point, bool wrapped}) probe(
+      GridPoint origin,
+      SnakeDirection dir,
+    ) {
+      var nx = origin.x + dir.dx;
+      var ny = origin.y + dir.dy;
+      if (nx < 0 || ny < 0 || nx >= state.gridSize || ny >= state.gridSize) {
+        if (!state.wrapWalls) {
+          return (
+            isWall: true,
+            isHazard: true,
+            point: origin,
+            wrapped: false,
+          );
+        }
+        nx = (nx + state.gridSize) % state.gridSize;
+        ny = (ny + state.gridSize) % state.gridSize;
+        final pt = GridPoint(nx, ny);
+        final hazard =
+            state.obstacles.contains(pt) ||
+            state.warningObstacles.contains(pt) ||
+            bodySet.contains(pt);
+        return (isWall: false, isHazard: hazard, point: pt, wrapped: true);
+      }
+      final pt = GridPoint(nx, ny);
+      final hazard =
+          state.obstacles.contains(pt) ||
+          state.warningObstacles.contains(pt) ||
+          bodySet.contains(pt);
+      return (isWall: false, isHazard: hazard, point: pt, wrapped: false);
+    }
+
+    final step1 = probe(head, step1Dir);
+    if (step1.isWall) {
+      _drawWallWarning(canvas, size, head, step1Dir, cellW, cellH, palette.danger);
+    } else if (step1.isHazard) {
+      _drawHazardCell(canvas, step1.point, cellW, cellH, palette.danger);
+    } else {
+      final c1 = Offset(
+        (step1.point.x + 0.5) * cellW,
+        (step1.point.y + 0.5) * cellH,
+      );
+      canvas.drawCircle(
+        c1,
+        cellW * 0.12,
+        Paint()..color = palette.accent.withValues(alpha: 0.28),
+      );
+      final step2 = probe(step1.point, step2Dir);
+      if (step2.isWall) {
+        _drawWallWarning(
+          canvas,
+          size,
+          step1.point,
+          step2Dir,
+          cellW,
+          cellH,
+          palette.warning,
+        );
+      } else if (step2.isHazard) {
+        _drawHazardCell(canvas, step2.point, cellW, cellH, palette.warning);
+      } else if (!step2.wrapped) {
+        canvas.drawCircle(
+          Offset((step2.point.x + 0.5) * cellW, (step2.point.y + 0.5) * cellH),
+          cellW * 0.08,
+          Paint()..color = palette.accent.withValues(alpha: 0.16),
+        );
+      }
+    }
+
+    // Primary / queued turn chevrons
+    final headCenter = Offset((head.x + 0.5) * cellW, (head.y + 0.5) * cellH);
+    final hasQueued = state.queuedDirections.isNotEmpty;
+    final tipOffset = Offset(
+      step1Dir.dx * cellW * 0.54,
+      step1Dir.dy * cellH * 0.54,
+    );
+    _drawChevron(
+      canvas,
+      headCenter + tipOffset,
+      step1Dir,
+      cellW * 0.24,
+      hasQueued ? palette.accent : Colors.white.withValues(alpha: 0.72),
+    );
+    if (state.queuedDirections.length >= 2 && !step1.isWall) {
+      final nextOrigin = Offset(
+        (step1.point.x + 0.5) * cellW,
+        (step1.point.y + 0.5) * cellH,
+      );
+      _drawChevron(
+        canvas,
+        nextOrigin,
+        step2Dir,
+        cellW * 0.20,
+        palette.accentSecondary.withValues(alpha: 0.9),
+      );
+    }
+  }
+
+  void _drawWallWarning(
+    Canvas canvas,
+    Size size,
+    GridPoint nearCell,
+    SnakeDirection dir,
+    double cellW,
+    double cellH,
+    Color color,
+  ) {
+    const thickness = 5.0;
+    final rect = switch (dir) {
+      SnakeDirection.left => Rect.fromLTWH(
+        0,
+        max(0, (nearCell.y - 0.5) * cellH),
+        thickness,
+        min(size.height, cellH * 2),
+      ),
+      SnakeDirection.right => Rect.fromLTWH(
+        size.width - thickness,
+        max(0, (nearCell.y - 0.5) * cellH),
+        thickness,
+        min(size.height, cellH * 2),
+      ),
+      SnakeDirection.up => Rect.fromLTWH(
+        max(0, (nearCell.x - 0.5) * cellW),
+        0,
+        min(size.width, cellW * 2),
+        thickness,
+      ),
+      SnakeDirection.down => Rect.fromLTWH(
+        max(0, (nearCell.x - 0.5) * cellW),
+        size.height - thickness,
+        min(size.width, cellW * 2),
+        thickness,
+      ),
+    };
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
+      Paint()..color = color.withValues(alpha: 0.85),
+    );
+  }
+
+  void _drawHazardCell(
+    Canvas canvas,
+    GridPoint pt,
+    double cellW,
+    double cellH,
+    Color color,
+  ) {
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(pt.x * cellW + 2, pt.y * cellH + 2, cellW - 4, cellH - 4),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: 0.22));
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = color.withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8,
+    );
+  }
+
+  void _drawChevron(
+    Canvas canvas,
+    Offset center,
+    SnakeDirection dir,
+    double size,
+    Color color,
+  ) {
+    final dx = dir.dx.toDouble();
+    final dy = dir.dy.toDouble();
+    final px = -dy;
+    final py = dx;
+    final tip = center + Offset(dx * size * 0.6, dy * size * 0.6);
+    final w1 = center + Offset(-dx * size * 0.5 + px * size * 0.7, -dy * size * 0.5 + py * size * 0.7);
+    final w2 = center + Offset(-dx * size * 0.5 - px * size * 0.7, -dy * size * 0.5 - py * size * 0.7);
+    final path = Path()
+      ..moveTo(w1.dx, w1.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..lineTo(w2.dx, w2.dy);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
   }
 
   void _drawItem(

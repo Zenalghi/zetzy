@@ -1270,6 +1270,202 @@ void main() {
     expect(find.text('View Board'), findsOneWidget);
     expect(find.text('Play Again'), findsWidgets);
   });
+
+  testWidgets('SudokuScreen renders Streak/Accuracy HUD and Smart Notes gated to Beginner/Practice', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    const solution = <int>[
+      5, 3, 4, 6, 7, 8, 9, 1, 2,
+      6, 7, 2, 1, 9, 5, 3, 4, 8,
+      1, 9, 8, 3, 4, 2, 5, 6, 7,
+      8, 5, 9, 7, 6, 1, 4, 2, 3,
+      4, 2, 6, 8, 5, 3, 7, 9, 1,
+      7, 1, 3, 9, 2, 4, 8, 5, 6,
+      9, 6, 1, 5, 3, 7, 2, 8, 4,
+      2, 8, 7, 4, 1, 9, 6, 3, 5,
+      3, 4, 5, 2, 8, 6, 1, 7, 9,
+    ];
+    final board = List<int>.from(solution)
+      ..[0] = 0
+      ..[1] = 0;
+
+    final easySlot = AutoSaveSlot(
+      gameType: GameType.sudoku,
+      difficulty: DifficultyLevel.easy.level,
+      elapsedMs: 5000,
+      updatedAt: DateTime(2026, 11, 15),
+      stateJson: {
+        'isPractice': false,
+        'givens': board,
+        'values': List<int>.from(board),
+        'solution': solution,
+        'notes': List.generate(81, (_) => const <int>[]),
+        'errorCells': const <int>[],
+        'livesLeft': 3,
+        'mistakes': 0,
+        'hintsLeft': 3,
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SudokuScreen(
+            difficulty: DifficultyLevel.easy,
+            resumeSlot: easySlot,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Resume'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Streak 0'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('Smart Notes'), findsOneWidget);
+
+    await tester.tap(find.text('Smart Notes'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Candidate note digits '5' and '3' appear cleanly after fillSmartCandidates
+    expect(find.text('5'), findsWidgets);
+
+    // Quick Settings exposes Streak stats & enabled Smart Candidate Notes
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Mistake-Free Streak & Accuracy'), findsOneWidget);
+    expect(find.text('Smart Candidate Notes'), findsOneWidget);
+  });
+
+  testWidgets('MinesweeperScreen toggles 1-Tap Swap without overflow on narrow screens', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const MinesweeperScreen(difficulty: DifficultyLevel.easy),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1-Tap: Dig'), findsOneWidget);
+    await tester.tap(find.text('1-Tap: Dig'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1-Tap: Flag'), findsOneWidget);
+    expect(settingsRepo.load().minesweeperSwapTapFlag, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ChessScreen AppBar exposes Flip toggle and Touch Move Confirmation bar works', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const ChessScreen(
+            difficulty: DifficultyLevel.normal,
+            isPractice: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Pass & Play'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Untimed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await tester.pumpAndSettle();
+
+    // AppBar has accessible 1-tap Flip button
+    expect(find.byIcon(Icons.swap_vert_rounded), findsWidgets);
+
+    // Enable Always Move Confirmation via Quick Settings
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Always'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // Tap e2 (visualCol 4, visualRow 6) -> e4 (visualCol 4, visualRow 4)
+    final boardRect = tester.getRect(find.byType(AspectRatio).first);
+    Offset squareCenter(int visualCol, int visualRow) => Offset(
+      boardRect.left + (visualCol + 0.5) * (boardRect.width / 8),
+      boardRect.top + (visualRow + 0.5) * (boardRect.height / 8),
+    );
+
+    await tester.tapAt(squareCenter(4, 6));
+    await tester.pump();
+    await tester.tapAt(squareCenter(4, 4));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirm e4?'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.check_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirm e4?'), findsNothing);
+    expect(find.text('e4'), findsOneWidget);
+  });
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

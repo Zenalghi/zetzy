@@ -1532,6 +1532,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Practice Mode'**
   String get settingsPracticeSection;
+
+  /// No description provided for @settingsSudokuStreakStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Mistake-Free Streak & Accuracy'**
+  String get settingsSudokuStreakStats;
+
+  /// No description provided for @settingsSudokuStreakStatsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show live streak and accuracy percentage on board & summary.'**
+  String get settingsSudokuStreakStatsDesc;
+
+  /// No description provided for @settingsSudokuSmartNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Candidate Notes'**
+  String get settingsSudokuSmartNotes;
+
+  /// No description provided for @settingsSudokuSmartNotesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-fill valid candidates in Practice Mode or Beginner Lv 1–2.'**
+  String get settingsSudokuSmartNotesDesc;
+
+  /// No description provided for @sudokuFillCandidates.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Notes'**
+  String get sudokuFillCandidates;
+
+  /// No description provided for @sudokuStreakBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Streak {count}'**
+  String sudokuStreakBadge(int count);
+
+  /// No description provided for @sudokuBestStreakLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Streak'**
+  String get sudokuBestStreakLabel;
+
+  /// No description provided for @sudokuAccuracyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy'**
+  String get sudokuAccuracyLabel;
+
+  /// No description provided for @settingsMinesweeperSwapTapFlag.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap Tap & Flag (One-Handed)'**
+  String get settingsMinesweeperSwapTapFlag;
+
+  /// No description provided for @settingsMinesweeperSwapTapFlagDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Short tap places flags and long-press digs instead.'**
+  String get settingsMinesweeperSwapTapFlagDesc;
+
+  /// No description provided for @mineTapFlagActive.
+  ///
+  /// In en, this message translates to:
+  /// **'1-Tap: Flag'**
+  String get mineTapFlagActive;
+
+  /// No description provided for @mineTapDigActive.
+  ///
+  /// In en, this message translates to:
+  /// **'1-Tap: Dig'**
+  String get mineTapDigActive;
+
+  /// No description provided for @settingsChessMoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Touch Move Confirmation'**
+  String get settingsChessMoveConfirm;
+
+  /// No description provided for @settingsChessConfirmOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get settingsChessConfirmOff;
+
+  /// No description provided for @settingsChessConfirmFast.
+  ///
+  /// In en, this message translates to:
+  /// **'Bullet/Blitz'**
+  String get settingsChessConfirmFast;
+
+  /// No description provided for @settingsChessConfirmAlways.
+  ///
+  /// In en, this message translates to:
+  /// **'Always'**
+  String get settingsChessConfirmAlways;
+
+  /// No description provided for @settingsChessAutoFlipPassPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Flip in Pass & Play'**
+  String get settingsChessAutoFlipPassPlay;
+
+  /// No description provided for @chessConfirmMovePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm {move}?'**
+  String chessConfirmMovePrompt(String move);
+
+  /// No description provided for @settingsSnakeAssistOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Ghost Wall & Turn Guide'**
+  String get settingsSnakeAssistOverlay;
+
+  /// No description provided for @settingsSnakeAssistOverlayDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show obstacle warning preview and swipe direction arrows.'**
+  String get settingsSnakeAssistOverlayDesc;
 }
 
 class _AppLocalizationsDelegate

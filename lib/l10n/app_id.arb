@@ -319,5 +319,39 @@
   "settingsMinesweeperQuickChord": "Ketuk Angka untuk Chord",
   "settingsMinesweeperQuickChordDesc": "Buka kotak sekitar saat jumlah bendera sudah sesuai.",
   "settingsSnakeGridLines": "Tampilkan Garis Grid Arena",
-  "settingsPracticeSection": "Mode Latihan"
+  "settingsPracticeSection": "Mode Latihan",
+
+  "settingsSudokuStreakStats": "Streak Bebas Salah & Akurasi",
+  "settingsSudokuStreakStatsDesc": "Tampilkan streak beruntun & akurasi di papan dan ringkasan.",
+  "settingsSudokuSmartNotes": "Catatan Kandidat Otomatis",
+  "settingsSudokuSmartNotesDesc": "Isi kandidat valid otomatis di Mode Latihan atau Lv 1–2.",
+  "sudokuFillCandidates": "Kandidat",
+  "sudokuStreakBadge": "Streak {count}",
+  "@sudokuStreakBadge": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sudokuBestStreakLabel": "Streak Terbaik",
+  "sudokuAccuracyLabel": "Akurasi",
+
+  "settingsMinesweeperSwapTapFlag": "Tukar Tap & Bendera (1 Tangan)",
+  "settingsMinesweeperSwapTapFlagDesc": "Ketuk singkat memasang bendera, tekan lama untuk menggali.",
+  "mineTapFlagActive": "1-Tap: Bendera",
+  "mineTapDigActive": "1-Tap: Gali",
+
+  "settingsChessMoveConfirm": "Konfirmasi Langkah Sentuh",
+  "settingsChessConfirmOff": "Mati",
+  "settingsChessConfirmFast": "Bullet/Blitz",
+  "settingsChessConfirmAlways": "Selalu",
+  "settingsChessAutoFlipPassPlay": "Putar Otomatis Pass & Play",
+  "chessConfirmMovePrompt": "Konfirmasi {move}?",
+  "@chessConfirmMovePrompt": {
+    "placeholders": {
+      "move": { "type": "String" }
+    }
+  },
+
+  "settingsSnakeAssistOverlay": "Bayangan Dinding & Arah Swipe",
+  "settingsSnakeAssistOverlayDesc": "Tampilkan pratinjau rintangan & panah arah belokan."
 }

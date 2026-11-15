@@ -106,6 +106,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setSnakeShowGridLines(bool enabled) =>
       _commit(state.copyWith(snakeShowGridLines: enabled));
 
+  Future<void> setSnakeAssistOverlay(bool enabled) =>
+      _commit(state.copyWith(snakeAssistOverlay: enabled));
+
   Future<void> setChessPieceSet(ChessPieceSet pieceSet) =>
       _commit(state.copyWith(chessPieceSet: pieceSet));
 
@@ -117,6 +120,12 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   Future<void> setChessShowCoordinates(bool enabled) =>
       _commit(state.copyWith(chessShowCoordinates: enabled));
+
+  Future<void> setChessMoveConfirmMode(ChessMoveConfirmMode mode) =>
+      _commit(state.copyWith(chessMoveConfirmMode: mode));
+
+  Future<void> setChessAutoFlipPassPlay(bool enabled) =>
+      _commit(state.copyWith(chessAutoFlipPassPlay: enabled));
 
   Future<void> setSudokuAutoFinish(bool enabled) =>
       _commit(state.copyWith(sudokuAutoFinish: enabled));
@@ -130,8 +139,17 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setSudokuAutoClearNotes(bool enabled) =>
       _commit(state.copyWith(sudokuAutoClearNotes: enabled));
 
+  Future<void> setSudokuShowStreakStats(bool enabled) =>
+      _commit(state.copyWith(sudokuShowStreakStats: enabled));
+
+  Future<void> setSudokuSmartCandidateNotes(bool enabled) =>
+      _commit(state.copyWith(sudokuSmartCandidateNotes: enabled));
+
   Future<void> setMinesweeperQuickChord(bool enabled) =>
       _commit(state.copyWith(minesweeperQuickChord: enabled));
+
+  Future<void> setMinesweeperSwapTapFlag(bool enabled) =>
+      _commit(state.copyWith(minesweeperSwapTapFlag: enabled));
 
   Future<void> setPracticeRewindOnLoss(bool enabled) =>
       _commit(state.copyWith(practiceRewindOnLoss: enabled));

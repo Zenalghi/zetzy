@@ -376,6 +376,8 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.watch(settingsProvider);
     _controller.setAutoQueen(settings.chessAutoQueen);
+    _controller.setMoveConfirmMode(settings.chessMoveConfirmMode);
+    _controller.setAutoFlipPassPlay(settings.chessAutoFlipPassPlay);
 
     if (_inLobby) {
       return Scaffold(
@@ -407,13 +409,34 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                   ),
                   IconButton(
                     visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 34,
+                      minHeight: 34,
+                    ),
+                    tooltip: l10n.chessFlipBoard,
+                    onPressed: _controller.flipBoard,
+                    icon: const Icon(Icons.swap_vert_rounded, size: 20),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 34,
+                      minHeight: 34,
+                    ),
                     tooltip: l10n.settingsInGameTitle,
                     onPressed: _openInGameSettings,
-                    icon: const Icon(Icons.settings_outlined, size: 21),
+                    icon: const Icon(Icons.settings_outlined, size: 20),
                   ),
                   if (!_controller.state.mode.isOnlineMultiplayer)
                     IconButton(
                       visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 34,
+                        minHeight: 34,
+                      ),
                       onPressed: () {
                         if (_controller.state.isPaused) {
                           _controller.resume();
@@ -514,6 +537,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                               pieceSet: settings.chessPieceSet,
                             ),
                             const SizedBox(height: 8),
+                            if (s.hasPendingConfirm && !s.isGameOver) ...[
+                              _buildMoveConfirmBar(s, p, l10n),
+                              const SizedBox(height: 8),
+                            ],
                             _buildControlsRow(s, p, l10n),
                           ],
                         ),
@@ -1383,6 +1410,8 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     final isSelected = s.selectedSquare == sqIdx;
     final isLastMove = s.lastFrom == sqIdx || s.lastTo == sqIdx;
     final isTarget = s.legalTargets.contains(sqIdx);
+    final isPendingFrom = s.pendingConfirmFrom == sqIdx;
+    final isPendingTo = s.pendingConfirmTo == sqIdx;
 
     final isKingInCheck =
         s.inCheck &&
@@ -1393,6 +1422,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     Color bg = isLight ? p.boardLight : p.boardDark;
     if (isKingInCheck) {
       bg = p.danger.withValues(alpha: 0.72);
+    } else if (isPendingTo) {
+      bg = Color.alphaBlend(p.accent.withValues(alpha: 0.48), bg);
+    } else if (isPendingFrom) {
+      bg = Color.alphaBlend(p.accent.withValues(alpha: 0.30), bg);
     } else if (isSelected) {
       bg = p.accent.withValues(alpha: 0.55);
     } else if (isLastMove) {
@@ -1413,7 +1446,12 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       child: GestureDetector(
         onTap: () => _controller.onSquareTap(sqIdx),
         child: Container(
-          color: bg,
+          decoration: BoxDecoration(
+            color: bg,
+            border: isPendingTo
+                ? Border.all(color: p.accent, width: 2.5)
+                : null,
+          ),
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -1569,6 +1607,53 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
                 color: isTurn ? p.accent : p.textSecondary,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMoveConfirmBar(
+    ChessUiState s,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    final prompt = l10n.chessConfirmMovePrompt(s.pendingConfirmSan ?? '');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: p.accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.accent.withValues(alpha: 0.65)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.touch_app_rounded, size: 18, color: p.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              prompt,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: p.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          IconButton.outlined(
+            visualDensity: VisualDensity.compact,
+            tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+            onPressed: _controller.cancelPendingMove,
+            icon: Icon(Icons.close_rounded, size: 18, color: p.danger),
+          ),
+          const SizedBox(width: 6),
+          IconButton.filled(
+            visualDensity: VisualDensity.compact,
+            tooltip: prompt,
+            onPressed: _controller.confirmPendingMove,
+            icon: const Icon(Icons.check_rounded, size: 18),
+          ),
         ],
       ),
     );
@@ -1872,6 +1957,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
             pieceSet: pieceSet,
           ),
           const SizedBox(height: 10),
+          if (s.hasPendingConfirm && !s.isGameOver) ...[
+            _buildMoveConfirmBar(s, p, l10n),
+            const SizedBox(height: 8),
+          ],
           _buildControlsRow(s, p, l10n),
         ],
       ),

@@ -105,6 +105,7 @@ class SnakeGameState {
     this.canPracticeUndo = false,
     this.deathReason,
     this.crashPoint,
+    this.queuedDirections = const [],
   });
 
   final DifficultyLevel difficulty;
@@ -130,6 +131,7 @@ class SnakeGameState {
   final bool canPracticeUndo;
   final SnakeDeathReason? deathReason;
   final GridPoint? crashPoint;
+  final List<SnakeDirection> queuedDirections;
 
   bool get wrapWalls => difficulty.level == 1;
   bool get hasStarvation => difficulty.level >= 6;
@@ -162,6 +164,7 @@ class SnakeGameState {
     bool clearDeathReason = false,
     GridPoint? crashPoint,
     bool clearCrashPoint = false,
+    List<SnakeDirection>? queuedDirections,
   }) {
     return SnakeGameState(
       difficulty: difficulty,
@@ -190,6 +193,7 @@ class SnakeGameState {
       deathReason:
           clearDeathReason ? null : (deathReason ?? this.deathReason),
       crashPoint: clearCrashPoint ? null : (crashPoint ?? this.crashPoint),
+      queuedDirections: queuedDirections ?? this.queuedDirections,
     );
   }
 }
@@ -415,6 +419,10 @@ class SnakeController extends ChangeNotifier {
     }
     if (_inputQueue.length < 2) {
       _inputQueue.add(effective);
+      _state = _state.copyWith(
+        queuedDirections: List.unmodifiable(_inputQueue),
+      );
+      notifyListeners();
     }
   }
 
@@ -606,6 +614,7 @@ class SnakeController extends ChangeNotifier {
           score: nextScore,
           foodsEaten: nextFoods,
           canPracticeUndo: _state.isPractice && _practiceHistory.isNotEmpty,
+          queuedDirections: const [],
         );
         _endGame(won: true);
         return;
@@ -666,6 +675,7 @@ class SnakeController extends ChangeNotifier {
       specialItem: nextSpecial,
       clearSpecial: clearSpecial,
       canPracticeUndo: _state.isPractice && _practiceHistory.isNotEmpty,
+      queuedDirections: List.unmodifiable(_inputQueue),
     );
     notifyListeners();
   }
@@ -739,6 +749,7 @@ class SnakeController extends ChangeNotifier {
       clearDeathReason: true,
       clearCrashPoint: true,
       canPracticeUndo: _practiceHistory.isNotEmpty,
+      queuedDirections: const [],
     );
     _haptics.selection();
     notifyListeners();
@@ -871,6 +882,7 @@ class SnakeController extends ChangeNotifier {
     GridPoint? crashPoint,
   }) {
     _stopTimers();
+    _inputQueue.clear();
     _audio.playSfx(won ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
     if (won) {
       _haptics.medium();
@@ -884,6 +896,7 @@ class SnakeController extends ChangeNotifier {
       clearDeathReason: deathReason == null,
       crashPoint: crashPoint,
       clearCrashPoint: crashPoint == null,
+      queuedDirections: const [],
     );
     notifyListeners();
     onFinished(_state);

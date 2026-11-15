@@ -14,15 +14,21 @@ class AppSettings {
     this.wakelockEnabled = true,
     this.snakeControlMode = SnakeControlMode.swipe,
     this.snakeShowGridLines = true,
+    this.snakeAssistOverlay = true,
     this.chessPieceSet = ChessPieceSet.cburnett,
     this.chessAutoQueen = true,
     this.chessShowLegalMoves = true,
     this.chessShowCoordinates = true,
+    this.chessMoveConfirmMode = ChessMoveConfirmMode.off,
+    this.chessAutoFlipPassPlay = false,
     this.sudokuAutoFinish = true,
     this.sudokuAutoFinishThreshold = 5,
     this.sudokuHighlightSameDigits = true,
     this.sudokuAutoClearNotes = true,
+    this.sudokuShowStreakStats = true,
+    this.sudokuSmartCandidateNotes = false,
     this.minesweeperQuickChord = true,
+    this.minesweeperSwapTapFlag = false,
     this.practiceRewindOnLoss = true,
     this.practiceRewindSteps = 2,
     this.guestChessElo = 1000,
@@ -42,15 +48,21 @@ class AppSettings {
   final bool wakelockEnabled;
   final SnakeControlMode snakeControlMode;
   final bool snakeShowGridLines;
+  final bool snakeAssistOverlay;
   final ChessPieceSet chessPieceSet;
   final bool chessAutoQueen;
   final bool chessShowLegalMoves;
   final bool chessShowCoordinates;
+  final ChessMoveConfirmMode chessMoveConfirmMode;
+  final bool chessAutoFlipPassPlay;
   final bool sudokuAutoFinish;
   final int sudokuAutoFinishThreshold;
   final bool sudokuHighlightSameDigits;
   final bool sudokuAutoClearNotes;
+  final bool sudokuShowStreakStats;
+  final bool sudokuSmartCandidateNotes;
   final bool minesweeperQuickChord;
+  final bool minesweeperSwapTapFlag;
   final bool practiceRewindOnLoss;
   final int practiceRewindSteps;
   final int guestChessElo;
@@ -65,15 +77,21 @@ class AppSettings {
     bool? wakelockEnabled,
     SnakeControlMode? snakeControlMode,
     bool? snakeShowGridLines,
+    bool? snakeAssistOverlay,
     ChessPieceSet? chessPieceSet,
     bool? chessAutoQueen,
     bool? chessShowLegalMoves,
     bool? chessShowCoordinates,
+    ChessMoveConfirmMode? chessMoveConfirmMode,
+    bool? chessAutoFlipPassPlay,
     bool? sudokuAutoFinish,
     int? sudokuAutoFinishThreshold,
     bool? sudokuHighlightSameDigits,
     bool? sudokuAutoClearNotes,
+    bool? sudokuShowStreakStats,
+    bool? sudokuSmartCandidateNotes,
     bool? minesweeperQuickChord,
+    bool? minesweeperSwapTapFlag,
     bool? practiceRewindOnLoss,
     int? practiceRewindSteps,
     int? guestChessElo,
@@ -90,17 +108,27 @@ class AppSettings {
       wakelockEnabled: wakelockEnabled ?? this.wakelockEnabled,
       snakeControlMode: snakeControlMode ?? this.snakeControlMode,
       snakeShowGridLines: snakeShowGridLines ?? this.snakeShowGridLines,
+      snakeAssistOverlay: snakeAssistOverlay ?? this.snakeAssistOverlay,
       chessPieceSet: chessPieceSet ?? this.chessPieceSet,
       chessAutoQueen: chessAutoQueen ?? this.chessAutoQueen,
       chessShowLegalMoves: chessShowLegalMoves ?? this.chessShowLegalMoves,
       chessShowCoordinates: chessShowCoordinates ?? this.chessShowCoordinates,
+      chessMoveConfirmMode: chessMoveConfirmMode ?? this.chessMoveConfirmMode,
+      chessAutoFlipPassPlay:
+          chessAutoFlipPassPlay ?? this.chessAutoFlipPassPlay,
       sudokuAutoFinish: sudokuAutoFinish ?? this.sudokuAutoFinish,
       sudokuAutoFinishThreshold: rawThreshold >= 7 ? 7 : 5,
       sudokuHighlightSameDigits:
           sudokuHighlightSameDigits ?? this.sudokuHighlightSameDigits,
       sudokuAutoClearNotes: sudokuAutoClearNotes ?? this.sudokuAutoClearNotes,
+      sudokuShowStreakStats:
+          sudokuShowStreakStats ?? this.sudokuShowStreakStats,
+      sudokuSmartCandidateNotes:
+          sudokuSmartCandidateNotes ?? this.sudokuSmartCandidateNotes,
       minesweeperQuickChord:
           minesweeperQuickChord ?? this.minesweeperQuickChord,
+      minesweeperSwapTapFlag:
+          minesweeperSwapTapFlag ?? this.minesweeperSwapTapFlag,
       practiceRewindOnLoss: practiceRewindOnLoss ?? this.practiceRewindOnLoss,
       practiceRewindSteps:
           (practiceRewindSteps ?? this.practiceRewindSteps).clamp(1, 3),
@@ -122,16 +150,22 @@ class SettingsRepository {
   static const _kWakelock = 'zetzy_wakelock';
   static const _kSnakeCtrl = 'zetzy_snake_ctrl';
   static const _kSnakeGrid = 'zetzy_snake_grid';
+  static const _kSnakeAssistOverlay = 'zetzy_snake_assist_overlay';
   static const _kChessPieces = 'zetzy_chess_pieces';
   static const _kChessAutoQueen = 'zetzy_chess_auto_queen';
   static const _kChessLegalMoves = 'zetzy_chess_legal_moves';
   static const _kChessCoordinates = 'zetzy_chess_coordinates';
+  static const _kChessMoveConfirm = 'zetzy_chess_move_confirm';
+  static const _kChessAutoFlipPassPlay = 'zetzy_chess_auto_flip_pass_play';
   static const _kSudokuAutoFinish = 'zetzy_sudoku_auto_finish';
   static const _kSudokuAutoFinishThreshold =
       'zetzy_sudoku_auto_finish_threshold';
   static const _kSudokuHighlightSame = 'zetzy_sudoku_highlight_same';
   static const _kSudokuAutoClearNotes = 'zetzy_sudoku_auto_clear_notes';
+  static const _kSudokuStreakStats = 'zetzy_sudoku_streak_stats';
+  static const _kSudokuSmartNotes = 'zetzy_sudoku_smart_notes';
   static const _kMinesweeperQuickChord = 'zetzy_minesweeper_quick_chord';
+  static const _kMinesweeperSwapTapFlag = 'zetzy_minesweeper_swap_tap_flag';
   static const _kPracticeRewindOnLoss = 'zetzy_practice_rewind_on_loss';
   static const _kPracticeRewindSteps = 'zetzy_practice_rewind_steps';
   static const _kGuestElo = 'zetzy_guest_elo';
@@ -169,6 +203,7 @@ class SettingsRepository {
         orElse: () => SnakeControlMode.swipe,
       ),
       snakeShowGridLines: _prefs.getBool(_kSnakeGrid) ?? true,
+      snakeAssistOverlay: _prefs.getBool(_kSnakeAssistOverlay) ?? true,
       chessPieceSet: ChessPieceSet.values.firstWhere(
         (s) => s.folder == _prefs.getString(_kChessPieces),
         orElse: () => ChessPieceSet.cburnett,
@@ -176,13 +211,22 @@ class SettingsRepository {
       chessAutoQueen: _prefs.getBool(_kChessAutoQueen) ?? true,
       chessShowLegalMoves: _prefs.getBool(_kChessLegalMoves) ?? true,
       chessShowCoordinates: _prefs.getBool(_kChessCoordinates) ?? true,
+      chessMoveConfirmMode: ChessMoveConfirmMode.values.firstWhere(
+        (m) => m.name == _prefs.getString(_kChessMoveConfirm),
+        orElse: () => ChessMoveConfirmMode.off,
+      ),
+      chessAutoFlipPassPlay: _prefs.getBool(_kChessAutoFlipPassPlay) ?? false,
       sudokuAutoFinish: _prefs.getBool(_kSudokuAutoFinish) ?? true,
       sudokuAutoFinishThreshold: savedThreshold >= 7 ? 7 : 5,
       sudokuHighlightSameDigits:
           _prefs.getBool(_kSudokuHighlightSame) ?? true,
       sudokuAutoClearNotes: _prefs.getBool(_kSudokuAutoClearNotes) ?? true,
+      sudokuShowStreakStats: _prefs.getBool(_kSudokuStreakStats) ?? true,
+      sudokuSmartCandidateNotes: _prefs.getBool(_kSudokuSmartNotes) ?? false,
       minesweeperQuickChord:
           _prefs.getBool(_kMinesweeperQuickChord) ?? true,
+      minesweeperSwapTapFlag:
+          _prefs.getBool(_kMinesweeperSwapTapFlag) ?? false,
       practiceRewindOnLoss: _prefs.getBool(_kPracticeRewindOnLoss) ?? true,
       practiceRewindSteps: (_prefs.getInt(_kPracticeRewindSteps) ?? 2).clamp(
         1,
@@ -203,15 +247,21 @@ class SettingsRepository {
       _prefs.setBool(_kWakelock, s.wakelockEnabled),
       _prefs.setString(_kSnakeCtrl, s.snakeControlMode.name),
       _prefs.setBool(_kSnakeGrid, s.snakeShowGridLines),
+      _prefs.setBool(_kSnakeAssistOverlay, s.snakeAssistOverlay),
       _prefs.setString(_kChessPieces, s.chessPieceSet.folder),
       _prefs.setBool(_kChessAutoQueen, s.chessAutoQueen),
       _prefs.setBool(_kChessLegalMoves, s.chessShowLegalMoves),
       _prefs.setBool(_kChessCoordinates, s.chessShowCoordinates),
+      _prefs.setString(_kChessMoveConfirm, s.chessMoveConfirmMode.name),
+      _prefs.setBool(_kChessAutoFlipPassPlay, s.chessAutoFlipPassPlay),
       _prefs.setBool(_kSudokuAutoFinish, s.sudokuAutoFinish),
       _prefs.setInt(_kSudokuAutoFinishThreshold, s.sudokuAutoFinishThreshold),
       _prefs.setBool(_kSudokuHighlightSame, s.sudokuHighlightSameDigits),
       _prefs.setBool(_kSudokuAutoClearNotes, s.sudokuAutoClearNotes),
+      _prefs.setBool(_kSudokuStreakStats, s.sudokuShowStreakStats),
+      _prefs.setBool(_kSudokuSmartNotes, s.sudokuSmartCandidateNotes),
       _prefs.setBool(_kMinesweeperQuickChord, s.minesweeperQuickChord),
+      _prefs.setBool(_kMinesweeperSwapTapFlag, s.minesweeperSwapTapFlag),
       _prefs.setBool(_kPracticeRewindOnLoss, s.practiceRewindOnLoss),
       _prefs.setInt(_kPracticeRewindSteps, s.practiceRewindSteps.clamp(1, 3)),
       _prefs.setInt(_kGuestElo, s.guestChessElo),

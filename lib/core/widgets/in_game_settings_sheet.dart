@@ -57,8 +57,9 @@ abstract final class GameSettingsControls {
     AppSettings settings,
     SettingsNotifier ctrl,
     ZetzyPalette p,
-    AppLocalizations l10n,
-  ) => [
+    AppLocalizations l10n, {
+    bool smartNotesEligible = true,
+  }) => [
     SwitchListTile.adaptive(
       contentPadding: EdgeInsets.zero,
       value: settings.sudokuAutoFinish,
@@ -108,9 +109,30 @@ abstract final class GameSettingsControls {
       onChanged: ctrl.setSudokuAutoClearNotes,
       title: Text(l10n.settingsSudokuAutoClearNotes),
     ),
+    SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      value: settings.sudokuShowStreakStats,
+      onChanged: ctrl.setSudokuShowStreakStats,
+      title: Text(l10n.settingsSudokuStreakStats),
+      subtitle: Text(
+        l10n.settingsSudokuStreakStatsDesc,
+        style: TextStyle(fontSize: 12, color: p.textSecondary),
+      ),
+    ),
+    SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      value: settings.sudokuSmartCandidateNotes,
+      onChanged:
+          smartNotesEligible ? ctrl.setSudokuSmartCandidateNotes : null,
+      title: Text(l10n.settingsSudokuSmartNotes),
+      subtitle: Text(
+        l10n.settingsSudokuSmartNotesDesc,
+        style: TextStyle(fontSize: 12, color: p.textSecondary),
+      ),
+    ),
   ];
 
-  /// Builds live-safe Chess controls (piece style, Auto-Queen, move hints, coordinates).
+  /// Builds live-safe Chess controls (piece style, Auto-Queen, hints, coords, confirm).
   static List<Widget> chess(
     AppSettings settings,
     SettingsNotifier ctrl,
@@ -134,6 +156,51 @@ abstract final class GameSettingsControls {
           ),
       ],
     ),
+    const SizedBox(height: 10),
+    Text(
+      l10n.settingsChessMoveConfirm,
+      style: TextStyle(fontSize: 12, color: p.textSecondary),
+    ),
+    const SizedBox(height: 8),
+    SegmentedButton<ChessMoveConfirmMode>(
+      selected: {settings.chessMoveConfirmMode},
+      onSelectionChanged: (sel) => ctrl.setChessMoveConfirmMode(sel.first),
+      segments: [
+        ButtonSegment(
+          value: ChessMoveConfirmMode.off,
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              l10n.settingsChessConfirmOff,
+              softWrap: false,
+              maxLines: 1,
+            ),
+          ),
+        ),
+        ButtonSegment(
+          value: ChessMoveConfirmMode.fastOnly,
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              l10n.settingsChessConfirmFast,
+              softWrap: false,
+              maxLines: 1,
+            ),
+          ),
+        ),
+        ButtonSegment(
+          value: ChessMoveConfirmMode.always,
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              l10n.settingsChessConfirmAlways,
+              softWrap: false,
+              maxLines: 1,
+            ),
+          ),
+        ),
+      ],
+    ),
     const SizedBox(height: 6),
     SwitchListTile.adaptive(
       contentPadding: EdgeInsets.zero,
@@ -153,9 +220,15 @@ abstract final class GameSettingsControls {
       onChanged: ctrl.setChessShowCoordinates,
       title: Text(l10n.settingsChessCoordinates),
     ),
+    SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      value: settings.chessAutoFlipPassPlay,
+      onChanged: ctrl.setChessAutoFlipPassPlay,
+      title: Text(l10n.settingsChessAutoFlipPassPlay),
+    ),
   ];
 
-  /// Builds live-safe Minesweeper controls (Quick Chord on revealed numbers).
+  /// Builds live-safe Minesweeper controls (Quick Chord, Swap Tap/Flag).
   static List<Widget> minesweeper(
     AppSettings settings,
     SettingsNotifier ctrl,
@@ -172,9 +245,19 @@ abstract final class GameSettingsControls {
         style: TextStyle(fontSize: 12, color: p.textSecondary),
       ),
     ),
+    SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      value: settings.minesweeperSwapTapFlag,
+      onChanged: ctrl.setMinesweeperSwapTapFlag,
+      title: Text(l10n.settingsMinesweeperSwapTapFlag),
+      subtitle: Text(
+        l10n.settingsMinesweeperSwapTapFlagDesc,
+        style: TextStyle(fontSize: 12, color: p.textSecondary),
+      ),
+    ),
   ];
 
-  /// Builds live-safe Snake controls (touch layout and arena grid overlay).
+  /// Builds live-safe Snake controls (touch layout, grid overlay, assist overlay).
   static List<Widget> snake(
     AppSettings settings,
     SettingsNotifier ctrl,
@@ -211,6 +294,16 @@ abstract final class GameSettingsControls {
       onChanged: ctrl.setSnakeShowGridLines,
       title: Text(l10n.settingsSnakeGridLines),
     ),
+    SwitchListTile.adaptive(
+      contentPadding: EdgeInsets.zero,
+      value: settings.snakeAssistOverlay,
+      onChanged: ctrl.setSnakeAssistOverlay,
+      title: Text(l10n.settingsSnakeAssistOverlay),
+      subtitle: Text(
+        l10n.settingsSnakeAssistOverlayDesc,
+        style: TextStyle(fontSize: 12, color: p.textSecondary),
+      ),
+    ),
   ];
 }
 
@@ -219,20 +312,28 @@ abstract final class GameSettingsControls {
 Future<void> showInGameSettingsSheet({
   required BuildContext context,
   required GameType gameType,
+  bool sudokuSmartNotesEligible = true,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _InGameSettingsSheet(gameType: gameType),
+    builder: (_) => _InGameSettingsSheet(
+      gameType: gameType,
+      sudokuSmartNotesEligible: sudokuSmartNotesEligible,
+    ),
   );
 }
 
 class _InGameSettingsSheet extends ConsumerWidget {
-  const _InGameSettingsSheet({required this.gameType});
+  const _InGameSettingsSheet({
+    required this.gameType,
+    this.sudokuSmartNotesEligible = true,
+  });
 
   final GameType gameType;
+  final bool sudokuSmartNotesEligible;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -243,7 +344,13 @@ class _InGameSettingsSheet extends ConsumerWidget {
     final hasAudio = ref.watch(audioServiceProvider).hasAudioAssets;
 
     final gameControls = switch (gameType) {
-      GameType.sudoku => GameSettingsControls.sudoku(settings, ctrl, p, l10n),
+      GameType.sudoku => GameSettingsControls.sudoku(
+        settings,
+        ctrl,
+        p,
+        l10n,
+        smartNotesEligible: sudokuSmartNotesEligible,
+      ),
       GameType.chess => GameSettingsControls.chess(settings, ctrl, p, l10n),
       GameType.minesweeper => GameSettingsControls.minesweeper(
         settings,

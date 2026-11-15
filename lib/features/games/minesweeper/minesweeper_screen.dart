@@ -202,6 +202,7 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.watch(settingsProvider);
     _controller.setQuickChord(settings.minesweeperQuickChord);
+    _controller.setSwapTapFlag(settings.minesweeperSwapTapFlag);
 
     return GameLifecycleGuard(
       onAutoPause: () => _controller.pause(),
@@ -412,7 +413,12 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
         children: [
           _buildHeaderRow(s, p, l10n),
           const SizedBox(height: 16),
-          _buildToolSegments(s, p, l10n),
+          _buildToolSegments(
+            s,
+            p,
+            l10n,
+            swapTapFlag: ref.watch(settingsProvider).minesweeperSwapTapFlag,
+          ),
           const SizedBox(height: 16),
           Expanded(
             child: s.isGameOver
@@ -458,7 +464,13 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildToolSegments(s, p, l10n),
+                  _buildToolSegments(
+                    s,
+                    p,
+                    l10n,
+                    swapTapFlag:
+                        ref.watch(settingsProvider).minesweeperSwapTapFlag,
+                  ),
                   if (PlatformDetector.isDesktopOrWeb)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -593,35 +605,76 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
   Widget _buildToolSegments(
     MinesweeperGameState s,
     ZetzyPalette p,
-    AppLocalizations l10n,
-  ) {
-    return SegmentedButton<MineTapTool>(
-      selected: {s.tool},
-      onSelectionChanged: (set) => _controller.setTool(set.first),
-      segments: [
-        ButtonSegment(
-          value: MineTapTool.dig,
-          icon: const Icon(Icons.hardware_rounded, size: 18),
-          label: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(l10n.mineModeDig, softWrap: false, maxLines: 1),
+    AppLocalizations l10n, {
+    required bool swapTapFlag,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: swapTapFlag ? p.accent : p.textSecondary,
+            backgroundColor: swapTapFlag
+                ? p.accent.withValues(alpha: 0.14)
+                : p.surfaceElevated,
+            side: BorderSide(
+              color: swapTapFlag ? p.accent : p.border,
+              width: swapTapFlag ? 1.4 : 1.0,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            minimumSize: const Size(0, 34),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: () {
+            ref
+                .read(settingsProvider.notifier)
+                .setMinesweeperSwapTapFlag(!swapTapFlag);
+          },
+          icon: const Icon(Icons.swap_horiz_rounded, size: 17),
+          label: Text(
+            swapTapFlag ? l10n.mineTapFlagActive : l10n.mineTapDigActive,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
         ),
-        ButtonSegment(
-          value: MineTapTool.flag,
-          icon: Image.asset(AssetPaths.mineFlag, width: 16, height: 16),
-          label: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(l10n.mineModeFlag, softWrap: false, maxLines: 1),
-          ),
-        ),
-        ButtonSegment(
-          value: MineTapTool.question,
-          icon: Image.asset(AssetPaths.mineQuestion, width: 16, height: 16),
-          label: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(l10n.mineModeQuestion, softWrap: false, maxLines: 1),
-          ),
+        const SizedBox(height: 8),
+        SegmentedButton<MineTapTool>(
+          selected: {s.tool},
+          onSelectionChanged: (set) => _controller.setTool(set.first),
+          segments: [
+            ButtonSegment(
+              value: MineTapTool.dig,
+              icon: const Icon(Icons.hardware_rounded, size: 18),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.mineModeDig, softWrap: false, maxLines: 1),
+              ),
+            ),
+            ButtonSegment(
+              value: MineTapTool.flag,
+              icon: Image.asset(AssetPaths.mineFlag, width: 16, height: 16),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.mineModeFlag, softWrap: false, maxLines: 1),
+              ),
+            ),
+            ButtonSegment(
+              value: MineTapTool.question,
+              icon: Image.asset(AssetPaths.mineQuestion, width: 16, height: 16),
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  l10n.mineModeQuestion,
+                  softWrap: false,
+                  maxLines: 1,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

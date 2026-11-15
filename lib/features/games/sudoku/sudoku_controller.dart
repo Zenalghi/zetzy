@@ -35,6 +35,10 @@ class SudokuGameState {
     this.showSolutionInReview = false,
     this.completionWaveId = 0,
     this.completionWaveSteps = const {},
+    this.currentStreak = 0,
+    this.bestStreak = 0,
+    this.cleanPlacements = 0,
+    this.totalPlacements = 0,
   });
 
   final DifficultyLevel difficulty;
@@ -61,9 +65,18 @@ class SudokuGameState {
   final bool showSolutionInReview;
   final int completionWaveId;
   final Map<int, int> completionWaveSteps;
+  final int currentStreak;
+  final int bestStreak;
+  final int cleanPlacements;
+  final int totalPlacements;
 
   bool get unlimitedLives => isPractice || maxLives == 0;
   bool get checksAnswerKeyImmediately => difficulty.level <= 4;
+  bool get isSmartNotesEligible => isPractice || difficulty.level <= 2;
+
+  /// Percentage of clean (non-error) manual digit placements (0–100).
+  double get accuracyPercent =>
+      totalPlacements == 0 ? 100.0 : (cleanPlacements * 100.0 / totalPlacements);
 
   /// Number of cells still blank on the board.
   int get remainingEmptyCount {
@@ -131,6 +144,10 @@ class SudokuGameState {
     bool? showSolutionInReview,
     int? completionWaveId,
     Map<int, int>? completionWaveSteps,
+    int? currentStreak,
+    int? bestStreak,
+    int? cleanPlacements,
+    int? totalPlacements,
   }) {
     return SudokuGameState(
       difficulty: difficulty,
@@ -158,6 +175,10 @@ class SudokuGameState {
           showSolutionInReview ?? this.showSolutionInReview,
       completionWaveId: completionWaveId ?? this.completionWaveId,
       completionWaveSteps: completionWaveSteps ?? this.completionWaveSteps,
+      currentStreak: currentStreak ?? this.currentStreak,
+      bestStreak: bestStreak ?? this.bestStreak,
+      cleanPlacements: cleanPlacements ?? this.cleanPlacements,
+      totalPlacements: totalPlacements ?? this.totalPlacements,
     );
   }
 }
@@ -171,6 +192,10 @@ class _SudokuSnapshot {
     required this.mistakes,
     required this.hintsLeft,
     required this.selectedCell,
+    required this.currentStreak,
+    required this.bestStreak,
+    required this.cleanPlacements,
+    required this.totalPlacements,
   });
 
   final List<int> values;
@@ -180,6 +205,10 @@ class _SudokuSnapshot {
   final int mistakes;
   final int hintsLeft;
   final int? selectedCell;
+  final int currentStreak;
+  final int bestStreak;
+  final int cleanPlacements;
+  final int totalPlacements;
 }
 
 class SudokuController extends ChangeNotifier {
@@ -197,6 +226,7 @@ class SudokuController extends ChangeNotifier {
 
   Timer? _timer;
   bool _autoClearNotes = true;
+  bool _smartCandidateNotes = false;
   final List<List<Set<int>>> _notesUndoStack = [];
   final List<_SudokuSnapshot> _practiceHistory = [];
   late SudokuGameState _state;
@@ -205,6 +235,11 @@ class SudokuController extends ChangeNotifier {
   /// Controls whether valid placements clear matching notes in peer row/col/box.
   void setAutoClearNotes(bool enabled) {
     _autoClearNotes = enabled;
+  }
+
+  /// Controls automatic candidate generation on new Practice or Beginner Lv 1–2 games.
+  void setSmartCandidateNotes(bool enabled) {
+    _smartCandidateNotes = enabled;
   }
 
   static int maxLivesFor(DifficultyLevel diff, bool isPractice) {
@@ -218,7 +253,11 @@ class SudokuController extends ChangeNotifier {
   Future<void> startNew({
     required DifficultyLevel difficulty,
     required bool isPractice,
+    bool? smartCandidateNotes,
   }) async {
+    if (smartCandidateNotes != null) {
+      _smartCandidateNotes = smartCandidateNotes;
+    }
     _stopTimer();
     _notesUndoStack.clear();
     _practiceHistory.clear();
@@ -251,13 +290,18 @@ class SudokuController extends ChangeNotifier {
 
     final generated = await SudokuEngine.generateAsync(difficulty);
     _practiceHistory.clear();
+    final smartEligible = isPractice || difficulty.level <= 2;
+    final initialNotes = (_smartCandidateNotes && smartEligible)
+        ? SudokuEngine.buildSmartCandidateNotes(generated.puzzle)
+        : List.generate(81, (_) => <int>{});
+
     _state = SudokuGameState(
       difficulty: difficulty,
       isPractice: isPractice,
       givens: generated.puzzle,
       values: List<int>.from(generated.puzzle),
       solution: generated.solution,
-      notes: List.generate(81, (_) => <int>{}),
+      notes: initialNotes,
       errorCells: const {},
       selectedCell: null,
       lockedDigit: null,
@@ -318,6 +362,10 @@ class SudokuController extends ChangeNotifier {
       isGameOver: false,
       isWon: false,
       canUndoNote: false,
+      currentStreak: (s['currentStreak'] as num?)?.toInt() ?? 0,
+      bestStreak: (s['bestStreak'] as num?)?.toInt() ?? 0,
+      cleanPlacements: (s['cleanPlacements'] as num?)?.toInt() ?? 0,
+      totalPlacements: (s['totalPlacements'] as num?)?.toInt() ?? 0,
     );
     notifyListeners();
   }
@@ -338,6 +386,10 @@ class SudokuController extends ChangeNotifier {
         'livesLeft': _state.livesLeft,
         'mistakes': _state.mistakes,
         'hintsLeft': _state.hintsLeft,
+        'currentStreak': _state.currentStreak,
+        'bestStreak': _state.bestStreak,
+        'cleanPlacements': _state.cleanPlacements,
+        'totalPlacements': _state.totalPlacements,
       },
     );
   }
@@ -516,11 +568,16 @@ class SudokuController extends ChangeNotifier {
 
     var nextLives = _state.livesLeft;
     var nextMistakes = _state.mistakes;
+    var nextStreak = _state.currentStreak;
+    var nextBestStreak = _state.bestStreak;
+    var nextClean = _state.cleanPlacements;
+    final nextTotal = _state.totalPlacements + 1;
 
     if (_state.checksAnswerKeyImmediately) {
       if (digit != _state.solution[index]) {
         nextErrors.add(index);
         nextMistakes++;
+        nextStreak = 0;
         _audio.playSfx(ZetzySfx.errorBuzz);
         _haptics.heavy();
         if (!_state.unlimitedLives) {
@@ -528,6 +585,9 @@ class SudokuController extends ChangeNotifier {
         }
       } else {
         nextErrors.remove(index);
+        nextStreak++;
+        nextClean++;
+        if (nextStreak > nextBestStreak) nextBestStreak = nextStreak;
         if (_autoClearNotes) _removePeerNotes(nextNotes, index, digit);
         _audio.playSfx(ZetzySfx.sudokuTap);
         _haptics.light();
@@ -537,12 +597,16 @@ class SudokuController extends ChangeNotifier {
       _recomputeConflicts(nextValues, nextErrors);
       if (nextErrors.contains(index)) {
         nextMistakes++;
+        nextStreak = 0;
         _audio.playSfx(ZetzySfx.errorBuzz);
         _haptics.medium();
         if (!_state.unlimitedLives) {
           nextLives--;
         }
       } else {
+        nextStreak++;
+        nextClean++;
+        if (nextStreak > nextBestStreak) nextBestStreak = nextStreak;
         if (_autoClearNotes) _removePeerNotes(nextNotes, index, digit);
         _audio.playSfx(ZetzySfx.sudokuTap);
         _haptics.light();
@@ -562,6 +626,10 @@ class SudokuController extends ChangeNotifier {
       canUndoPractice: _practiceHistory.isNotEmpty,
       completionWaveId: waveSteps.isEmpty ? null : _state.completionWaveId + 1,
       completionWaveSteps: waveSteps.isEmpty ? null : waveSteps,
+      currentStreak: nextStreak,
+      bestStreak: nextBestStreak,
+      cleanPlacements: nextClean,
+      totalPlacements: nextTotal,
     );
 
     if (!_state.unlimitedLives && nextLives <= 0) {
@@ -653,10 +721,35 @@ class SudokuController extends ChangeNotifier {
       isWon: false,
       showSolutionInReview: false,
       canUndoPractice: _practiceHistory.isNotEmpty,
+      currentStreak: snap.currentStreak,
+      bestStreak: snap.bestStreak,
+      cleanPlacements: snap.cleanPlacements,
+      totalPlacements: snap.totalPlacements,
     );
     _haptics.selection();
     notifyListeners();
     if (_timer == null) _startTimer();
+  }
+
+  /// Auto-populates valid 1–9 pencil candidates for Practice or Lv 1–2 games.
+  void fillSmartCandidates() {
+    if (!_state.isSmartNotesEligible ||
+        _state.isLoading ||
+        _state.isPaused ||
+        _state.isGameOver) {
+      return;
+    }
+    _pushNotesUndo();
+    _pushPracticeUndo();
+    final nextNotes = SudokuEngine.buildSmartCandidateNotes(_state.values);
+    _audio.playSfx(ZetzySfx.sudokuTap);
+    _haptics.selection();
+    _state = _state.copyWith(
+      notes: nextNotes,
+      canUndoNote: _notesUndoStack.isNotEmpty,
+      canUndoPractice: _practiceHistory.isNotEmpty,
+    );
+    notifyListeners();
   }
 
   /// PRD 34C: Up to 3 free hints per game.
@@ -871,6 +964,10 @@ class SudokuController extends ChangeNotifier {
         mistakes: _state.mistakes,
         hintsLeft: _state.hintsLeft,
         selectedCell: _state.selectedCell,
+        currentStreak: _state.currentStreak,
+        bestStreak: _state.bestStreak,
+        cleanPlacements: _state.cleanPlacements,
+        totalPlacements: _state.totalPlacements,
       ),
     );
     if (_practiceHistory.length > 50) {

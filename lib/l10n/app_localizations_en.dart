@@ -805,4 +805,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPracticeSection => 'Practice Mode';
+
+  @override
+  String get settingsSudokuStreakStats => 'Mistake-Free Streak & Accuracy';
+
+  @override
+  String get settingsSudokuStreakStatsDesc =>
+      'Show live streak and accuracy percentage on board & summary.';
+
+  @override
+  String get settingsSudokuSmartNotes => 'Smart Candidate Notes';
+
+  @override
+  String get settingsSudokuSmartNotesDesc =>
+      'Auto-fill valid candidates in Practice Mode or Beginner Lv 1–2.';
+
+  @override
+  String get sudokuFillCandidates => 'Smart Notes';
+
+  @override
+  String sudokuStreakBadge(int count) {
+    return 'Streak $count';
+  }
+
+  @override
+  String get sudokuBestStreakLabel => 'Best Streak';
+
+  @override
+  String get sudokuAccuracyLabel => 'Accuracy';
+
+  @override
+  String get settingsMinesweeperSwapTapFlag => 'Swap Tap & Flag (One-Handed)';
+
+  @override
+  String get settingsMinesweeperSwapTapFlagDesc =>
+      'Short tap places flags and long-press digs instead.';
+
+  @override
+  String get mineTapFlagActive => '1-Tap: Flag';
+
+  @override
+  String get mineTapDigActive => '1-Tap: Dig';
+
+  @override
+  String get settingsChessMoveConfirm => 'Touch Move Confirmation';
+
+  @override
+  String get settingsChessConfirmOff => 'Off';
+
+  @override
+  String get settingsChessConfirmFast => 'Bullet/Blitz';
+
+  @override
+  String get settingsChessConfirmAlways => 'Always';
+
+  @override
+  String get settingsChessAutoFlipPassPlay => 'Auto-Flip in Pass & Play';
+
+  @override
+  String chessConfirmMovePrompt(String move) {
+    return 'Confirm $move?';
+  }
+
+  @override
+  String get settingsSnakeAssistOverlay => 'Ghost Wall & Turn Guide';
+
+  @override
+  String get settingsSnakeAssistOverlayDesc =>
+      'Show obstacle warning preview and swipe direction arrows.';
 }

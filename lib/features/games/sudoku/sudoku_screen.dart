@@ -55,6 +55,12 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
       onAutoSave: (slot) => _autoSaveSlots.saveSlot(slot),
     )..addListener(_onControllerChanged);
 
+    final initialSettings = ref.read(settingsProvider);
+    _controller.setAutoClearNotes(initialSettings.sudokuAutoClearNotes);
+    _controller.setSmartCandidateNotes(
+      initialSettings.sudokuSmartCandidateNotes,
+    );
+
     if (widget.resumeSlot != null) {
       _controller.restoreFromSlot(widget.resumeSlot!);
     } else {
@@ -85,6 +91,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
     await showInGameSettingsSheet(
       context: context,
       gameType: GameType.sudoku,
+      sudokuSmartNotesEligible: _controller.state.isSmartNotesEligible,
     );
     if (!mounted) return;
     if (wasRunning) {
@@ -153,6 +160,11 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
       isPractice: finalState.isPractice,
       extraMetrics: [
         (label: l10n.mistakesLabel, value: '${finalState.mistakes}'),
+        (label: l10n.sudokuBestStreakLabel, value: '${finalState.bestStreak}'),
+        (
+          label: l10n.sudokuAccuracyLabel,
+          value: '${finalState.accuracyPercent.toStringAsFixed(0)}%',
+        ),
       ],
       rewindSteps: settings.practiceRewindSteps,
       onRewindContinue: canRewind
@@ -226,6 +238,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
     final l10n = AppLocalizations.of(context)!;
     final settings = ref.watch(settingsProvider);
     _controller.setAutoClearNotes(settings.sudokuAutoClearNotes);
+    _controller.setSmartCandidateNotes(settings.sudokuSmartCandidateNotes);
 
     return GameLifecycleGuard(
       onAutoPause: () => _controller.pause(),
@@ -310,8 +323,14 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    _buildStatusRow(s, p, l10n),
-                                    const SizedBox(height: 16),
+                                    _buildStatusRow(
+                                      s,
+                                      p,
+                                      l10n,
+                                      showStreakStats:
+                                          settings.sudokuShowStreakStats,
+                                    ),
+                                    const SizedBox(height: 14),
                                     if (s.isGameOver)
                                       _buildReviewBar(s, p, l10n)
                                     else ...[
@@ -323,6 +342,10 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
                                           settings.sudokuAutoFinishThreshold,
                                         ),
                                         const SizedBox(height: 10),
+                                      ],
+                                      if (s.isSmartNotesEligible) ...[
+                                        _buildSmartNotesButton(p, l10n),
+                                        const SizedBox(height: 8),
                                       ],
                                       _buildActionToolbar(s, p, l10n),
                                       const SizedBox(height: 16),
@@ -366,7 +389,13 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
                                 ),
-                                child: _buildStatusRow(s, p, l10n),
+                                child: _buildStatusRow(
+                                  s,
+                                  p,
+                                  l10n,
+                                  showStreakStats:
+                                      settings.sudokuShowStreakStats,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Expanded(
@@ -391,6 +420,10 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
                                     settings.sudokuAutoFinishThreshold,
                                   ),
                                   const SizedBox(height: 8),
+                                ],
+                                if (s.isSmartNotesEligible) ...[
+                                  _buildSmartNotesButton(p, l10n),
+                                  const SizedBox(height: 6),
                                 ],
                                 _buildActionToolbar(s, p, l10n),
                                 const SizedBox(height: 8),
@@ -433,33 +466,65 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
   Widget _buildStatusRow(
     SudokuGameState s,
     ZetzyPalette p,
-    AppLocalizations l10n,
-  ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.favorite_rounded,
-              size: 18,
-              color: s.unlimitedLives ? p.accent : p.danger,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              s.unlimitedLives
-                  ? '${l10n.sudokuLives}: ∞'
-                  : '${l10n.sudokuLives}: ${s.livesLeft}/${s.maxLives}',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: p.textPrimary,
+    AppLocalizations l10n, {
+    required bool showStreakStats,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.favorite_rounded,
+                size: 18,
+                color: s.unlimitedLives ? p.accent : p.danger,
               ),
+              const SizedBox(width: 6),
+              Text(
+                s.unlimitedLives
+                    ? '${l10n.sudokuLives}: ∞'
+                    : '${l10n.sudokuLives}: ${s.livesLeft}/${s.maxLives}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: p.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          if (showStreakStats)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _SudokuStatChip(
+                  icon: Icons.local_fire_department_rounded,
+                  label: l10n.sudokuStreakBadge(s.currentStreak),
+                  color: s.currentStreak > 0 ? p.accent : p.textSecondary,
+                  palette: p,
+                ),
+                _SudokuStatChip(
+                  icon: Icons.verified_outlined,
+                  label: '${s.accuracyPercent.toStringAsFixed(0)}%',
+                  color: s.mistakes == 0 ? p.success : p.textPrimary,
+                  palette: p,
+                ),
+                if (s.mistakes > 0)
+                  _SudokuStatChip(
+                    icon: Icons.error_outline_rounded,
+                    label: '${l10n.mistakesLabel}: ${s.mistakes}',
+                    color: p.danger,
+                    palette: p,
+                  ),
+              ],
             ),
-          ],
-        ),
-        if (!s.checksAnswerKeyImmediately)
-          Flexible(
-            child: InkWell(
+          if (!s.checksAnswerKeyImmediately)
+            InkWell(
               onTap: () => _showConflictModeDialog(p, l10n),
               borderRadius: BorderRadius.circular(10),
               child: Container(
@@ -475,6 +540,7 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
                     Flexible(
                       child: Text(
                         l10n.sudokuConflictOnlyNote,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
@@ -493,8 +559,8 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1012,6 +1078,37 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen>
     );
   }
 
+  Widget _buildSmartNotesButton(
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: p.accent,
+          side: BorderSide(color: p.accent.withValues(alpha: 0.45)),
+          backgroundColor: p.accent.withValues(alpha: 0.08),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        onPressed: () {
+          _controller.fillSmartCandidates();
+          _focusNode.requestFocus();
+        },
+        icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+        label: Text(
+          l10n.sudokuFillCandidates,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDigitPad(
     SudokuGameState s,
     ZetzyPalette p, {
@@ -1183,6 +1280,47 @@ class _DigitKey extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SudokuStatChip extends StatelessWidget {
+  const _SudokuStatChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.palette,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final ZetzyPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -798,4 +798,72 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get settingsPracticeSection => 'Mode Latihan';
+
+  @override
+  String get settingsSudokuStreakStats => 'Streak Bebas Salah & Akurasi';
+
+  @override
+  String get settingsSudokuStreakStatsDesc =>
+      'Tampilkan streak beruntun & akurasi di papan dan ringkasan.';
+
+  @override
+  String get settingsSudokuSmartNotes => 'Catatan Kandidat Otomatis';
+
+  @override
+  String get settingsSudokuSmartNotesDesc =>
+      'Isi kandidat valid otomatis di Mode Latihan atau Lv 1–2.';
+
+  @override
+  String get sudokuFillCandidates => 'Kandidat';
+
+  @override
+  String sudokuStreakBadge(int count) {
+    return 'Streak $count';
+  }
+
+  @override
+  String get sudokuBestStreakLabel => 'Streak Terbaik';
+
+  @override
+  String get sudokuAccuracyLabel => 'Akurasi';
+
+  @override
+  String get settingsMinesweeperSwapTapFlag => 'Tukar Tap & Bendera (1 Tangan)';
+
+  @override
+  String get settingsMinesweeperSwapTapFlagDesc =>
+      'Ketuk singkat memasang bendera, tekan lama untuk menggali.';
+
+  @override
+  String get mineTapFlagActive => '1-Tap: Bendera';
+
+  @override
+  String get mineTapDigActive => '1-Tap: Gali';
+
+  @override
+  String get settingsChessMoveConfirm => 'Konfirmasi Langkah Sentuh';
+
+  @override
+  String get settingsChessConfirmOff => 'Mati';
+
+  @override
+  String get settingsChessConfirmFast => 'Bullet/Blitz';
+
+  @override
+  String get settingsChessConfirmAlways => 'Selalu';
+
+  @override
+  String get settingsChessAutoFlipPassPlay => 'Putar Otomatis Pass & Play';
+
+  @override
+  String chessConfirmMovePrompt(String move) {
+    return 'Konfirmasi $move?';
+  }
+
+  @override
+  String get settingsSnakeAssistOverlay => 'Bayangan Dinding & Arah Swipe';
+
+  @override
+  String get settingsSnakeAssistOverlayDesc =>
+      'Tampilkan pratinjau rintangan & panah arah belokan.';
 }

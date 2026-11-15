@@ -204,4 +204,23 @@ abstract final class SudokuEngine {
     }
     return false;
   }
+
+  /// Computes mathematically valid candidate digits (1–9) for empty cell [index]
+  /// based on current values in its row, column, and 3×3 box.
+  static Set<int> validCandidatesForCell(List<int> board, int index) {
+    if (board[index] != 0) return <int>{};
+    final row = index ~/ 9;
+    final col = index % 9;
+    final candidates = <int>{};
+    for (var v = 1; v <= 9; v++) {
+      if (_isSafe(board, row, col, v)) {
+        candidates.add(v);
+      }
+    }
+    return candidates;
+  }
+
+  /// Builds valid candidate sets for all empty cells on [board].
+  static List<Set<int>> buildSmartCandidateNotes(List<int> board) =>
+      List<Set<int>>.generate(81, (i) => validCandidatesForCell(board, i));
 }

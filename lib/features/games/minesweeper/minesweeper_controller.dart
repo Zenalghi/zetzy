@@ -136,6 +136,7 @@ class MinesweeperController extends ChangeNotifier {
 
   Timer? _timer;
   bool _quickChord = true;
+  bool _swapTapFlag = false;
   final List<_MineSnapshot> _practiceHistory = [];
   late MinesweeperGameState _state;
   MinesweeperGameState get state => _state;
@@ -143,6 +144,11 @@ class MinesweeperController extends ChangeNotifier {
   /// Controls whether tapping a revealed numbered cell chords surrounding flags.
   void setQuickChord(bool enabled) {
     _quickChord = enabled;
+  }
+
+  /// Controls whether one-handed Tap-vs-Flag swap is active.
+  void setSwapTapFlag(bool enabled) {
+    _swapTapFlag = enabled;
   }
 
   void startNew({
@@ -242,9 +248,17 @@ class MinesweeperController extends ChangeNotifier {
 
     switch (_state.tool) {
       case MineTapTool.dig:
-        _digCell(r, c);
+        if (_swapTapFlag) {
+          toggleMark(r, c, explicitFlag: true);
+        } else {
+          _digCell(r, c);
+        }
       case MineTapTool.flag:
-        toggleMark(r, c, explicitFlag: true);
+        if (_swapTapFlag) {
+          _digCell(r, c);
+        } else {
+          toggleMark(r, c, explicitFlag: true);
+        }
       case MineTapTool.question:
         toggleMark(r, c, explicitQuestion: true);
     }
@@ -257,7 +271,11 @@ class MinesweeperController extends ChangeNotifier {
       if (cell.adjacentMines > 0) _chord(r, c);
       return;
     }
-    toggleMark(r, c);
+    if (_swapTapFlag) {
+      _digCell(r, c);
+    } else {
+      toggleMark(r, c);
+    }
   }
 
   void toggleMark(

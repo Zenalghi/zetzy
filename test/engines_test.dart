@@ -936,6 +936,7 @@ void main() {
       required List<int> values,
       DifficultyLevel difficulty = DifficultyLevel.easy,
       List<Set<int>>? notes,
+      bool isPractice = false,
     }) {
       final notesJson = (notes ?? List.generate(81, (_) => <int>{}))
           .map((s) => s.toList())
@@ -946,7 +947,7 @@ void main() {
         elapsedMs: 12000,
         updatedAt: DateTime(2026, 11, 15),
         stateJson: {
-          'isPractice': false,
+          'isPractice': isPractice,
           'givens': givens,
           'values': values,
           'solution': validSolution,
@@ -1221,6 +1222,301 @@ void main() {
       ctrl.setQuickChord(true);
       ctrl.onCellTap(chordTarget.$1, chordTarget.$2);
       expect(ctrl.state.grid[sr][sc].isRevealed, isTrue);
+
+      ctrl.dispose();
+    });
+
+    test('SettingsRepository persists new game-assist defaults and updates', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final initial = repo.load();
+      expect(initial.sudokuShowStreakStats, isTrue);
+      expect(initial.sudokuSmartCandidateNotes, isFalse);
+      expect(initial.minesweeperSwapTapFlag, isFalse);
+      expect(initial.chessMoveConfirmMode, equals(ChessMoveConfirmMode.off));
+      expect(initial.chessAutoFlipPassPlay, isFalse);
+      expect(initial.snakeAssistOverlay, isTrue);
+
+      final updated = initial.copyWith(
+        sudokuShowStreakStats: false,
+        sudokuSmartCandidateNotes: true,
+        minesweeperSwapTapFlag: true,
+        chessMoveConfirmMode: ChessMoveConfirmMode.fastOnly,
+        chessAutoFlipPassPlay: true,
+        snakeAssistOverlay: false,
+      );
+      await repo.save(updated);
+
+      var reloaded = repo.load();
+      expect(reloaded.sudokuShowStreakStats, isFalse);
+      expect(reloaded.sudokuSmartCandidateNotes, isTrue);
+      expect(reloaded.minesweeperSwapTapFlag, isTrue);
+      expect(
+        reloaded.chessMoveConfirmMode,
+        equals(ChessMoveConfirmMode.fastOnly),
+      );
+      expect(reloaded.chessAutoFlipPassPlay, isTrue);
+      expect(reloaded.snakeAssistOverlay, isFalse);
+
+      await repo.save(
+        reloaded.copyWith(chessMoveConfirmMode: ChessMoveConfirmMode.always),
+      );
+      reloaded = repo.load();
+      expect(
+        reloaded.chessMoveConfirmMode,
+        equals(ChessMoveConfirmMode.always),
+      );
+    });
+
+    test('SudokuController tracks streak, accuracy, and restores them on Practice Undo', () {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      final values = List<int>.from(validSolution)
+        ..[0] = 0
+        ..[1] = 0
+        ..[2] = 0
+        ..[3] = 0;
+
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: values,
+          isPractice: true,
+          difficulty: DifficultyLevel.easy,
+        ),
+      );
+      ctrl.resume();
+
+      ctrl.selectCell(0);
+      ctrl.onDigitTap(validSolution[0]);
+      ctrl.selectCell(1);
+      ctrl.onDigitTap(validSolution[1]);
+
+      expect(ctrl.state.currentStreak, equals(2));
+      expect(ctrl.state.bestStreak, equals(2));
+      expect(ctrl.state.cleanPlacements, equals(2));
+      expect(ctrl.state.totalPlacements, equals(2));
+      expect(ctrl.state.accuracyPercent, equals(100.0));
+
+      // Deliberate mistake (cell 3's digit has count 8 < 9) resets currentStreak
+      final wrongDigit = validSolution[3];
+      ctrl.selectCell(2);
+      ctrl.onDigitTap(wrongDigit);
+
+      expect(ctrl.state.mistakes, equals(1));
+      expect(ctrl.state.currentStreak, equals(0));
+      expect(ctrl.state.bestStreak, equals(2));
+      expect(ctrl.state.cleanPlacements, equals(2));
+      expect(ctrl.state.totalPlacements, equals(3));
+      expect(ctrl.state.accuracyPercent, closeTo(66.66, 0.2));
+
+      // Practice undo restores streak & accuracy counters cleanly
+      ctrl.undoPractice();
+      expect(ctrl.state.currentStreak, equals(2));
+      expect(ctrl.state.bestStreak, equals(2));
+      expect(ctrl.state.cleanPlacements, equals(2));
+      expect(ctrl.state.totalPlacements, equals(2));
+      expect(ctrl.state.accuracyPercent, equals(100.0));
+
+      ctrl.dispose();
+    });
+
+    test('SudokuController gates Smart Candidate Notes to Practice or Beginner Lv 1-2', () {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+
+      final values = List<int>.from(validSolution)
+        ..[0] = 0
+        ..[1] = 0;
+
+      // Eligible: Ranked Easy (Lv 1)
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.easy,
+          isPractice: false,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.isSmartNotesEligible, isTrue);
+      ctrl.fillSmartCandidates();
+      expect(ctrl.state.notes[0], equals({validSolution[0]}));
+      expect(ctrl.state.notes[1], equals({validSolution[1]}));
+      expect(ctrl.state.notes[2], isEmpty);
+
+      // Eligible: High difficulty in Practice Mode
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.god,
+          isPractice: true,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.isSmartNotesEligible, isTrue);
+      ctrl.fillSmartCandidates();
+      expect(ctrl.state.notes[0], equals({validSolution[0]}));
+      expect(ctrl.state.notes[1], equals({validSolution[1]}));
+
+      // Blocked: Ranked Lv 5 (PRO)
+      ctrl.restoreFromSlot(
+        makeSudokuSlot(
+          givens: List<int>.from(values),
+          values: List<int>.from(values),
+          difficulty: DifficultyLevel.pro,
+          isPractice: false,
+        ),
+      );
+      ctrl.resume();
+      expect(ctrl.state.isSmartNotesEligible, isFalse);
+      ctrl.fillSmartCandidates();
+      expect(ctrl.state.notes[0], isEmpty);
+
+      ctrl.dispose();
+    });
+
+    test('MinesweeperController setSwapTapFlag swaps primary tap and long-press on unrevealed cells', () {
+      final ctrl = MinesweeperController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: false);
+      ctrl.setSwapTapFlag(true);
+
+      // Default tool is dig, but swapped mode flags on short tap
+      ctrl.onCellTap(2, 2);
+      expect(ctrl.state.grid[2][2].isRevealed, isFalse);
+      expect(ctrl.state.grid[2][2].mark, equals(MineCellMark.flag));
+
+      // Selecting flag tool in swapped mode digs on short tap
+      ctrl.setTool(MineTapTool.flag);
+      ctrl.onCellTap(3, 3);
+      expect(ctrl.state.grid[3][3].isRevealed, isTrue);
+
+      // Long-press in swapped mode digs unrevealed cells
+      ctrl.onCellLongPressOrRightClick(4, 4);
+      expect(ctrl.state.grid[4][4].isRevealed, isTrue);
+
+      ctrl.dispose();
+    });
+
+    test('ChessController handles Move Confirmation modes and Pass & Play Auto-Flip', () {
+      final ctrl = ChessController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        supabase: SupabaseService(),
+        autoQueen: true,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(
+        difficulty: DifficultyLevel.normal,
+        isPractice: true,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+
+      final e2 = ctrl.game.size.square(4, 1);
+      final e4 = ctrl.game.size.square(4, 3);
+      final e7 = ctrl.game.size.square(4, 6);
+      final e5 = ctrl.game.size.square(4, 4);
+      final d2 = ctrl.game.size.square(3, 1);
+      final d4 = ctrl.game.size.square(3, 3);
+
+      // fastOnly does NOT confirm on untimed matches
+      ctrl.setMoveConfirmMode(ChessMoveConfirmMode.fastOnly);
+      ctrl.onSquareTap(e2);
+      ctrl.onSquareTap(e4);
+      expect(ctrl.state.hasPendingConfirm, isFalse);
+      expect(ctrl.state.moveSans, equals(['e4']));
+
+      // always stages pending move and cancels cleanly
+      ctrl.setMoveConfirmMode(ChessMoveConfirmMode.always);
+      ctrl.onSquareTap(e7);
+      ctrl.onSquareTap(e5);
+      expect(ctrl.state.hasPendingConfirm, isTrue);
+      expect(ctrl.state.pendingConfirmSan, equals('e5'));
+      expect(ctrl.state.moveSans.length, equals(1));
+      ctrl.cancelPendingMove();
+      expect(ctrl.state.hasPendingConfirm, isFalse);
+      expect(ctrl.state.moveSans.length, equals(1));
+
+      // Re-tapping staged target square confirms & executes + Auto-Flip toggles back to white
+      ctrl.setAutoFlipPassPlay(true);
+      ctrl.onSquareTap(e7);
+      ctrl.onSquareTap(e5);
+      expect(ctrl.state.hasPendingConfirm, isTrue);
+      ctrl.onSquareTap(e5);
+      expect(ctrl.state.hasPendingConfirm, isFalse);
+      expect(ctrl.state.moveSans, equals(['e4', 'e5']));
+      expect(ctrl.state.flipped, isFalse);
+
+      // White move with autoFlip flips to black
+      ctrl.onSquareTap(d2);
+      ctrl.onSquareTap(d4);
+      ctrl.confirmPendingMove();
+      expect(ctrl.state.moveSans, equals(['e4', 'e5', 'd4']));
+      expect(ctrl.state.flipped, isTrue);
+
+      // Bullet match with fastOnly confirms moves
+      ctrl.startNew(
+        difficulty: DifficultyLevel.normal,
+        isPractice: false,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.bullet1,
+      );
+      ctrl.setMoveConfirmMode(ChessMoveConfirmMode.fastOnly);
+      ctrl.onSquareTap(e2);
+      ctrl.onSquareTap(e4);
+      expect(ctrl.state.hasPendingConfirm, isTrue);
+      ctrl.confirmPendingMove();
+      expect(ctrl.state.moveSans, equals(['e4']));
+
+      ctrl.dispose();
+    });
+
+    test('SnakeController exposes 2-step queuedDirections buffer and drains per step', () {
+      final ctrl = SnakeController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.god, isPractice: false);
+
+      ctrl.queueDirection(SnakeDirection.up);
+      ctrl.queueDirection(SnakeDirection.left);
+      ctrl.queueDirection(SnakeDirection.down); // Exceeds 2-step buffer
+
+      expect(
+        ctrl.state.queuedDirections,
+        equals([SnakeDirection.up, SnakeDirection.left]),
+      );
+
+      ctrl.stepForTest();
+      expect(ctrl.state.direction, equals(SnakeDirection.up));
+      expect(ctrl.state.queuedDirections, equals([SnakeDirection.left]));
+
+      ctrl.stepForTest();
+      expect(ctrl.state.direction, equals(SnakeDirection.left));
+      expect(ctrl.state.queuedDirections, isEmpty);
 
       ctrl.dispose();
     });
