@@ -43,14 +43,12 @@ final wakelockServiceProvider = Provider<WakelockService>(
   (ref) => WakelockService(),
 );
 
-/// App version string read from compiled `pubspec.yaml` metadata.
+/// App version string read from compiled `pubspec.yaml` metadata (clean semantic version without build number).
 final appVersionProvider = FutureProvider<String?>((ref) async {
   try {
     final info = await PackageInfo.fromPlatform();
     if (info.version.isEmpty) return null;
-    return info.buildNumber.isNotEmpty
-        ? '${info.version}+${info.buildNumber}'
-        : info.version;
+    return info.version;
   } catch (_) {
     return null;
   }

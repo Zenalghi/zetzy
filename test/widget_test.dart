@@ -978,17 +978,17 @@ void main() {
     await tester.pumpAndSettle();
 
     // Home must not display the app version footer.
-    expect(find.text('Zetzy v1.0.0+1'), findsNothing);
+    expect(find.text('Zetzy v1.0.0'), findsNothing);
 
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Zetzy v1.0.0+1'),
+      find.text('Zetzy v1.0.0'),
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    expect(find.text('Zetzy v1.0.0+1'), findsOneWidget);
+    expect(find.text('Zetzy v1.0.0'), findsOneWidget);
   });
 
   testWidgets('WinResultDialog shows View Board button and enters post-game review without exiting', (
