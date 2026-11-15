@@ -89,6 +89,12 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
 
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.read(settingsProvider);
+    final canRewind =
+        finalState.isPractice &&
+        !finalState.isWon &&
+        settings.practiceRewindOnLoss &&
+        finalState.canPracticeUndo;
     await showGameResultDialog(
       context: context,
       gameType: GameType.minesweeper,
@@ -105,6 +111,10 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
           value: finalState.bbbvPerSec.toStringAsFixed(2),
         ),
       ],
+      rewindSteps: settings.practiceRewindSteps,
+      onRewindContinue: canRewind
+          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          : null,
       onPlayAgain: () {
         _transformCtrl.value = Matrix4.identity();
         _controller.startNew(
@@ -308,6 +318,16 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
             ),
           ),
         ],
+        if (s.isPractice) ...[
+          const SizedBox(width: 8),
+          IconButton.outlined(
+            tooltip: l10n.practiceUndo,
+            onPressed: s.canPracticeUndo && !s.isPaused
+                ? _controller.practiceUndo
+                : null,
+            icon: const Icon(Icons.undo_rounded, size: 18),
+          ),
+        ],
         const SizedBox(width: 8),
         IconButton.outlined(
           tooltip: 'Reset Zoom',
@@ -342,6 +362,16 @@ class _MinesweeperScreenState extends ConsumerState<MinesweeperScreen> {
             style: TextStyle(fontSize: 12, color: p.textSecondary),
           ),
           const Spacer(),
+          if (s.isPractice) ...[
+            OutlinedButton.icon(
+              onPressed: s.canPracticeUndo && !s.isPaused
+                  ? _controller.practiceUndo
+                  : null,
+              icon: const Icon(Icons.undo_rounded),
+              label: Text(l10n.practiceUndo),
+            ),
+            const SizedBox(height: 10),
+          ],
           OutlinedButton.icon(
             onPressed: () {
               _transformCtrl.value = Matrix4.identity();

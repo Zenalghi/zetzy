@@ -769,6 +769,166 @@ void main() {
     );
     expect(find.byIcon(Icons.castle_rounded), findsNothing);
   });
+
+  testWidgets('WinResultDialog shows Rewind N & Continue on Practice loss and triggers callback', (
+    WidgetTester tester,
+  ) async {
+    var rewound = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () {
+                  showGameResultDialog(
+                    context: context,
+                    gameType: GameType.minesweeper,
+                    difficulty: DifficultyLevel.pro,
+                    isWon: false,
+                    isPractice: true,
+                    durationMs: 19000,
+                    score: 0,
+                    rewindSteps: 3,
+                    onRewindContinue: () => rewound = true,
+                    onPlayAgain: () {},
+                    onExit: () {},
+                  );
+                },
+                child: const Text('Open Result'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Result'));
+    await tester.pumpAndSettle();
+
+    final rewindBtn = find.text('Rewind 3 & Continue');
+    expect(rewindBtn, findsOneWidget);
+    await tester.tap(rewindBtn);
+    await tester.pumpAndSettle();
+    expect(rewound, isTrue);
+  });
+
+  testWidgets('ProfileScreen configures Practice Rewind on Loss toggle and step selector locally', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: MaterialApp(
+          theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const MainShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('3 Steps'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.ensureVisible(find.text('3 Steps'));
+    await tester.pumpAndSettle();
+    expect(find.text('Practice Rewind on Loss'), findsOneWidget);
+    expect(find.text('1 Step'), findsOneWidget);
+    expect(find.text('2 Steps'), findsOneWidget);
+    expect(find.text('3 Steps'), findsOneWidget);
+
+    await tester.tap(find.text('3 Steps'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().practiceRewindSteps, equals(3));
+
+    await tester.scrollUntilVisible(
+      find.text('Practice Rewind on Loss'),
+      -100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.ensureVisible(find.text('Practice Rewind on Loss'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Practice Rewind on Loss'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().practiceRewindOnLoss, isFalse);
+    expect(find.text('Rewind Steps on Loss'), findsNothing);
+  });
+
+  testWidgets('SudokuScreen and MinesweeperScreen expose Practice Undo controls when isPractice is true', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    Widget wrap(Widget home) => ProviderScope(
+      overrides: [
+        localStorageProvider.overrideWithValue(localStorage),
+        settingsRepoProvider.overrideWithValue(settingsRepo),
+        supabaseServiceProvider.overrideWithValue(supa),
+        audioServiceProvider.overrideWithValue(audio),
+      ],
+      child: MaterialApp(
+        theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: home,
+      ),
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        const MinesweeperScreen(
+          difficulty: DifficultyLevel.easy,
+          isPractice: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.undo_rounded), findsWidgets);
+
+    await tester.pumpWidget(
+      wrap(
+        const SudokuScreen(
+          difficulty: DifficultyLevel.easy,
+          isPractice: true,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pump();
+    expect(find.text('Undo'), findsOneWidget);
+    expect(find.text('Undo Notes'), findsNothing);
+  });
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

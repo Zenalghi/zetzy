@@ -100,6 +100,7 @@ class SnakeGameState {
     required this.isPaused,
     required this.isGameOver,
     required this.isWon,
+    this.canPracticeUndo = false,
   });
 
   final DifficultyLevel difficulty;
@@ -122,6 +123,7 @@ class SnakeGameState {
   final bool isPaused;
   final bool isGameOver;
   final bool isWon;
+  final bool canPracticeUndo;
 
   bool get wrapWalls => difficulty.level == 1;
   bool get hasStarvation => difficulty.level >= 6;
@@ -149,6 +151,7 @@ class SnakeGameState {
     bool? isPaused,
     bool? isGameOver,
     bool? isWon,
+    bool? canPracticeUndo,
   }) {
     return SnakeGameState(
       difficulty: difficulty,
@@ -173,8 +176,41 @@ class SnakeGameState {
       isPaused: isPaused ?? this.isPaused,
       isGameOver: isGameOver ?? this.isGameOver,
       isWon: isWon ?? this.isWon,
+      canPracticeUndo: canPracticeUndo ?? this.canPracticeUndo,
     );
   }
+}
+
+class _SnakeSnapshot {
+  const _SnakeSnapshot({
+    required this.snake,
+    required this.direction,
+    required this.apple,
+    required this.obstacles,
+    required this.warningObstacles,
+    required this.specialItem,
+    required this.score,
+    required this.foodsEaten,
+    required this.elapsedMs,
+    required this.tickMs,
+    required this.starvationRemainingMs,
+    required this.poisonRemainingMs,
+    required this.obstacleWarningRemainingMs,
+  });
+
+  final List<GridPoint> snake;
+  final SnakeDirection direction;
+  final GridPoint apple;
+  final Set<GridPoint> obstacles;
+  final Set<GridPoint> warningObstacles;
+  final SnakeSpecialItem? specialItem;
+  final int score;
+  final int foodsEaten;
+  final int elapsedMs;
+  final int tickMs;
+  final int starvationRemainingMs;
+  final int poisonRemainingMs;
+  final int obstacleWarningRemainingMs;
 }
 
 class SnakeController extends ChangeNotifier {
@@ -192,6 +228,7 @@ class SnakeController extends ChangeNotifier {
 
   final Random _rng = Random();
   final Queue<SnakeDirection> _inputQueue = Queue<SnakeDirection>();
+  final List<_SnakeSnapshot> _practiceHistory = [];
   Timer? _frameTimer;
   int _moveAccumulatorMs = 0;
   int _specialSpawnCooldownMs = 6000;
@@ -231,6 +268,7 @@ class SnakeController extends ChangeNotifier {
   }) {
     _stopTimers();
     _inputQueue.clear();
+    _practiceHistory.clear();
     _moveAccumulatorMs = 0;
     _specialSpawnCooldownMs = 5500;
 
@@ -275,6 +313,7 @@ class SnakeController extends ChangeNotifier {
   void restoreFromSlot(AutoSaveSlot slot) {
     _stopTimers();
     _inputQueue.clear();
+    _practiceHistory.clear();
     _moveAccumulatorMs = 0;
     final s = slot.stateJson;
     final diff = DifficultyLevel.fromLevel(slot.difficulty);
@@ -463,6 +502,7 @@ class SnakeController extends ChangeNotifier {
   }
 
   void _stepSnake() {
+    _pushPracticeSnapshot();
     final nextDir = _inputQueue.isNotEmpty
         ? _inputQueue.removeFirst()
         : _state.direction;
@@ -536,6 +576,7 @@ class SnakeController extends ChangeNotifier {
           direction: nextDir,
           score: nextScore,
           foodsEaten: nextFoods,
+          canPracticeUndo: _state.isPractice && _practiceHistory.isNotEmpty,
         );
         _endGame(won: true);
         return;
@@ -595,8 +636,84 @@ class SnakeController extends ChangeNotifier {
       obstacleWarningRemainingMs: nextWarnRem,
       specialItem: nextSpecial,
       clearSpecial: clearSpecial,
+      canPracticeUndo: _state.isPractice && _practiceHistory.isNotEmpty,
     );
     notifyListeners();
+  }
+
+  void _pushPracticeSnapshot() {
+    if (!_state.isPractice) return;
+    if (_practiceHistory.length >= 30) {
+      _practiceHistory.removeAt(0);
+    }
+    _practiceHistory.add(
+      _SnakeSnapshot(
+        snake: List<GridPoint>.from(_state.snake),
+        direction: _state.direction,
+        apple: _state.apple,
+        obstacles: Set<GridPoint>.from(_state.obstacles),
+        warningObstacles: Set<GridPoint>.from(_state.warningObstacles),
+        specialItem: _state.specialItem?.copyWith(),
+        score: _state.score,
+        foodsEaten: _state.foodsEaten,
+        elapsedMs: _state.elapsedMs,
+        tickMs: _state.tickMs,
+        starvationRemainingMs: _state.starvationRemainingMs,
+        poisonRemainingMs: _state.poisonRemainingMs,
+        obstacleWarningRemainingMs: _state.obstacleWarningRemainingMs,
+      ),
+    );
+  }
+
+  void practiceUndo({bool pauseAfterRewind = true}) =>
+      practiceRewind(1, pauseAfterRewind: pauseAfterRewind);
+
+  @visibleForTesting
+  void stepForTest() => _stepSnake();
+
+  void practiceRewind(int steps, {bool pauseAfterRewind = true}) {
+    if (!_state.isPractice || _practiceHistory.isEmpty) return;
+    _stopTimers();
+    _inputQueue.clear();
+    _moveAccumulatorMs = 0;
+
+    final count = min(steps.clamp(1, 3), _practiceHistory.length);
+    _SnakeSnapshot? chosen;
+    for (var i = 0; i < count; i++) {
+      chosen = _practiceHistory.removeLast();
+    }
+    if (chosen == null) return;
+
+    var nextStarv = chosen.starvationRemainingMs;
+    if (_state.hasStarvation && (_state.isGameOver || nextStarv < 2500)) {
+      nextStarv = max(nextStarv, min(_state.starvationMaxMs, 3500));
+    }
+
+    _state = _state.copyWith(
+      snake: List<GridPoint>.from(chosen.snake),
+      direction: chosen.direction,
+      apple: chosen.apple,
+      obstacles: Set<GridPoint>.from(chosen.obstacles),
+      warningObstacles: Set<GridPoint>.from(chosen.warningObstacles),
+      specialItem: chosen.specialItem?.copyWith(),
+      clearSpecial: chosen.specialItem == null,
+      score: chosen.score,
+      foodsEaten: chosen.foodsEaten,
+      elapsedMs: chosen.elapsedMs,
+      tickMs: chosen.tickMs,
+      starvationRemainingMs: nextStarv,
+      poisonRemainingMs: chosen.poisonRemainingMs,
+      obstacleWarningRemainingMs: chosen.obstacleWarningRemainingMs,
+      isPaused: pauseAfterRewind,
+      isGameOver: false,
+      isWon: false,
+      canPracticeUndo: _practiceHistory.isNotEmpty,
+    );
+    _haptics.selection();
+    notifyListeners();
+    if (!pauseAfterRewind) {
+      _startTimers();
+    }
   }
 
   SnakeSpecialItem? _spawnSpecialItem() {

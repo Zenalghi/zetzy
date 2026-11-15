@@ -25,6 +25,8 @@ Future<void> showGameResultDialog({
   bool isNewRecord = false,
   bool isPractice = false,
   List<({String label, String value})> extraMetrics = const [],
+  int rewindSteps = 1,
+  VoidCallback? onRewindContinue,
   required VoidCallback onPlayAgain,
   required VoidCallback onExit,
 }) {
@@ -41,6 +43,8 @@ Future<void> showGameResultDialog({
       isNewRecord: isNewRecord,
       isPractice: isPractice,
       extraMetrics: extraMetrics,
+      rewindSteps: rewindSteps,
+      onRewindContinue: onRewindContinue,
       onPlayAgain: onPlayAgain,
       onExit: onExit,
     ),
@@ -58,6 +62,8 @@ class _GameResultDialog extends StatefulWidget {
     required this.isNewRecord,
     required this.isPractice,
     required this.extraMetrics,
+    this.rewindSteps = 1,
+    this.onRewindContinue,
     required this.onPlayAgain,
     required this.onExit,
   });
@@ -71,6 +77,8 @@ class _GameResultDialog extends StatefulWidget {
   final bool isNewRecord;
   final bool isPractice;
   final List<({String label, String value})> extraMetrics;
+  final int rewindSteps;
+  final VoidCallback? onRewindContinue;
   final VoidCallback onPlayAgain;
   final VoidCallback onExit;
 
@@ -287,6 +295,22 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                   ),
                 ),
                 const SizedBox(height: 14),
+                if (widget.onRewindContinue != null) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.onRewindContinue!();
+                      },
+                      icon: const Icon(Icons.history_rounded, size: 18),
+                      label: Text(
+                        l10n.practiceRewindContinue(widget.rewindSteps),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -303,14 +327,28 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          widget.onPlayAgain();
-                        },
-                        icon: const Icon(Icons.replay_rounded, size: 18),
-                        label: Text(l10n.playAgain),
-                      ),
+                      child: widget.onRewindContinue != null
+                          ? OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: p.surface,
+                                foregroundColor: p.textPrimary,
+                                side: BorderSide(color: p.border),
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                widget.onPlayAgain();
+                              },
+                              icon: const Icon(Icons.replay_rounded, size: 18),
+                              label: Text(l10n.playAgain),
+                            )
+                          : FilledButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                widget.onPlayAgain();
+                              },
+                              icon: const Icon(Icons.replay_rounded, size: 18),
+                              label: Text(l10n.playAgain),
+                            ),
                     ),
                   ],
                 ),

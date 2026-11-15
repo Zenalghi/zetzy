@@ -162,8 +162,20 @@ abstract class AppLocalizations {
   /// No description provided for @practiceModeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Unlimited retries. Scores are not saved to leaderboard.'**
+  /// **'Undo anytime & rewind 1–3 steps on loss. Scores stay off leaderboard.'**
   String get practiceModeDesc;
+
+  /// No description provided for @practiceUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get practiceUndo;
+
+  /// No description provided for @practiceRewindContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind {count} & Continue'**
+  String practiceRewindContinue(int count);
 
   /// No description provided for @selectDifficulty.
   ///
@@ -1100,6 +1112,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto-Queen Promotion'**
   String get settingsChessAutoQueen;
+
+  /// No description provided for @settingsPracticeRewind.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Rewind on Loss'**
+  String get settingsPracticeRewind;
+
+  /// No description provided for @settingsPracticeRewindDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow rewinding 1–3 steps on loss instead of restarting in Practice Mode.'**
+  String get settingsPracticeRewindDesc;
+
+  /// No description provided for @settingsPracticeRewindSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind Steps on Loss'**
+  String get settingsPracticeRewindSteps;
+
+  /// No description provided for @practiceRewindStepOption.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 Step} other{{count} Steps}}'**
+  String practiceRewindStepOption(int count);
 
   /// No description provided for @settingsCloudStatus.
   ///

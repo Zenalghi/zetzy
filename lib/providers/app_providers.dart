@@ -95,6 +95,12 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setChessAutoQueen(bool autoQueen) =>
       _commit(state.copyWith(chessAutoQueen: autoQueen));
 
+  Future<void> setPracticeRewindOnLoss(bool enabled) =>
+      _commit(state.copyWith(practiceRewindOnLoss: enabled));
+
+  Future<void> setPracticeRewindSteps(int steps) =>
+      _commit(state.copyWith(practiceRewindSteps: steps.clamp(1, 3)));
+
   Future<void> updateGuestProgression({
     Map<GameType, int>? unlockedLevels,
     int? chessElo,

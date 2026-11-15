@@ -77,6 +77,12 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
 
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.read(settingsProvider);
+    final canRewind =
+        finalState.isPractice &&
+        !finalState.isWon &&
+        settings.practiceRewindOnLoss &&
+        finalState.canUndoPractice;
     await showGameResultDialog(
       context: context,
       gameType: GameType.sudoku,
@@ -89,6 +95,10 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
       extraMetrics: [
         (label: l10n.mistakesLabel, value: '${finalState.mistakes}'),
       ],
+      rewindSteps: settings.practiceRewindSteps,
+      onRewindContinue: canRewind
+          ? () => _controller.undoPractice(steps: settings.practiceRewindSteps)
+          : null,
       onPlayAgain: () => _controller.startNew(
         difficulty: finalState.difficulty,
         isPractice: finalState.isPractice,
@@ -577,9 +587,11 @@ class _SudokuScreenState extends ConsumerState<SudokuScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 3),
             child: _ActionIcon(
               icon: Icons.undo_rounded,
-              label: l10n.sudokuUndoNotes,
-              enabled: s.canUndoNote,
-              onTap: _controller.undoNotes,
+              label: s.isPractice ? l10n.practiceUndo : l10n.sudokuUndoNotes,
+              enabled: s.isPractice ? s.canUndoPractice : s.canUndoNote,
+              onTap: s.isPractice
+                  ? _controller.undoPractice
+                  : _controller.undoNotes,
             ),
           ),
         ),

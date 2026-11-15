@@ -614,6 +614,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onChanged: settingsCtrl.setChessAutoQueen,
                       title: Text(l10n.settingsChessAutoQueen),
                     ),
+                    const Divider(),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: settings.practiceRewindOnLoss,
+                      onChanged: settingsCtrl.setPracticeRewindOnLoss,
+                      title: Text(l10n.settingsPracticeRewind),
+                      subtitle: Text(
+                        l10n.settingsPracticeRewindDesc,
+                        style: TextStyle(fontSize: 12, color: p.textSecondary),
+                      ),
+                    ),
+                    if (settings.practiceRewindOnLoss) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        l10n.settingsPracticeRewindSteps,
+                        style: TextStyle(fontSize: 12, color: p.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      SegmentedButton<int>(
+                        selected: {settings.practiceRewindSteps},
+                        onSelectionChanged: (s) =>
+                            settingsCtrl.setPracticeRewindSteps(s.first),
+                        segments: [
+                          for (final step in const [1, 2, 3])
+                            ButtonSegment(
+                              value: step,
+                              label: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  l10n.practiceRewindStepOption(step),
+                                  softWrap: false,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

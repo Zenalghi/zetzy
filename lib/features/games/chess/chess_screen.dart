@@ -119,6 +119,13 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
 
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.read(settingsProvider);
+    final canRewind =
+        finalState.isPractice &&
+        !playerWon &&
+        !finalState.isDraw &&
+        settings.practiceRewindOnLoss &&
+        finalState.canPracticeUndo;
     await showGameResultDialog(
       context: context,
       gameType: GameType.chess,
@@ -133,6 +140,10 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
       extraMetrics: [
         (label: l10n.chessMoves, value: '${finalState.moveSans.length}'),
       ],
+      rewindSteps: settings.practiceRewindSteps,
+      onRewindContinue: canRewind
+          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          : null,
       onPlayAgain: () => setState(() => _inLobby = true),
       onExit: () => Navigator.of(context).pop(),
     );
@@ -972,7 +983,13 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        if (s.mode == ChessPlayMode.vsAi)
+        if (s.isPractice && s.mode != ChessPlayMode.online)
+          OutlinedButton.icon(
+            onPressed: s.canPracticeUndo ? _controller.practiceUndo : null,
+            icon: const Icon(Icons.undo_rounded, size: 18),
+            label: Text(l10n.practiceUndo),
+          )
+        else if (s.mode == ChessPlayMode.vsAi)
           Tooltip(
             message: s.difficulty.level >= 5
                 ? l10n.chessUndoLocked

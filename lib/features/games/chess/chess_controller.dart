@@ -56,6 +56,7 @@ class ChessUiState {
     required this.onlineRoomCode,
     required this.onlineWaiting,
     required this.pendingPromotionMoves,
+    this.practiceHistoryCount = 0,
   });
 
   final DifficultyLevel difficulty;
@@ -85,6 +86,7 @@ class ChessUiState {
   final String? onlineRoomCode;
   final bool onlineWaiting;
   final List<Move>? pendingPromotionMoves;
+  final int practiceHistoryCount;
 
   bool get canUndo =>
       mode == ChessPlayMode.vsAi &&
@@ -92,6 +94,12 @@ class ChessUiState {
       moveSans.length >= 2 &&
       !isAiThinking &&
       !isGameOver;
+
+  bool get canPracticeUndo =>
+      isPractice &&
+      mode != ChessPlayMode.online &&
+      practiceHistoryCount > 0 &&
+      !isAiThinking;
 
   ChessUiState copyWith({
     bool? flipped,
@@ -101,6 +109,7 @@ class ChessUiState {
     Set<int>? legalTargets,
     int? lastFrom,
     int? lastTo,
+    bool clearLastMove = false,
     bool? inCheck,
     bool? isAiThinking,
     int? whiteTimeMs,
@@ -113,11 +122,13 @@ class ChessUiState {
     bool? isPaused,
     bool? isGameOver,
     int? winnerColour,
+    bool clearWinner = false,
     bool? isDraw,
     String? onlineRoomCode,
     bool? onlineWaiting,
     List<Move>? pendingPromotionMoves,
     bool clearPromotion = false,
+    int? practiceHistoryCount,
   }) {
     return ChessUiState(
       difficulty: difficulty,
@@ -130,8 +141,8 @@ class ChessUiState {
       selectedSquare:
           clearSelected ? null : (selectedSquare ?? this.selectedSquare),
       legalTargets: legalTargets ?? this.legalTargets,
-      lastFrom: lastFrom ?? this.lastFrom,
-      lastTo: lastTo ?? this.lastTo,
+      lastFrom: clearLastMove ? null : (lastFrom ?? this.lastFrom),
+      lastTo: clearLastMove ? null : (lastTo ?? this.lastTo),
       inCheck: inCheck ?? this.inCheck,
       isAiThinking: isAiThinking ?? this.isAiThinking,
       whiteTimeMs: whiteTimeMs ?? this.whiteTimeMs,
@@ -143,15 +154,36 @@ class ChessUiState {
       materialAdvantage: materialAdvantage ?? this.materialAdvantage,
       isPaused: isPaused ?? this.isPaused,
       isGameOver: isGameOver ?? this.isGameOver,
-      winnerColour: winnerColour ?? this.winnerColour,
+      winnerColour: clearWinner ? null : (winnerColour ?? this.winnerColour),
       isDraw: isDraw ?? this.isDraw,
       onlineRoomCode: onlineRoomCode ?? this.onlineRoomCode,
       onlineWaiting: onlineWaiting ?? this.onlineWaiting,
       pendingPromotionMoves: clearPromotion
           ? null
           : (pendingPromotionMoves ?? this.pendingPromotionMoves),
+      practiceHistoryCount: practiceHistoryCount ?? this.practiceHistoryCount,
     );
   }
+}
+
+class _ChessPracticeSnapshot {
+  const _ChessPracticeSnapshot({
+    required this.fen,
+    required this.turn,
+    required this.moveSans,
+    required this.moveSqHistory,
+    required this.whiteTimeMs,
+    required this.blackTimeMs,
+    required this.elapsedMs,
+  });
+
+  final String fen;
+  final int turn;
+  final List<String> moveSans;
+  final List<(int?, int?)> moveSqHistory;
+  final int whiteTimeMs;
+  final int blackTimeMs;
+  final int elapsedMs;
 }
 
 class ChessController extends ChangeNotifier {
@@ -177,6 +209,8 @@ class ChessController extends ChangeNotifier {
   Timer? _timer;
   RealtimeChannel? _channel;
   final List<(int?, int?)> _moveSqHistory = [];
+  final List<_ChessPracticeSnapshot> _practiceHistory = [];
+  int _generation = 0;
   late ChessUiState _state;
   ChessUiState get state => _state;
 
@@ -196,6 +230,8 @@ class ChessController extends ChangeNotifier {
     _stopTimer();
     _leaveOnlineRoom();
     _moveSqHistory.clear();
+    _practiceHistory.clear();
+    _generation++;
     _game = Game(variant: Variant.standard());
 
     final resolvedColor = switch (colorPref) {
@@ -255,6 +291,8 @@ class ChessController extends ChangeNotifier {
     _stopTimer();
     _leaveOnlineRoom();
     _moveSqHistory.clear();
+    _practiceHistory.clear();
+    _generation++;
     final s = slot.stateJson;
     final diff = DifficultyLevel.fromLevel(slot.difficulty);
     final pgn = s['pgn'] as String?;
@@ -426,9 +464,28 @@ class ChessController extends ChangeNotifier {
     final san = _game.toSan(move);
     final alg = _game.toAlgebraic(move);
     final isCapture = move.capture;
+    final preFen = _game.fen;
+    final preTurn = _game.turn;
 
     final ok = _game.makeMove(move);
     if (!ok) return;
+
+    if (_state.isPractice && _state.mode != ChessPlayMode.online) {
+      if (_practiceHistory.length >= 40) {
+        _practiceHistory.removeAt(0);
+      }
+      _practiceHistory.add(
+        _ChessPracticeSnapshot(
+          fen: preFen,
+          turn: preTurn,
+          moveSans: List<String>.from(_state.moveSans),
+          moveSqHistory: List<(int?, int?)>.from(_moveSqHistory),
+          whiteTimeMs: _state.whiteTimeMs,
+          blackTimeMs: _state.blackTimeMs,
+          elapsedMs: _state.elapsedMs,
+        ),
+      );
+    }
 
     _moveSqHistory.add((move.from, move.to));
 
@@ -452,6 +509,7 @@ class ChessController extends ChangeNotifier {
       lastTo: move.to,
       inCheck: _game.inCheck,
       moveSans: nextSans,
+      practiceHistoryCount: _practiceHistory.length,
     );
     _recomputeMaterialAndCaptures();
 
@@ -471,6 +529,7 @@ class ChessController extends ChangeNotifier {
   }
 
   Future<void> _triggerAiMove() async {
+    final gen = _generation;
     _state = _state.copyWith(isAiThinking: true);
     notifyListeners();
 
@@ -479,7 +538,7 @@ class ChessController extends ChangeNotifier {
       level: _state.difficulty.level,
     );
 
-    if (_state.isGameOver) return;
+    if (gen != _generation || _state.isGameOver) return;
     _state = _state.copyWith(isAiThinking: false);
     if (alg != null) {
       final move = _game.getMove(alg);
@@ -500,10 +559,15 @@ class ChessController extends ChangeNotifier {
       _moveSqHistory.removeLast();
       _moveSqHistory.removeLast();
     }
+    if (_state.isPractice && _practiceHistory.length >= 2) {
+      _practiceHistory.removeLast();
+      _practiceHistory.removeLast();
+    }
     final nextSans = _state.moveSans.length >= 2
         ? _state.moveSans.sublist(0, _state.moveSans.length - 2)
         : <String>[];
-    final lastPair = _moveSqHistory.isNotEmpty ? _moveSqHistory.last : (null, null);
+    final lastPair =
+        _moveSqHistory.isNotEmpty ? _moveSqHistory.last : (null, null);
 
     _state = _state.copyWith(
       turn: _game.turn,
@@ -511,12 +575,96 @@ class ChessController extends ChangeNotifier {
       legalTargets: const {},
       lastFrom: lastPair.$1,
       lastTo: lastPair.$2,
+      clearLastMove: lastPair.$1 == null,
       inCheck: _game.inCheck,
       moveSans: nextSans,
+      practiceHistoryCount: _practiceHistory.length,
     );
     _recomputeMaterialAndCaptures();
     _haptics.selection();
     notifyListeners();
+  }
+
+  void practiceUndo() => practiceRewind(1);
+
+  void practiceRewind(int steps) {
+    if (!_state.isPractice ||
+        _state.mode == ChessPlayMode.online ||
+        _practiceHistory.isEmpty) {
+      return;
+    }
+    _generation++;
+    final targetSteps = steps.clamp(1, 3);
+    _ChessPracticeSnapshot? chosen;
+
+    if (_state.mode == ChessPlayMode.vsAi) {
+      var playerTurnsUndone = 0;
+      while (_practiceHistory.isNotEmpty) {
+        final snap = _practiceHistory.removeLast();
+        chosen = snap;
+        if (snap.turn == _state.playerColor) {
+          playerTurnsUndone++;
+          if (playerTurnsUndone >= targetSteps) break;
+        }
+      }
+    } else {
+      final count = min(targetSteps, _practiceHistory.length);
+      for (var i = 0; i < count; i++) {
+        chosen = _practiceHistory.removeLast();
+      }
+    }
+
+    if (chosen == null) return;
+    _restorePracticeSnapshot(chosen);
+  }
+
+  void _restorePracticeSnapshot(_ChessPracticeSnapshot snap) {
+    var whiteMs = snap.whiteTimeMs;
+    var blackMs = snap.blackTimeMs;
+    if (_state.isGameOver && _state.timeControl != ChessTimeControl.untimed) {
+      if (snap.turn == Bishop.white && whiteMs < 10000) {
+        whiteMs = min(_state.timeControl.initialMs, 10000);
+      }
+      if (snap.turn == Bishop.black && blackMs < 10000) {
+        blackMs = min(_state.timeControl.initialMs, 10000);
+      }
+    }
+
+    _game = Game(variant: Variant.standard(), fen: snap.fen);
+    _moveSqHistory
+      ..clear()
+      ..addAll(snap.moveSqHistory);
+    final lastPair =
+        _moveSqHistory.isNotEmpty ? _moveSqHistory.last : (null, null);
+
+    _state = _state.copyWith(
+      turn: _game.turn,
+      clearSelected: true,
+      legalTargets: const {},
+      lastFrom: lastPair.$1,
+      lastTo: lastPair.$2,
+      clearLastMove: lastPair.$1 == null,
+      inCheck: _game.inCheck,
+      isAiThinking: false,
+      whiteTimeMs: whiteMs,
+      blackTimeMs: blackMs,
+      elapsedMs: snap.elapsedMs,
+      moveSans: List<String>.from(snap.moveSans),
+      isPaused: false,
+      isGameOver: false,
+      clearWinner: true,
+      isDraw: false,
+      clearPromotion: true,
+      practiceHistoryCount: _practiceHistory.length,
+    );
+    _recomputeMaterialAndCaptures();
+    _haptics.selection();
+    notifyListeners();
+    _startTimer();
+
+    if (_state.mode == ChessPlayMode.vsAi && _game.turn != _state.playerColor) {
+      _triggerAiMove();
+    }
   }
 
   void resign() {
@@ -546,6 +694,7 @@ class ChessController extends ChangeNotifier {
   }
 
   void _endGame({required int? winnerColour, required bool isDraw}) {
+    _generation++;
     _stopTimer();
     _leaveOnlineRoom();
     final playerWon = !isDraw && winnerColour == _state.playerColor;
@@ -553,6 +702,7 @@ class ChessController extends ChangeNotifier {
     _state = _state.copyWith(
       isGameOver: true,
       winnerColour: winnerColour,
+      clearWinner: winnerColour == null,
       isDraw: isDraw,
       isAiThinking: false,
     );

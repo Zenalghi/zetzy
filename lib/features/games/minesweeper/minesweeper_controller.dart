@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
@@ -25,6 +26,7 @@ class MinesweeperGameState {
     required this.isGameOver,
     required this.isWon,
     required this.bbbv,
+    this.practiceHistoryCount = 0,
   });
 
   final DifficultyLevel difficulty;
@@ -39,6 +41,9 @@ class MinesweeperGameState {
   final bool isGameOver;
   final bool isWon;
   final int bbbv;
+  final int practiceHistoryCount;
+
+  bool get canPracticeUndo => isPractice && practiceHistoryCount > 0;
 
   int get rows => grid.length;
   int get cols => grid.isEmpty ? 0 : grid[0].length;
@@ -70,6 +75,7 @@ class MinesweeperGameState {
     bool? isGameOver,
     bool? isWon,
     int? bbbv,
+    int? practiceHistoryCount,
   }) {
     return MinesweeperGameState(
       difficulty: difficulty,
@@ -84,8 +90,25 @@ class MinesweeperGameState {
       isGameOver: isGameOver ?? this.isGameOver,
       isWon: isWon ?? this.isWon,
       bbbv: bbbv ?? this.bbbv,
+      practiceHistoryCount: practiceHistoryCount ?? this.practiceHistoryCount,
     );
   }
+}
+
+class _MineSnapshot {
+  const _MineSnapshot({
+    required this.grid,
+    required this.hasStarted,
+    required this.shieldRemaining,
+    required this.elapsedMs,
+    required this.bbbv,
+  });
+
+  final List<List<MineCell>> grid;
+  final bool hasStarted;
+  final int shieldRemaining;
+  final int elapsedMs;
+  final int bbbv;
 }
 
 class MinesweeperController extends ChangeNotifier {
@@ -102,6 +125,7 @@ class MinesweeperController extends ChangeNotifier {
   final void Function(AutoSaveSlot slot) onAutoSave;
 
   Timer? _timer;
+  final List<_MineSnapshot> _practiceHistory = [];
   late MinesweeperGameState _state;
   MinesweeperGameState get state => _state;
 
@@ -110,6 +134,7 @@ class MinesweeperController extends ChangeNotifier {
     required bool isPractice,
   }) {
     _stopTimer();
+    _practiceHistory.clear();
     final spec = MinesweeperSpec.forDifficulty(difficulty);
     _state = MinesweeperGameState(
       difficulty: difficulty,
@@ -130,6 +155,7 @@ class MinesweeperController extends ChangeNotifier {
 
   void restoreFromSlot(AutoSaveSlot slot) {
     _stopTimer();
+    _practiceHistory.clear();
     final s = slot.stateJson;
     final diff = DifficultyLevel.fromLevel(slot.difficulty);
     final rawGrid = (s['grid'] as List?) ?? [];
@@ -226,6 +252,7 @@ class MinesweeperController extends ChangeNotifier {
   }) {
     final cell = _state.grid[r][c];
     if (cell.isRevealed || cell.isDefused) return;
+    _pushPracticeSnapshot();
 
     final MineCellMark nextMark;
     if (explicitFlag) {
@@ -248,11 +275,23 @@ class MinesweeperController extends ChangeNotifier {
     nextGrid[r][c] = cell.copyWith(mark: nextMark);
     _audio.playSfx(ZetzySfx.mineFlag);
     _haptics.selection();
-    _state = _state.copyWith(grid: nextGrid);
+    _state = _state.copyWith(
+      grid: nextGrid,
+      practiceHistoryCount: _practiceHistory.length,
+    );
     notifyListeners();
   }
 
   void _digCell(int r, int c) {
+    final initialTarget = _state.grid[r][c];
+    if (_state.hasStarted &&
+        (initialTarget.isRevealed ||
+            initialTarget.mark == MineCellMark.flag ||
+            initialTarget.isDefused)) {
+      return;
+    }
+    _pushPracticeSnapshot();
+
     var grid = _cloneGrid(_state.grid);
     var hasStarted = _state.hasStarted;
     var bbbv = _state.bbbv;
@@ -293,6 +332,7 @@ class MinesweeperController extends ChangeNotifier {
           hasStarted: hasStarted,
           bbbv: bbbv,
           shieldRemaining: _state.shieldRemaining - 1,
+          practiceHistoryCount: _practiceHistory.length,
         );
         _checkWin();
         return;
@@ -304,6 +344,7 @@ class MinesweeperController extends ChangeNotifier {
         grid: grid,
         hasStarted: hasStarted,
         bbbv: bbbv,
+        practiceHistoryCount: _practiceHistory.length,
       );
       _endGame(won: false);
       return;
@@ -316,6 +357,7 @@ class MinesweeperController extends ChangeNotifier {
       grid: grid,
       hasStarted: hasStarted,
       bbbv: bbbv,
+      practiceHistoryCount: _practiceHistory.length,
     );
     _checkWin();
   }
@@ -341,6 +383,7 @@ class MinesweeperController extends ChangeNotifier {
     }
 
     if (flagOrDefused != center.adjacentMines || toOpen.isEmpty) return;
+    _pushPracticeSnapshot();
 
     final grid = _cloneGrid(_state.grid);
     var shield = _state.shieldRemaining;
@@ -358,7 +401,11 @@ class MinesweeperController extends ChangeNotifier {
           _haptics.heavy();
         } else {
           _revealAllMines(grid, explodedRow: nr, explodedCol: nc);
-          _state = _state.copyWith(grid: grid, shieldRemaining: shield);
+          _state = _state.copyWith(
+            grid: grid,
+            shieldRemaining: shield,
+            practiceHistoryCount: _practiceHistory.length,
+          );
           _endGame(won: false);
           return;
         }
@@ -368,8 +415,59 @@ class MinesweeperController extends ChangeNotifier {
     }
     _audio.playSfx(ZetzySfx.mineDig);
     _haptics.light();
-    _state = _state.copyWith(grid: grid, shieldRemaining: shield);
+    _state = _state.copyWith(
+      grid: grid,
+      shieldRemaining: shield,
+      practiceHistoryCount: _practiceHistory.length,
+    );
     _checkWin();
+  }
+
+  void _pushPracticeSnapshot() {
+    if (!_state.isPractice) return;
+    if (_practiceHistory.length >= 35) {
+      _practiceHistory.removeAt(0);
+    }
+    _practiceHistory.add(
+      _MineSnapshot(
+        grid: _cloneGrid(_state.grid),
+        hasStarted: _state.hasStarted,
+        shieldRemaining: _state.shieldRemaining,
+        elapsedMs: _state.elapsedMs,
+        bbbv: _state.bbbv,
+      ),
+    );
+  }
+
+  void practiceUndo() => practiceRewind(1);
+
+  void practiceRewind(int steps) {
+    if (!_state.isPractice || _practiceHistory.isEmpty) return;
+    final count = min(steps.clamp(1, 3), _practiceHistory.length);
+    _MineSnapshot? chosen;
+    for (var i = 0; i < count; i++) {
+      chosen = _practiceHistory.removeLast();
+    }
+    if (chosen == null) return;
+
+    _state = _state.copyWith(
+      grid: _cloneGrid(chosen.grid),
+      hasStarted: chosen.hasStarted,
+      shieldRemaining: chosen.shieldRemaining,
+      elapsedMs: chosen.elapsedMs,
+      bbbv: chosen.bbbv,
+      isPaused: false,
+      isGameOver: false,
+      isWon: false,
+      practiceHistoryCount: _practiceHistory.length,
+    );
+    _haptics.selection();
+    notifyListeners();
+    if (chosen.hasStarted) {
+      _startTimer();
+    } else {
+      _stopTimer();
+    }
   }
 
   void _floodReveal(List<List<MineCell>> grid, int startR, int startC) {

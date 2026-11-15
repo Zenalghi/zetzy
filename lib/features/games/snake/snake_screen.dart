@@ -113,6 +113,12 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
 
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.read(settingsProvider);
+    final canRewind =
+        finalState.isPractice &&
+        !finalState.isWon &&
+        settings.practiceRewindOnLoss &&
+        finalState.canPracticeUndo;
     await showGameResultDialog(
       context: context,
       gameType: GameType.snake,
@@ -125,6 +131,10 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
       extraMetrics: [
         (label: l10n.snakeLength, value: '${finalState.snake.length}'),
       ],
+      rewindSteps: settings.practiceRewindSteps,
+      onRewindContinue: canRewind
+          ? () => _controller.practiceRewind(settings.practiceRewindSteps)
+          : null,
       onPlayAgain: () => _controller.startNew(
         difficulty: finalState.difficulty,
         isPractice: finalState.isPractice,
@@ -154,6 +164,10 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
       } else {
         _controller.pause();
       }
+    } else if (_controller.state.isPractice &&
+        (key == LogicalKeyboardKey.keyZ ||
+            key == LogicalKeyboardKey.backspace)) {
+      _controller.practiceUndo();
     }
   }
 
@@ -189,6 +203,16 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
                 listenable: _controller,
                 builder: (context, _) => Row(
                   children: [
+                    if (_controller.state.isPractice)
+                      IconButton(
+                        tooltip: l10n.practiceUndo,
+                        onPressed:
+                            _controller.state.canPracticeUndo &&
+                                !_controller.state.isGameOver
+                            ? _controller.practiceUndo
+                            : null,
+                        icon: const Icon(Icons.undo_rounded),
+                      ),
                     GameTimerBadge(
                       elapsedMs: _controller.state.elapsedMs,
                       isPaused: _controller.state.isPaused,
@@ -407,6 +431,16 @@ class _SnakeScreenState extends ConsumerState<SnakeScreen> {
         children: [
           _buildCompactHud(s, p, l10n),
           const Divider(height: 24),
+          if (s.isPractice) ...[
+            OutlinedButton.icon(
+              onPressed: s.canPracticeUndo && !s.isGameOver
+                  ? _controller.practiceUndo
+                  : null,
+              icon: const Icon(Icons.undo_rounded),
+              label: Text(l10n.practiceUndo),
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
             l10n.snakeDesktopHint,
             style: TextStyle(color: p.textSecondary, fontSize: 13),

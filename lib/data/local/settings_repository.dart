@@ -15,6 +15,8 @@ class AppSettings {
     this.snakeControlMode = SnakeControlMode.swipe,
     this.chessPieceSet = ChessPieceSet.cburnett,
     this.chessAutoQueen = true,
+    this.practiceRewindOnLoss = true,
+    this.practiceRewindSteps = 2,
     this.guestChessElo = 1000,
     this.guestUnlockedLevels = const {
       GameType.sudoku: 5,
@@ -33,6 +35,8 @@ class AppSettings {
   final SnakeControlMode snakeControlMode;
   final ChessPieceSet chessPieceSet;
   final bool chessAutoQueen;
+  final bool practiceRewindOnLoss;
+  final int practiceRewindSteps;
   final int guestChessElo;
   final Map<GameType, int> guestUnlockedLevels;
 
@@ -46,6 +50,8 @@ class AppSettings {
     SnakeControlMode? snakeControlMode,
     ChessPieceSet? chessPieceSet,
     bool? chessAutoQueen,
+    bool? practiceRewindOnLoss,
+    int? practiceRewindSteps,
     int? guestChessElo,
     Map<GameType, int>? guestUnlockedLevels,
   }) {
@@ -59,6 +65,9 @@ class AppSettings {
       snakeControlMode: snakeControlMode ?? this.snakeControlMode,
       chessPieceSet: chessPieceSet ?? this.chessPieceSet,
       chessAutoQueen: chessAutoQueen ?? this.chessAutoQueen,
+      practiceRewindOnLoss: practiceRewindOnLoss ?? this.practiceRewindOnLoss,
+      practiceRewindSteps:
+          (practiceRewindSteps ?? this.practiceRewindSteps).clamp(1, 3),
       guestChessElo: guestChessElo ?? this.guestChessElo,
       guestUnlockedLevels: guestUnlockedLevels ?? this.guestUnlockedLevels,
     );
@@ -78,6 +87,8 @@ class SettingsRepository {
   static const _kSnakeCtrl = 'zetzy_snake_ctrl';
   static const _kChessPieces = 'zetzy_chess_pieces';
   static const _kChessAutoQueen = 'zetzy_chess_auto_queen';
+  static const _kPracticeRewindOnLoss = 'zetzy_practice_rewind_on_loss';
+  static const _kPracticeRewindSteps = 'zetzy_practice_rewind_steps';
   static const _kGuestElo = 'zetzy_guest_elo';
   static const _kGuestUnlocked = 'zetzy_guest_unlocked';
 
@@ -116,6 +127,11 @@ class SettingsRepository {
         orElse: () => ChessPieceSet.cburnett,
       ),
       chessAutoQueen: _prefs.getBool(_kChessAutoQueen) ?? true,
+      practiceRewindOnLoss: _prefs.getBool(_kPracticeRewindOnLoss) ?? true,
+      practiceRewindSteps: (_prefs.getInt(_kPracticeRewindSteps) ?? 2).clamp(
+        1,
+        3,
+      ),
       guestChessElo: _prefs.getInt(_kGuestElo) ?? 1000,
       guestUnlockedLevels: unlocked,
     );
@@ -132,6 +148,8 @@ class SettingsRepository {
       _prefs.setString(_kSnakeCtrl, s.snakeControlMode.name),
       _prefs.setString(_kChessPieces, s.chessPieceSet.folder),
       _prefs.setBool(_kChessAutoQueen, s.chessAutoQueen),
+      _prefs.setBool(_kPracticeRewindOnLoss, s.practiceRewindOnLoss),
+      _prefs.setInt(_kPracticeRewindSteps, s.practiceRewindSteps.clamp(1, 3)),
       _prefs.setInt(_kGuestElo, s.guestChessElo),
       _prefs.setString(
         _kGuestUnlocked,

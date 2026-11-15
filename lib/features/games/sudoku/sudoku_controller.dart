@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
@@ -30,6 +31,7 @@ class SudokuGameState {
     required this.isGameOver,
     required this.isWon,
     required this.canUndoNote,
+    this.canUndoPractice = false,
   });
 
   final DifficultyLevel difficulty;
@@ -52,6 +54,7 @@ class SudokuGameState {
   final bool isGameOver;
   final bool isWon;
   final bool canUndoNote;
+  final bool canUndoPractice;
 
   bool get unlimitedLives => isPractice || maxLives == 0;
   bool get checksAnswerKeyImmediately => difficulty.level <= 4;
@@ -96,6 +99,7 @@ class SudokuGameState {
     bool? isGameOver,
     bool? isWon,
     bool? canUndoNote,
+    bool? canUndoPractice,
   }) {
     return SudokuGameState(
       difficulty: difficulty,
@@ -118,8 +122,29 @@ class SudokuGameState {
       isGameOver: isGameOver ?? this.isGameOver,
       isWon: isWon ?? this.isWon,
       canUndoNote: canUndoNote ?? this.canUndoNote,
+      canUndoPractice: canUndoPractice ?? this.canUndoPractice,
     );
   }
+}
+
+class _SudokuSnapshot {
+  const _SudokuSnapshot({
+    required this.values,
+    required this.notes,
+    required this.errorCells,
+    required this.livesLeft,
+    required this.mistakes,
+    required this.hintsLeft,
+    required this.selectedCell,
+  });
+
+  final List<int> values;
+  final List<Set<int>> notes;
+  final Set<int> errorCells;
+  final int livesLeft;
+  final int mistakes;
+  final int hintsLeft;
+  final int? selectedCell;
 }
 
 class SudokuController extends ChangeNotifier {
@@ -137,6 +162,7 @@ class SudokuController extends ChangeNotifier {
 
   Timer? _timer;
   final List<List<Set<int>>> _notesUndoStack = [];
+  final List<_SudokuSnapshot> _practiceHistory = [];
   late SudokuGameState _state;
   SudokuGameState get state => _state;
 
@@ -154,6 +180,7 @@ class SudokuController extends ChangeNotifier {
   }) async {
     _stopTimer();
     _notesUndoStack.clear();
+    _practiceHistory.clear();
     final lives = maxLivesFor(difficulty, isPractice);
 
     _state = SudokuGameState(
@@ -177,10 +204,12 @@ class SudokuController extends ChangeNotifier {
       isGameOver: false,
       isWon: false,
       canUndoNote: false,
+      canUndoPractice: false,
     );
     notifyListeners();
 
     final generated = await SudokuEngine.generateAsync(difficulty);
+    _practiceHistory.clear();
     _state = SudokuGameState(
       difficulty: difficulty,
       isPractice: isPractice,
@@ -210,6 +239,7 @@ class SudokuController extends ChangeNotifier {
   void restoreFromSlot(AutoSaveSlot slot) {
     _stopTimer();
     _notesUndoStack.clear();
+    _practiceHistory.clear();
     final s = slot.stateJson;
     final diff = DifficultyLevel.fromLevel(slot.difficulty);
     final isPractice = s['isPractice'] == true;
@@ -331,6 +361,7 @@ class SudokuController extends ChangeNotifier {
 
     if (_state.notesMode) {
       if (_state.values[index] != 0) return;
+      _pushPracticeUndo();
       _pushNotesUndo();
       final nextNotes = _cloneNotes(_state.notes);
       if (nextNotes[index].contains(digit)) {
@@ -343,6 +374,7 @@ class SudokuController extends ChangeNotifier {
       _state = _state.copyWith(
         notes: nextNotes,
         canUndoNote: _notesUndoStack.isNotEmpty,
+        canUndoPractice: _practiceHistory.isNotEmpty,
       );
       notifyListeners();
       return;
@@ -358,6 +390,7 @@ class SudokuController extends ChangeNotifier {
       return;
     }
 
+    _pushPracticeUndo();
     nextValues[index] = digit;
     nextNotes[index].clear();
 
@@ -402,6 +435,7 @@ class SudokuController extends ChangeNotifier {
       errorCells: nextErrors,
       livesLeft: nextLives,
       mistakes: nextMistakes,
+      canUndoPractice: _practiceHistory.isNotEmpty,
     );
 
     if (!_state.unlimitedLives && nextLives <= 0) {
@@ -420,24 +454,33 @@ class SudokuController extends ChangeNotifier {
     final nextValues = List<int>.from(_state.values);
     final nextErrors = Set<int>.from(_state.errorCells);
     if (nextValues[idx] != 0) {
+      _pushPracticeUndo();
       nextValues[idx] = 0;
       nextErrors.remove(idx);
       if (!_state.checksAnswerKeyImmediately) {
         _recomputeConflicts(nextValues, nextErrors);
       }
     } else if (_state.notes[idx].isNotEmpty) {
+      _pushPracticeUndo();
       _pushNotesUndo();
       final nextNotes = _cloneNotes(_state.notes);
       nextNotes[idx].clear();
       _state = _state.copyWith(
         notes: nextNotes,
         canUndoNote: _notesUndoStack.isNotEmpty,
+        canUndoPractice: _practiceHistory.isNotEmpty,
       );
       notifyListeners();
       return;
+    } else {
+      return;
     }
 
-    _state = _state.copyWith(values: nextValues, errorCells: nextErrors);
+    _state = _state.copyWith(
+      values: nextValues,
+      errorCells: nextErrors,
+      canUndoPractice: _practiceHistory.isNotEmpty,
+    );
     notifyListeners();
   }
 
@@ -453,6 +496,40 @@ class SudokuController extends ChangeNotifier {
     );
     _haptics.selection();
     notifyListeners();
+  }
+
+  /// Practice Mode allows undoing digits, hints, erasures, and pencil notes.
+  void undoPractice({int steps = 1}) {
+    if (!_state.isPractice ||
+        _state.isLoading ||
+        (_state.isPaused && !_state.isGameOver) ||
+        _practiceHistory.isEmpty) {
+      return;
+    }
+    final count = min(steps.clamp(1, 3), _practiceHistory.length);
+    _SudokuSnapshot? snap;
+    for (var i = 0; i < count; i++) {
+      snap = _practiceHistory.removeLast();
+    }
+    if (snap == null) return;
+
+    _state = _state.copyWith(
+      values: List<int>.from(snap.values),
+      notes: _cloneNotes(snap.notes),
+      errorCells: Set<int>.from(snap.errorCells),
+      livesLeft: snap.livesLeft,
+      mistakes: snap.mistakes,
+      hintsLeft: snap.hintsLeft,
+      selectedCell: snap.selectedCell,
+      clearSelected: snap.selectedCell == null,
+      isPaused: false,
+      isGameOver: false,
+      isWon: false,
+      canUndoPractice: _practiceHistory.isNotEmpty,
+    );
+    _haptics.selection();
+    notifyListeners();
+    if (_timer == null) _startTimer();
   }
 
   /// PRD 34C: Up to 3 free hints per game.
@@ -478,6 +555,7 @@ class SudokuController extends ChangeNotifier {
     }
     if (target == null) return;
 
+    _pushPracticeUndo();
     final digit = _state.solution[target];
     final nextValues = List<int>.from(_state.values)..[target] = digit;
     final nextErrors = Set<int>.from(_state.errorCells)..remove(target);
@@ -498,6 +576,7 @@ class SudokuController extends ChangeNotifier {
       errorCells: nextErrors,
       selectedCell: target,
       hintsLeft: _state.hintsLeft - 1,
+      canUndoPractice: _practiceHistory.isNotEmpty,
     );
     _checkCompletion();
   }
@@ -554,6 +633,24 @@ class SudokuController extends ChangeNotifier {
     _notesUndoStack.add(_cloneNotes(_state.notes));
     if (_notesUndoStack.length > 40) {
       _notesUndoStack.removeAt(0);
+    }
+  }
+
+  void _pushPracticeUndo() {
+    if (!_state.isPractice) return;
+    _practiceHistory.add(
+      _SudokuSnapshot(
+        values: List<int>.from(_state.values),
+        notes: _cloneNotes(_state.notes),
+        errorCells: Set<int>.from(_state.errorCells),
+        livesLeft: _state.livesLeft,
+        mistakes: _state.mistakes,
+        hintsLeft: _state.hintsLeft,
+        selectedCell: _state.selectedCell,
+      ),
+    );
+    if (_practiceHistory.length > 50) {
+      _practiceHistory.removeAt(0);
     }
   }
 

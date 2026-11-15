@@ -43,7 +43,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get practiceModeDesc =>
-      'Unlimited retries. Scores are not saved to leaderboard.';
+      'Undo anytime & rewind 1–3 steps on loss. Scores stay off leaderboard.';
+
+  @override
+  String get practiceUndo => 'Undo';
+
+  @override
+  String practiceRewindContinue(int count) {
+    return 'Rewind $count & Continue';
+  }
 
   @override
   String get selectDifficulty => 'Select Difficulty';
@@ -540,6 +548,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsChessAutoQueen => 'Auto-Queen Promotion';
+
+  @override
+  String get settingsPracticeRewind => 'Practice Rewind on Loss';
+
+  @override
+  String get settingsPracticeRewindDesc =>
+      'Allow rewinding 1–3 steps on loss instead of restarting in Practice Mode.';
+
+  @override
+  String get settingsPracticeRewindSteps => 'Rewind Steps on Loss';
+
+  @override
+  String practiceRewindStepOption(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Steps',
+      one: '1 Step',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get settingsCloudStatus => 'Cloud & Sync';

@@ -11,7 +11,14 @@
   "newGame": "New Game",
   "play": "Play",
   "practiceMode": "Practice Mode",
-  "practiceModeDesc": "Unlimited retries. Scores are not saved to leaderboard.",
+  "practiceModeDesc": "Undo anytime & rewind 1–3 steps on loss. Scores stay off leaderboard.",
+  "practiceUndo": "Undo",
+  "practiceRewindContinue": "Rewind {count} & Continue",
+  "@practiceRewindContinue": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "selectDifficulty": "Select Difficulty",
   "lockedLevelHint": "Win {prevLevel} once to unlock",
   "@lockedLevelHint": {
@@ -227,6 +234,15 @@
   "settingsSnakeSplit": "Split-Screen Tap",
   "settingsChessPieces": "Chess Piece Style",
   "settingsChessAutoQueen": "Auto-Queen Promotion",
+  "settingsPracticeRewind": "Practice Rewind on Loss",
+  "settingsPracticeRewindDesc": "Allow rewinding 1–3 steps on loss instead of restarting in Practice Mode.",
+  "settingsPracticeRewindSteps": "Rewind Steps on Loss",
+  "practiceRewindStepOption": "{count, plural, =1{1 Step} other{{count} Steps}}",
+  "@practiceRewindStepOption": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "settingsCloudStatus": "Cloud & Sync",
   "settingsSupabaseConfigured": "Cloud Sync Connected",
   "settingsSupabaseLocalOnly": "Offline Mode (Cloud sync unavailable)",

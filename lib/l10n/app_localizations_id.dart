@@ -43,7 +43,15 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get practiceModeDesc =>
-      'Nyawa tak terbatas. Skor tidak dikirim ke leaderboard.';
+      'Bisa Undo & mundur 1–3 langkah saat kalah. Skor tidak masuk leaderboard.';
+
+  @override
+  String get practiceUndo => 'Undo';
+
+  @override
+  String practiceRewindContinue(int count) {
+    return 'Mundur $count Langkah';
+  }
 
   @override
   String get selectDifficulty => 'Pilih Tingkat Kesulitan';
@@ -538,6 +546,21 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get settingsChessAutoQueen => 'Otomatis Jadi Menteri (Auto-Queen)';
+
+  @override
+  String get settingsPracticeRewind => 'Mundur saat Kalah (Mode Latihan)';
+
+  @override
+  String get settingsPracticeRewindDesc =>
+      'Izinkan mundur 1–3 langkah tanpa mengulang dari awal saat kalah di Mode Latihan.';
+
+  @override
+  String get settingsPracticeRewindSteps => 'Jumlah Langkah Mundur (Practice)';
+
+  @override
+  String practiceRewindStepOption(int count) {
+    return '$count Langkah';
+  }
 
   @override
   String get settingsCloudStatus => 'Cloud & Sinkronisasi';

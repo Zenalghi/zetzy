@@ -11,6 +11,7 @@ import 'package:zetzy/core/services/haptic_service.dart';
 import 'package:zetzy/core/utils/avatar_compressor.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/data/local/local_storage_service.dart';
+import 'package:zetzy/data/local/settings_repository.dart';
 import 'package:zetzy/data/local/zetzy_database.dart' hide AutoSaveSlot;
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/data/models/game_record.dart';
@@ -450,6 +451,220 @@ void main() {
         expect(picker.supportsCameraChoice, isTrue);
       }
       debugDefaultTargetPlatformOverride = null;
+    });
+  });
+
+  group('Practice Mode Rewind & Undo', () {
+    test('SettingsRepository persists practice rewind settings locally', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      final initial = repo.load();
+      expect(initial.practiceRewindOnLoss, isTrue);
+      expect(initial.practiceRewindSteps, equals(2));
+
+      expect(initial.copyWith(practiceRewindSteps: 9).practiceRewindSteps, equals(3));
+      expect(initial.copyWith(practiceRewindSteps: 0).practiceRewindSteps, equals(1));
+
+      await repo.save(
+        initial.copyWith(
+          practiceRewindOnLoss: false,
+          practiceRewindSteps: 3,
+        ),
+      );
+      final reloaded = repo.load();
+      expect(reloaded.practiceRewindOnLoss, isFalse);
+      expect(reloaded.practiceRewindSteps, equals(3));
+    });
+
+    test('SudokuController practice Undo reverses digits, hints, and notes', () async {
+      final ctrl = SudokuController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      await ctrl.startNew(
+        difficulty: DifficultyLevel.easy,
+        isPractice: true,
+      );
+
+      final emptyIdx = ctrl.state.givens.indexOf(0);
+      final correct = ctrl.state.solution[emptyIdx];
+      final wrong = correct == 9 ? 1 : correct + 1;
+
+      ctrl.selectCell(emptyIdx);
+      ctrl.onDigitTap(wrong);
+      expect(ctrl.state.values[emptyIdx], equals(wrong));
+      expect(ctrl.state.mistakes, equals(1));
+      expect(ctrl.state.canUndoPractice, isTrue);
+
+      ctrl.useHint();
+      expect(ctrl.state.hintsLeft, equals(2));
+      expect(ctrl.state.values[emptyIdx], equals(correct));
+
+      // Undo hint restores previous wrong digit & hintsLeft
+      ctrl.undoPractice();
+      expect(ctrl.state.hintsLeft, equals(3));
+      expect(ctrl.state.values[emptyIdx], equals(wrong));
+      expect(ctrl.state.canUndoPractice, isTrue);
+
+      // Undo digit placement clears cell & mistakes count
+      ctrl.undoPractice();
+      expect(ctrl.state.values[emptyIdx], equals(0));
+      expect(ctrl.state.mistakes, equals(0));
+      expect(ctrl.state.canUndoPractice, isFalse);
+
+      ctrl.dispose();
+    });
+
+    test('MinesweeperController practice Undo & Rewind recovers after hitting a mine', () {
+      final ctrl = MinesweeperController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.pro, isPractice: true);
+      expect(ctrl.state.shieldRemaining, equals(0));
+
+      // Safe first dig at center
+      ctrl.onCellTap(4, 4);
+      expect(ctrl.state.hasStarted, isTrue);
+      expect(ctrl.state.canPracticeUndo, isTrue);
+
+      // Find an unrevealed mine cell and an unrevealed safe cell to test undo + rewind
+      (int, int)? minePos;
+      (int, int)? safeUnrevealedPos;
+      for (var r = 0; r < ctrl.state.rows; r++) {
+        for (var c = 0; c < ctrl.state.cols; c++) {
+          final cell = ctrl.state.grid[r][c];
+          if (cell.isMine && minePos == null) minePos = (r, c);
+          if (!cell.isMine && !cell.isRevealed && safeUnrevealedPos == null) {
+            safeUnrevealedPos = (r, c);
+          }
+        }
+      }
+      expect(minePos, isNotNull);
+      expect(safeUnrevealedPos, isNotNull);
+
+      // Toggle flag on safeUnrevealedPos then undo it
+      ctrl.toggleMark(safeUnrevealedPos!.$1, safeUnrevealedPos.$2);
+      expect(
+        ctrl.state.grid[safeUnrevealedPos.$1][safeUnrevealedPos.$2].mark,
+        equals(MineCellMark.flag),
+      );
+      ctrl.practiceUndo();
+      expect(
+        ctrl.state.grid[safeUnrevealedPos.$1][safeUnrevealedPos.$2].mark,
+        equals(MineCellMark.none),
+      );
+
+      // Hit mine -> triggers game over loss
+      ctrl.onCellTap(minePos!.$1, minePos.$2);
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+
+      // Rewind 1 step restores pre-explosion unrevealed state
+      ctrl.practiceRewind(1);
+      expect(ctrl.state.isGameOver, isFalse);
+      expect(ctrl.state.isWon, isFalse);
+      expect(
+        ctrl.state.grid[minePos.$1][minePos.$2].isRevealed,
+        isFalse,
+      );
+      expect(
+        ctrl.state.grid[minePos.$1][minePos.$2].isExploded,
+        isFalse,
+      );
+
+      ctrl.dispose();
+    });
+
+    test('ChessController practice Undo works on Lv7 and Rewind continues after loss', () {
+      final ctrl = ChessController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        supabase: SupabaseService(),
+        autoQueen: true,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(
+        difficulty: DifficultyLevel.god,
+        isPractice: true,
+        mode: ChessPlayMode.passAndPlay,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+
+      // Play 3 plies in Pass & Play practice mode
+      for (var i = 0; i < 3; i++) {
+        final m = ctrl.game.generateLegalMoves().first;
+        ctrl.onSquareTap(m.from);
+        ctrl.onSquareTap(m.to);
+      }
+      expect(ctrl.state.moveSans.length, equals(3));
+      expect(ctrl.state.canPracticeUndo, isTrue);
+
+      // Rewind 2 plies
+      ctrl.practiceRewind(2);
+      expect(ctrl.state.moveSans.length, equals(1));
+      expect(ctrl.state.isGameOver, isFalse);
+
+      // Resign triggers game over; rewind recovers from game over cleanly
+      ctrl.resign();
+      expect(ctrl.state.isGameOver, isTrue);
+      ctrl.practiceRewind(1);
+      expect(ctrl.state.isGameOver, isFalse);
+      expect(ctrl.state.winnerColour, isNull);
+      expect(ctrl.state.moveSans, isEmpty);
+
+      // Non-practice ranked mode leaves Lv7 Undo locked
+      ctrl.startNew(
+        difficulty: DifficultyLevel.god,
+        isPractice: false,
+        mode: ChessPlayMode.vsAi,
+        colorPref: ChessColorPref.white,
+        timeControl: ChessTimeControl.untimed,
+      );
+      expect(ctrl.state.canUndo, isFalse);
+      expect(ctrl.state.canPracticeUndo, isFalse);
+
+      ctrl.dispose();
+    });
+
+    test('SnakeController practice Rewind recovers 1-3 steps after wall collision', () {
+      final ctrl = SnakeController(
+        audio: AudioService(),
+        haptics: HapticService()..enabled = false,
+        onFinished: (_) {},
+        onAutoSave: (_) {},
+      );
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: true);
+      expect(ctrl.state.wrapWalls, isFalse);
+      final startHead = ctrl.state.snake.first;
+
+      // Step right until snake hits the east wall (easy gridSize=17, start x=8 -> 9 steps hits x=17)
+      var steps = 0;
+      while (!ctrl.state.isGameOver && steps < 25) {
+        ctrl.stepForTest();
+        steps++;
+      }
+      expect(ctrl.state.isGameOver, isTrue);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.canPracticeUndo, isTrue);
+
+      // Rewind 3 steps back from wall collision
+      ctrl.practiceRewind(3);
+      expect(ctrl.state.isGameOver, isFalse);
+      expect(ctrl.state.isWon, isFalse);
+      expect(ctrl.state.isPaused, isTrue);
+      expect(ctrl.state.snake.first.x, lessThan(ctrl.state.gridSize - 1));
+      expect(ctrl.state.snake.first.x, greaterThan(startHead.x));
+
+      ctrl.dispose();
     });
   });
 }
