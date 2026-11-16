@@ -16,14 +16,42 @@ import 'package:zetzy/providers/app_providers.dart';
 
 class _FakePaginatedSupabaseService extends SupabaseService {
   final List<({int limit, int offset})> globalCalls = [];
+  final List<({int limit, int offset})> myBestCalls = [];
   final List<({int limit, int offset})> eloCalls = [];
   bool simulateNewTopRecordInserted = false;
+  UserProfile? signedInProfile;
 
   @override
   bool get isAvailable => true;
 
   @override
-  Future<UserProfile?> fetchCurrentProfile() async => null;
+  Future<UserProfile?> fetchCurrentProfile() async => signedInProfile;
+
+  @override
+  Future<List<GameRecord>> fetchMyBestRecords({
+    required String userId,
+    required GameType gameType,
+    required int difficulty,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    myBestCalls.add((limit: limit, offset: offset));
+    if (offset > 0) return [];
+    return [
+      GameRecord(
+        id: 'cloud-my-1',
+        userId: userId,
+        username: signedInProfile?.username ?? 'cloud_user',
+        gameType: gameType,
+        difficulty: difficulty,
+        isWon: true,
+        score: 1850,
+        durationMs: 14200,
+        platform: 'web',
+        playedAt: DateTime(2026, 11, 16),
+      ),
+    ];
+  }
 
   List<GameRecord> _dataset() {
     final base = List.generate(35, (i) {
@@ -234,6 +262,49 @@ void main() {
         scrollable: find.byType(Scrollable).last,
       );
       expect(find.text('#24'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'My Best syncs cloud records for signed-in users even with empty local storage',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final localStorage = LocalStorageService.forTesting(prefs: prefs);
+      final settingsRepo = SettingsRepository(prefs);
+      final supa = _FakePaginatedSupabaseService()
+        ..signedInProfile = const UserProfile(
+          id: 'u-cloud',
+          username: 'cloud_user',
+          isGuest: false,
+        );
+      final audio = AudioService();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageProvider.overrideWithValue(localStorage),
+            settingsRepoProvider.overrideWithValue(settingsRepo),
+            supabaseServiceProvider.overrideWithValue(supa),
+            audioServiceProvider.overrideWithValue(audio),
+          ],
+          child: MaterialApp(
+            theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const Scaffold(body: LeaderboardScreen()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('My Best'));
+      await tester.pumpAndSettle();
+
+      expect(supa.myBestCalls, isNotEmpty);
+      expect(find.text('#1'), findsOneWidget);
+      expect(find.text('@cloud_user'), findsOneWidget);
+      expect(find.textContaining('00:14'), findsOneWidget);
     },
   );
 }

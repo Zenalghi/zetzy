@@ -2096,6 +2096,52 @@ void main() {
     expect(find.text('Fixed in next release!'), findsOneWidget);
     expect(find.text('Approved'), findsWidgets);
   });
+
+  testWidgets(
+    'ProfileScreen centers BGM tracks 1-9 and expands Snake touch control',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final localStorage = LocalStorageService.forTesting(prefs: prefs);
+      final settingsRepo = SettingsRepository(prefs);
+      final audio = AudioService();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageProvider.overrideWithValue(localStorage),
+            settingsRepoProvider.overrideWithValue(settingsRepo),
+            supabaseServiceProvider.overrideWithValue(SupabaseService()),
+            audioServiceProvider.overrideWithValue(audio),
+          ],
+          child: const ZetzyApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+
+      final bgmWrap = tester
+          .widgetList<Wrap>(find.byType(Wrap))
+          .firstWhere((w) => w.alignment == WrapAlignment.center);
+      expect(bgmWrap.alignment, WrapAlignment.center);
+      expect(find.text('Track 9'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.byType(SegmentedButton<SnakeControlMode>),
+        250,
+        scrollable: find.byType(Scrollable).last,
+      );
+      final snakeSeg = tester.widget<SegmentedButton<SnakeControlMode>>(
+        find.byType(SegmentedButton<SnakeControlMode>),
+      );
+      expect(snakeSeg.expandedInsets, EdgeInsets.zero);
+    },
+  );
 }
 
 class _FakeFeedbackSupabaseService extends _FakeAvailableSupabaseService {

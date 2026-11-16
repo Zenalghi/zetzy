@@ -273,11 +273,13 @@ class SupabaseService {
     });
   }
 
-  Future<List<GameRecord>> fetchGlobalLeaderboard({
+  Future<List<GameRecord>> _queryLeaderboardRecords({
     required GameType gameType,
     required int difficulty,
-    int limit = 20,
-    int offset = 0,
+    String? userId,
+    required bool sortByScoreFirst,
+    required int limit,
+    required int offset,
   }) async {
     final client = _client;
     if (client == null || limit <= 0) return [];
@@ -288,13 +290,22 @@ class SupabaseService {
         .eq('game_type', gameType.id)
         .eq('difficulty', difficulty);
 
+    if (userId != null) {
+      query = query.eq('user_id', userId);
+    }
     if (gameType != GameType.snake) {
       query = query.eq('is_won', true);
     }
 
-    final rows = await query
-        .order('score', ascending: false)
-        .order('duration_ms', ascending: true)
+    final ordered = sortByScoreFirst
+        ? query
+              .order('score', ascending: false)
+              .order('duration_ms', ascending: true)
+        : query
+              .order('duration_ms', ascending: true)
+              .order('score', ascending: false);
+
+    final rows = await ordered
         .order('id', ascending: true)
         .range(offset, offset + limit - 1);
 
@@ -302,6 +313,37 @@ class SupabaseService {
         .map((e) => GameRecord.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
+
+  Future<List<GameRecord>> fetchGlobalLeaderboard({
+    required GameType gameType,
+    required int difficulty,
+    int limit = 20,
+    int offset = 0,
+  }) => _queryLeaderboardRecords(
+    gameType: gameType,
+    difficulty: difficulty,
+    sortByScoreFirst: true,
+    limit: limit,
+    offset: offset,
+  );
+
+  /// Fetches the signed-in user's personal best records from `game_records`
+  /// so "My Best" stays synced across devices without duplicating match rows
+  /// inside `profiles.account_data`.
+  Future<List<GameRecord>> fetchMyBestRecords({
+    required String userId,
+    required GameType gameType,
+    required int difficulty,
+    int limit = 20,
+    int offset = 0,
+  }) => _queryLeaderboardRecords(
+    gameType: gameType,
+    difficulty: difficulty,
+    userId: userId,
+    sortByScoreFirst: gameType == GameType.snake || gameType == GameType.chess,
+    limit: limit,
+    offset: offset,
+  );
 
   Future<List<UserProfile>> fetchChessEloLeaderboard({
     int limit = 20,

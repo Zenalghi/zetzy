@@ -67,16 +67,21 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
   int _tabIndex = 0; // 0: Global, 1: My Best, 2: Chess ELO
 
   _PagedListState<GameRecord> _globalState = const _PagedListState();
+  _PagedListState<GameRecord> _myBestState = const _PagedListState();
   _PagedListState<UserProfile> _eloState = const _PagedListState();
   int _myBestLimit = _initialPageSize;
 
   String? _loadedGlobalFilterKey;
+  String? _loadedMyBestKey;
   bool _eloInitialized = false;
   int _globalReqGen = 0;
+  int _myBestReqGen = 0;
   int _eloReqGen = 0;
   final ScrollController _scrollCtrl = ScrollController();
 
   String get _currentGlobalFilterKey => '${_game.id}_${_difficulty.level}';
+  String _myBestKeyFor(String userId) =>
+      '${userId}_${_game.id}_${_difficulty.level}';
 
   @override
   void dispose() {
@@ -152,6 +157,74 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
       if (!mounted || reqGen != _globalReqGen) return;
       setState(() {
         _globalState = _globalState.copyWith(
+          loadingInitial: false,
+          loadingMore: false,
+          error: reset,
+        );
+      });
+    }
+  }
+
+  Future<void> _loadMyBest({required bool reset}) async {
+    final supa = ref.read(supabaseServiceProvider);
+    final user = ref.read(authProvider);
+    if (!supa.isAvailable || user.isGuest) return;
+    if (!reset &&
+        (_myBestState.loadingMore ||
+            _myBestState.loadingInitial ||
+            !_myBestState.hasMore ||
+            _myBestState.items.length >= _maxEntries)) {
+      return;
+    }
+
+    final reqGen = ++_myBestReqGen;
+    final userId = user.id;
+    final game = _game;
+    final diff = _difficulty.level;
+    final key = _myBestKeyFor(userId);
+    final offset = reset ? 0 : _myBestState.offset;
+    final limit = reset
+        ? _initialPageSize
+        : min(_loadMoreStep, _maxEntries - _myBestState.items.length);
+    if (limit <= 0) return;
+
+    setState(() {
+      _loadedMyBestKey = key;
+      _myBestState = reset
+          ? const _PagedListState(loadingInitial: true)
+          : _myBestState.copyWith(loadingMore: true, error: false);
+    });
+
+    try {
+      final page = await supa.fetchMyBestRecords(
+        userId: userId,
+        gameType: game,
+        difficulty: diff,
+        limit: limit,
+        offset: offset,
+      );
+      if (!mounted || reqGen != _myBestReqGen) return;
+
+      final merged = reset
+          ? page
+          : _mergeUnique<GameRecord>(_myBestState.items, page, (r) => r.id);
+      setState(() {
+        _myBestState = _PagedListState(
+          items: merged,
+          offset: offset + page.length,
+          loadingInitial: false,
+          loadingMore: false,
+          hasMore: page.length == limit && merged.length < _maxEntries,
+          error: false,
+        );
+      });
+      if (reset && _scrollCtrl.hasClients) {
+        _scrollCtrl.jumpTo(0);
+      }
+    } catch (_) {
+      if (!mounted || reqGen != _myBestReqGen) return;
+      setState(() {
+        _myBestState = _myBestState.copyWith(
           loadingInitial: false,
           loadingMore: false,
           error: reset,
@@ -239,6 +312,11 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     setState(() => _tabIndex = nextTab);
     if (nextTab == 0 && _loadedGlobalFilterKey != _currentGlobalFilterKey) {
       _loadGlobal(reset: true);
+    } else if (nextTab == 1) {
+      final user = ref.read(authProvider);
+      if (!user.isGuest && _loadedMyBestKey != _myBestKeyFor(user.id)) {
+        _loadMyBest(reset: true);
+      }
     } else if (nextTab == 2 && !_eloInitialized) {
       _loadElo(reset: true);
     }
@@ -252,12 +330,16 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     });
     if (_tabIndex == 0) {
       _loadGlobal(reset: true);
+    } else if (_tabIndex == 1) {
+      _loadMyBest(reset: true);
     }
   }
 
   Future<void> _refreshCurrentRemoteTab() async {
     if (_tabIndex == 0) {
       await _loadGlobal(reset: true);
+    } else if (_tabIndex == 1) {
+      await _loadMyBest(reset: true);
     } else if (_tabIndex == 2) {
       await _loadElo(reset: true);
     }
@@ -270,6 +352,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     final supa = ref.watch(supabaseServiceProvider);
     final isRemoteLoading =
         (_tabIndex == 0 && _globalState.loadingInitial) ||
+        (_tabIndex == 1 && _myBestState.loadingInitial) ||
         (_tabIndex == 2 && _eloState.loadingInitial);
 
     return SafeArea(
@@ -392,12 +475,24 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
   }
 
   Widget _buildMyBestList(ZetzyPalette p, AppLocalizations l10n) {
+    final supa = ref.watch(supabaseServiceProvider);
+    final user = ref.watch(authProvider);
+    final useCloud = supa.isAvailable && !user.isGuest;
+    if (useCloud &&
+        _tabIndex == 1 &&
+        _loadedMyBestKey != _myBestKeyFor(user.id) &&
+        !_myBestState.loadingInitial) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadMyBest(reset: true);
+      });
+    }
+
     final asyncRecords = ref.watch(localRecordsProvider);
     return asyncRecords.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('$e')),
       data: (all) {
-        final filtered = all
+        final localFiltered = all
             .where(
               (r) => r.gameType == _game && r.difficulty == _difficulty.level,
             )
@@ -407,9 +502,26 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                   _game != GameType.chess ||
                   r.metadata['mode'] == null ||
                   r.metadata['mode'] == 'vsAi',
-            )
-            .toList();
-        filtered.sort((a, b) {
+            );
+
+        final merged = useCloud
+            ? _mergeUnique<GameRecord>(
+                _myBestState.items.where(
+                  (r) =>
+                      _game != GameType.chess ||
+                      r.metadata['mode'] == null ||
+                      r.metadata['mode'] == 'vsAi',
+                ).toList(),
+                localFiltered.toList(),
+                (r) => r.id,
+              )
+            : localFiltered.toList();
+
+        if (useCloud && _myBestState.loadingInitial && merged.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        merged.sort((a, b) {
           if (_game == GameType.snake || _game == GameType.chess) {
             final cmp = b.score.compareTo(a.score);
             return cmp != 0 ? cmp : a.durationMs.compareTo(b.durationMs);
@@ -417,21 +529,41 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
           return a.durationMs.compareTo(b.durationMs);
         });
 
-        final cappedTotal = min(filtered.length, _maxEntries);
-        final visibleCount = min(_myBestLimit, cappedTotal);
-        final visible = filtered.take(visibleCount).toList();
-        final hasMore = visibleCount < cappedTotal;
+        final cappedTotal = min(merged.length, _maxEntries);
+        final visibleCount = useCloud
+            ? cappedTotal
+            : min(_myBestLimit, cappedTotal);
+        final visible = merged.take(visibleCount).toList();
+        final hasMore = useCloud
+            ? _myBestState.hasMore
+            : visibleCount < cappedTotal;
 
-        return _renderRecordList(
+        final list = _renderRecordList(
           visible,
           p,
           l10n,
           hasMore: hasMore,
-          loadingMore: false,
-          onLoadMore: () => setState(
-            () => _myBestLimit = min(_maxEntries, _myBestLimit + _loadMoreStep),
-          ),
+          loadingMore: useCloud ? _myBestState.loadingMore : false,
+          onLoadMore: () {
+            if (useCloud) {
+              _loadMyBest(reset: false);
+            } else {
+              setState(
+                () => _myBestLimit = min(
+                  _maxEntries,
+                  _myBestLimit + _loadMoreStep,
+                ),
+              );
+            }
+          },
         );
+
+        return useCloud
+            ? RefreshIndicator(
+                onRefresh: () => _loadMyBest(reset: true),
+                child: list,
+              )
+            : list;
       },
     );
   }

@@ -108,10 +108,13 @@ abstract final class GameSettingsControls {
     required ValueChanged<String> onSelected,
     required ZetzyPalette p,
     required AppLocalizations l10n,
-  }) => Wrap(
-    spacing: 8,
-    runSpacing: 6,
-    children: [
+  }) => SizedBox(
+    width: double.infinity,
+    child: Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [
       for (final fileName in trackFilenames)
         Builder(
           builder: (_) {
@@ -137,7 +140,8 @@ abstract final class GameSettingsControls {
             );
           },
         ),
-    ],
+      ],
+    ),
   );
 
   /// Builds shared audio, haptics, and wakelock toggles.
@@ -164,6 +168,7 @@ abstract final class GameSettingsControls {
             '6.mp3',
             '7.mp3',
             '8.mp3',
+            '9.mp3',
           ];
 
     return [
@@ -548,20 +553,21 @@ abstract final class GameSettingsControls {
     ),
     const SizedBox(height: 8),
     SegmentedButton<SnakeControlMode>(
+      expandedInsets: EdgeInsets.zero,
       selected: {settings.snakeControlMode},
       onSelectionChanged: (sel) => ctrl.setSnakeControl(sel.first),
       segments: [
         ButtonSegment(
           value: SnakeControlMode.swipe,
-          label: Text(l10n.settingsSnakeSwipe),
+          label: segmentLabel(l10n.settingsSnakeSwipe),
         ),
         ButtonSegment(
           value: SnakeControlMode.dpad,
-          label: Text(l10n.settingsSnakeDpad),
+          label: segmentLabel(l10n.settingsSnakeDpad),
         ),
         ButtonSegment(
           value: SnakeControlMode.splitTap,
-          label: Text(l10n.settingsSnakeSplit),
+          label: segmentLabel(l10n.settingsSnakeSplit),
         ),
       ],
     ),
