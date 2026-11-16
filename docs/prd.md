@@ -19,7 +19,7 @@ Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.m
   2. **Classic Wood & Slate** (Nuansa papan kayu hangat).
   3. **Nordic Frost** (Palet biru-abu dingin terang).
   4. **Dracula Neon** (Kontras tinggi ungu/sian).
-  5. **Abyssal Cyan** (Palet monokrom sian laut dalam `#001C1C` – `#D9EEEE` beraksen `#80C5C5` & `#4CAEAE`).
+  5. **Abyssal Cyan** (Campuran hitam pekat `#060A0B` + petrol cyan `#00393D` dengan aksen `#1ECAD6`, serta **Easter Egg Alter Ego** monokrom dark cyan `#001C1C` – `#D9EEEE` saat diketuk ulang).
   6. **Warm Parchment** (Nuansa kertas krem & tinta espresso terang beraksen amber hangat & forest teal).
 * **Bilingual (`5C`):** Mendukung **Bahasa Indonesia** dan **Bahasa Inggris** secara penuh (`flutter_localizations` + `AppLocalizations` ARB).
 * **Responsive Orientation (`1C`):** Mendukung *Auto-Rotate* (Portrait & Landscape) via `LayoutBuilder`:

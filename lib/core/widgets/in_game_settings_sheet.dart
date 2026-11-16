@@ -54,6 +54,7 @@ abstract final class GameSettingsControls {
     required ZetzyThemeMode selected,
     required ValueChanged<ZetzyThemeMode> onSelected,
     required AppLocalizations l10n,
+    bool abyssalAlterEgo = false,
   }) => Builder(
     builder: (context) {
       final p = context.palette;
@@ -68,6 +69,9 @@ abstract final class GameSettingsControls {
                   child: _ThemeOptionButton(
                     mode: modes[i],
                     selected: selected == modes[i],
+                    useAlterEgo:
+                        modes[i] == ZetzyThemeMode.abyssalCyan &&
+                        abyssalAlterEgo,
                     palette: p,
                     l10n: l10n,
                     onTap: () => onSelected(modes[i]),
@@ -79,6 +83,9 @@ abstract final class GameSettingsControls {
                       ? _ThemeOptionButton(
                           mode: modes[i + 1],
                           selected: selected == modes[i + 1],
+                          useAlterEgo:
+                              modes[i + 1] == ZetzyThemeMode.abyssalCyan &&
+                              abyssalAlterEgo,
                           palette: p,
                           l10n: l10n,
                           onTap: () => onSelected(modes[i + 1]),
@@ -712,6 +719,7 @@ class _InGameSettingsSheet extends ConsumerWidget {
                         selected: settings.themeMode,
                         onSelected: ctrl.setTheme,
                         l10n: l10n,
+                        abyssalAlterEgo: settings.abyssalCyanAlterEgo,
                       ),
                       const SizedBox(height: 8),
                       ...GameSettingsControls.sharedAudioFeedback(
@@ -738,6 +746,7 @@ class _ThemeOptionButton extends StatelessWidget {
   const _ThemeOptionButton({
     required this.mode,
     required this.selected,
+    required this.useAlterEgo,
     required this.palette,
     required this.l10n,
     required this.onTap,
@@ -745,13 +754,14 @@ class _ThemeOptionButton extends StatelessWidget {
 
   final ZetzyThemeMode mode;
   final bool selected;
+  final bool useAlterEgo;
   final ZetzyPalette palette;
   final AppLocalizations l10n;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final swatch = ZetzyThemes.paletteFor(mode);
+    final swatch = ZetzyThemes.paletteFor(mode, abyssalAlterEgo: useAlterEgo);
     final br = BorderRadius.circular(12);
     return Material(
       color: selected
@@ -775,9 +785,13 @@ class _ThemeOptionButton extends StatelessWidget {
                 width: 14,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: swatch.background,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [swatch.background, swatch.surfaceElevated],
+                  ),
                   shape: BoxShape.circle,
-                  border: Border.all(color: swatch.accent, width: 2.2),
+                  border: Border.all(color: swatch.accent, width: 2.0),
                 ),
               ),
               const SizedBox(width: 8),
@@ -799,7 +813,13 @@ class _ThemeOptionButton extends StatelessWidget {
               ),
               if (selected) ...[
                 const SizedBox(width: 4),
-                Icon(Icons.check_rounded, size: 15, color: palette.accent),
+                Icon(
+                  useAlterEgo
+                      ? Icons.auto_awesome_rounded
+                      : Icons.check_rounded,
+                  size: 15,
+                  color: palette.accent,
+                ),
               ],
             ],
           ),

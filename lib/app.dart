@@ -60,7 +60,10 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
       child: MaterialApp(
         title: 'Zetzy',
         debugShowCheckedModeBanner: false,
-        theme: ZetzyThemes.buildTheme(settings.themeMode),
+        theme: ZetzyThemes.buildTheme(
+          settings.themeMode,
+          abyssalAlterEgo: settings.abyssalCyanAlterEgo,
+        ),
         locale: Locale(settings.localeCode),
         supportedLocales: const [Locale('en'), Locale('id')],
         localizationsDelegates: const [

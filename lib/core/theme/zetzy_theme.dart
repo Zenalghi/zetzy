@@ -156,7 +156,10 @@ abstract final class ZetzyThemes {
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
-  static ZetzyPalette paletteFor(ZetzyThemeMode mode) => switch (mode) {
+  static ZetzyPalette paletteFor(
+    ZetzyThemeMode mode, {
+    bool abyssalAlterEgo = false,
+  }) => switch (mode) {
     ZetzyThemeMode.oledMidnight => const ZetzyPalette(
       background: Color(0xFF0D0D0D),
       surface: Color(0xFF161618),
@@ -237,26 +240,49 @@ abstract final class ZetzyThemes {
       snakeBody: Color(0xFFBD93F9),
       brightness: Brightness.dark,
     ),
-    ZetzyThemeMode.abyssalCyan => const ZetzyPalette(
-      background: Color(0xFF001C1C),
-      surface: Color(0xFF003838),
-      surfaceElevated: Color(0xFF005353),
-      glassTint: Color(0xCC001C1C),
-      border: Color(0xFF006F6F),
-      accent: Color(0xFF80C5C5),
-      accentSecondary: Color(0xFF4CAEAE),
-      success: Color(0xFF34D399),
-      warning: Color(0xFFFBBF24),
-      danger: Color(0xFFF87171),
-      textPrimary: Color(0xFFD9EEEE),
-      textSecondary: Color(0xFFB2DCDC),
-      boardLight: Color(0xFF006F6F),
-      boardDark: Color(0xFF003838),
-      boardHighlight: Color(0x5580C5C5),
-      snakeHead: Color(0xFF80C5C5),
-      snakeBody: Color(0xFF008B8B),
-      brightness: Brightness.dark,
-    ),
+    ZetzyThemeMode.abyssalCyan => abyssalAlterEgo
+        ? const ZetzyPalette(
+            // Hidden Alter Ego: full monochrome deep-sea cyan scale (#001C1C..#D9EEEE)
+            background: Color(0xFF001C1C),
+            surface: Color(0xFF003838),
+            surfaceElevated: Color(0xFF005353),
+            glassTint: Color(0xCC001C1C),
+            border: Color(0xFF006F6F),
+            accent: Color(0xFF80C5C5),
+            accentSecondary: Color(0xFF4CAEAE),
+            success: Color(0xFF34D399),
+            warning: Color(0xFFFBBF24),
+            danger: Color(0xFFF87171),
+            textPrimary: Color(0xFFD9EEEE),
+            textSecondary: Color(0xFFB2DCDC),
+            boardLight: Color(0xFF006F6F),
+            boardDark: Color(0xFF003838),
+            boardHighlight: Color(0x5580C5C5),
+            snakeHead: Color(0xFF80C5C5),
+            snakeBody: Color(0xFF008B8B),
+            brightness: Brightness.dark,
+          )
+        : const ZetzyPalette(
+            // Primary Abyssal Cyan: obsidian black background mixed with #00393D
+            background: Color(0xFF060A0B),
+            surface: Color(0xFF0A1618),
+            surfaceElevated: Color(0xFF00393D),
+            glassTint: Color(0xCC060A0B),
+            border: Color(0xFF00585E),
+            accent: Color(0xFF1ECAD6),
+            accentSecondary: Color(0xFF0099A3),
+            success: Color(0xFF22C55E),
+            warning: Color(0xFFF59E0B),
+            danger: Color(0xFFEF4444),
+            textPrimary: Color(0xFFE6F4F4),
+            textSecondary: Color(0xFF8FB8BA),
+            boardLight: Color(0xFF00393D),
+            boardDark: Color(0xFF0A1112),
+            boardHighlight: Color(0x551ECAD6),
+            snakeHead: Color(0xFF1ECAD6),
+            snakeBody: Color(0xFF007B82),
+            brightness: Brightness.dark,
+          ),
     ZetzyThemeMode.warmParchment => const ZetzyPalette(
       background: Color(0xFFF4EFE6),
       surface: Color(0xFFFCF9F2),
@@ -279,8 +305,11 @@ abstract final class ZetzyThemes {
     ),
   };
 
-  static ThemeData buildTheme(ZetzyThemeMode mode) {
-    final p = paletteFor(mode);
+  static ThemeData buildTheme(
+    ZetzyThemeMode mode, {
+    bool abyssalAlterEgo = false,
+  }) {
+    final p = paletteFor(mode, abyssalAlterEgo: abyssalAlterEgo);
     final isDark = p.brightness == Brightness.dark;
 
     final colorScheme = ColorScheme(

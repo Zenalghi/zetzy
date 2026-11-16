@@ -7,6 +7,7 @@ import 'package:zetzy/core/theme/zetzy_theme.dart';
 class AppSettings {
   const AppSettings({
     this.themeMode = ZetzyThemeMode.oledMidnight,
+    this.abyssalCyanAlterEgo = false,
     this.localeCode = 'en',
     this.sfxEnabled = true,
     this.bgmMode = BgmMode.auto,
@@ -44,6 +45,7 @@ class AppSettings {
   });
 
   final ZetzyThemeMode themeMode;
+  final bool abyssalCyanAlterEgo;
   final String localeCode;
   final bool sfxEnabled;
   final BgmMode bgmMode;
@@ -78,6 +80,7 @@ class AppSettings {
 
   AppSettings copyWith({
     ZetzyThemeMode? themeMode,
+    bool? abyssalCyanAlterEgo,
     String? localeCode,
     bool? sfxEnabled,
     BgmMode? bgmMode,
@@ -113,6 +116,7 @@ class AppSettings {
         sudokuAutoFinishThreshold ?? this.sudokuAutoFinishThreshold;
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
+      abyssalCyanAlterEgo: abyssalCyanAlterEgo ?? this.abyssalCyanAlterEgo,
       localeCode: localeCode ?? this.localeCode,
       sfxEnabled: sfxEnabled ?? this.sfxEnabled,
       bgmMode:
@@ -162,6 +166,7 @@ class SettingsRepository {
   final SharedPreferences _prefs;
 
   static const _kTheme = 'zetzy_theme';
+  static const _kAbyssalAlterEgo = 'zetzy_abyssal_alter_ego';
   static const _kLocale = 'zetzy_locale';
   static const _kSfx = 'zetzy_sfx';
   static const _kBgm = 'zetzy_bgm';
@@ -216,6 +221,7 @@ class SettingsRepository {
       themeMode: ZetzyThemeMode.fromId(
         _prefs.getString(_kTheme) ?? ZetzyThemeMode.oledMidnight.id,
       ),
+      abyssalCyanAlterEgo: _prefs.getBool(_kAbyssalAlterEgo) ?? false,
       localeCode: _prefs.getString(_kLocale) ?? 'en',
       sfxEnabled: _prefs.getBool(_kSfx) ?? true,
       bgmMode: BgmMode.values.firstWhere(
@@ -272,6 +278,7 @@ class SettingsRepository {
   Future<void> save(AppSettings s) async {
     await Future.wait([
       _prefs.setString(_kTheme, s.themeMode.id),
+      _prefs.setBool(_kAbyssalAlterEgo, s.abyssalCyanAlterEgo),
       _prefs.setString(_kLocale, s.localeCode),
       _prefs.setBool(_kSfx, s.sfxEnabled),
       _prefs.setBool(_kBgm, s.bgmEnabled),

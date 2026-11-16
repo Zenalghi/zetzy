@@ -1693,11 +1693,19 @@ void main() {
     WidgetTester tester,
   ) async {
     expect(ZetzyThemeMode.values.length, equals(6));
-    final cyanPalette = ZetzyThemes.paletteFor(ZetzyThemeMode.abyssalCyan);
-    expect(cyanPalette.background, equals(const Color(0xFF001C1C)));
-    expect(cyanPalette.textPrimary, equals(const Color(0xFFD9EEEE)));
-    expect(cyanPalette.accent, equals(const Color(0xFF80C5C5)));
-    expect(cyanPalette.snakeBody, equals(const Color(0xFF008B8B)));
+    final cyanNormal = ZetzyThemes.paletteFor(ZetzyThemeMode.abyssalCyan);
+    expect(cyanNormal.background, equals(const Color(0xFF060A0B)));
+    expect(cyanNormal.surfaceElevated, equals(const Color(0xFF00393D)));
+    expect(cyanNormal.accent, equals(const Color(0xFF1ECAD6)));
+
+    final cyanAlter = ZetzyThemes.paletteFor(
+      ZetzyThemeMode.abyssalCyan,
+      abyssalAlterEgo: true,
+    );
+    expect(cyanAlter.background, equals(const Color(0xFF001C1C)));
+    expect(cyanAlter.textPrimary, equals(const Color(0xFFD9EEEE)));
+    expect(cyanAlter.accent, equals(const Color(0xFF80C5C5)));
+    expect(cyanAlter.snakeBody, equals(const Color(0xFF008B8B)));
 
     final parchmentPalette = ZetzyThemes.paletteFor(
       ZetzyThemeMode.warmParchment,
@@ -1738,16 +1746,37 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    // Verify all 6 theme chips are available and switching works
+    // Verify all 6 theme buttons work + Abyssal Cyan Easter Egg flip (Normal <-> Alter Ego)
     await scrollTo(find.text('Abyssal Cyan'));
     expect(find.text('Warm Parchment'), findsOneWidget);
+    // 1st tap: enters Normal Abyssal Cyan (black + #00393D)
     await tester.tap(find.text('Abyssal Cyan'));
     await tester.pumpAndSettle();
     expect(settingsRepo.load().themeMode, equals(ZetzyThemeMode.abyssalCyan));
+    expect(settingsRepo.load().abyssalCyanAlterEgo, isFalse);
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsNothing);
+
+    // 2nd tap while active: flips into Alter Ego Easter Egg
+    await tester.tap(find.text('Abyssal Cyan'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().themeMode, equals(ZetzyThemeMode.abyssalCyan));
+    expect(settingsRepo.load().abyssalCyanAlterEgo, isTrue);
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+
+    // 3rd tap: flips cleanly back to Normal
+    await tester.tap(find.text('Abyssal Cyan'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().abyssalCyanAlterEgo, isFalse);
+
+    // Flip to Alter Ego again, then switching away to another theme resets alter flag
+    await tester.tap(find.text('Abyssal Cyan'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().abyssalCyanAlterEgo, isTrue);
 
     await tester.tap(find.text('Warm Parchment'));
     await tester.pumpAndSettle();
     expect(settingsRepo.load().themeMode, equals(ZetzyThemeMode.warmParchment));
+    expect(settingsRepo.load().abyssalCyanAlterEgo, isFalse);
 
     // Verify the 5 requested segmented controls span edge-to-edge equally
     await scrollTo(find.byType(SegmentedButton<BgmMode>));

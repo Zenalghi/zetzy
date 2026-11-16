@@ -615,6 +615,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       selected: settings.themeMode,
                       onSelected: settingsCtrl.setTheme,
                       l10n: l10n,
+                      abyssalAlterEgo: settings.abyssalCyanAlterEgo,
                     ),
                     const SizedBox(height: 14),
                     GameSettingsControls.inlineSegmentedRow<String>(

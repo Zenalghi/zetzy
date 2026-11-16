@@ -85,8 +85,22 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await ref.read(settingsRepoProvider).save(next);
   }
 
-  Future<void> setTheme(ZetzyThemeMode mode) =>
-      _commit(state.copyWith(themeMode: mode));
+  Future<void> setTheme(ZetzyThemeMode mode) {
+    if (mode == ZetzyThemeMode.abyssalCyan) {
+      final nextAlter = state.themeMode == ZetzyThemeMode.abyssalCyan
+          ? !state.abyssalCyanAlterEgo
+          : false;
+      return _commit(
+        state.copyWith(
+          themeMode: ZetzyThemeMode.abyssalCyan,
+          abyssalCyanAlterEgo: nextAlter,
+        ),
+      );
+    }
+    return _commit(
+      state.copyWith(themeMode: mode, abyssalCyanAlterEgo: false),
+    );
+  }
 
   Future<void> setLocale(String code) =>
       _commit(state.copyWith(localeCode: code));
