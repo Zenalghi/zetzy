@@ -25,7 +25,7 @@ on:
       publish_release:
         description: "Publish GitHub Release using version from pubspec.yaml (e.g. v1.0.0)"
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:
