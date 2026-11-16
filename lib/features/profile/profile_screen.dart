@@ -514,17 +514,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       style: TextStyle(fontSize: 12, color: p.textSecondary),
                     ),
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final mode in ZetzyThemeMode.values)
-                          ChoiceChip(
-                            selected: settings.themeMode == mode,
-                            onSelected: (_) => settingsCtrl.setTheme(mode),
-                            label: Text(mode.localizedName(l10n)),
-                          ),
-                      ],
+                    GameSettingsControls.themePicker(
+                      selected: settings.themeMode,
+                      onSelected: settingsCtrl.setTheme,
+                      l10n: l10n,
                     ),
                     const SizedBox(height: 14),
                     Row(
@@ -675,6 +668,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       const SizedBox(height: 8),
                       SegmentedButton<int>(
+                        expandedInsets: EdgeInsets.zero,
                         selected: {settings.practiceRewindSteps},
                         onSelectionChanged: (s) =>
                             settingsCtrl.setPracticeRewindSteps(s.first),
@@ -682,13 +676,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           for (final step in const [1, 2, 3])
                             ButtonSegment(
                               value: step,
-                              label: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  l10n.practiceRewindStepOption(step),
-                                  softWrap: false,
-                                  maxLines: 1,
-                                ),
+                              label: GameSettingsControls.segmentLabel(
+                                l10n.practiceRewindStepOption(step),
                               ),
                             ),
                         ],

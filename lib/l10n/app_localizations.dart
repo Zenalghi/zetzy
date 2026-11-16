@@ -1305,6 +1305,18 @@ abstract class AppLocalizations {
   /// **'Dracula Neon'**
   String get themeDraculaNeon;
 
+  /// No description provided for @themeAbyssalCyan.
+  ///
+  /// In en, this message translates to:
+  /// **'Abyssal Cyan'**
+  String get themeAbyssalCyan;
+
+  /// No description provided for @themeWarmParchment.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm Parchment'**
+  String get themeWarmParchment;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:

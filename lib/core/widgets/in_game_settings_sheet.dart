@@ -11,6 +11,44 @@ import 'package:zetzy/providers/app_providers.dart';
 /// Shared builders for per-game settings controls used in both Profile cards and
 /// the mid-game quick settings sheet.
 abstract final class GameSettingsControls {
+  /// Single-line scale-down label so equal-width segments stay crisp on narrow screens.
+  static Widget segmentLabel(String label) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Text(label, softWrap: false, maxLines: 1),
+  );
+
+  /// Renders the 6-skin theme selector with mini background/accent preview dots.
+  static Widget themePicker({
+    required ZetzyThemeMode selected,
+    required ValueChanged<ZetzyThemeMode> onSelected,
+    required AppLocalizations l10n,
+  }) => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      for (final mode in ZetzyThemeMode.values)
+        Builder(
+          builder: (context) {
+            final swatch = ZetzyThemes.paletteFor(mode);
+            return ChoiceChip(
+              selected: selected == mode,
+              onSelected: (_) => onSelected(mode),
+              avatar: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: swatch.background,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: swatch.accent, width: 2.2),
+                ),
+              ),
+              label: Text(mode.localizedName(l10n)),
+            );
+          },
+        ),
+    ],
+  );
+
   /// Builds shared audio, haptics, and wakelock toggles.
   static List<Widget> sharedAudioFeedback(
     AppSettings settings,
@@ -77,29 +115,21 @@ abstract final class GameSettingsControls {
         ),
         const SizedBox(height: 8),
         SegmentedButton<BgmMode>(
+          expandedInsets: EdgeInsets.zero,
           selected: {settings.bgmMode},
           onSelectionChanged: (sel) => ctrl.setBgmMode(sel.first),
           segments: [
             ButtonSegment(
               value: BgmMode.off,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(l10n.bgmModeOff, softWrap: false, maxLines: 1),
-              ),
+              label: segmentLabel(l10n.bgmModeOff),
             ),
             ButtonSegment(
               value: BgmMode.auto,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(l10n.bgmModeAuto, softWrap: false, maxLines: 1),
-              ),
+              label: segmentLabel(l10n.bgmModeAuto),
             ),
             ButtonSegment(
               value: BgmMode.manual,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(l10n.bgmModeManual, softWrap: false, maxLines: 1),
-              ),
+              label: segmentLabel(l10n.bgmModeManual),
             ),
           ],
         ),
@@ -172,29 +202,21 @@ abstract final class GameSettingsControls {
         ),
         const SizedBox(height: 8),
         SegmentedButton<HapticIntensity>(
+          expandedInsets: EdgeInsets.zero,
           selected: {settings.hapticIntensity},
           onSelectionChanged: (sel) => ctrl.setHapticIntensity(sel.first),
           segments: [
             ButtonSegment(
               value: HapticIntensity.light,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(l10n.hapticLight, softWrap: false, maxLines: 1),
-              ),
+              label: segmentLabel(l10n.hapticLight),
             ),
             ButtonSegment(
               value: HapticIntensity.medium,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(l10n.hapticMedium, softWrap: false, maxLines: 1),
-              ),
+              label: segmentLabel(l10n.hapticMedium),
             ),
             ButtonSegment(
               value: HapticIntensity.strong,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(l10n.hapticStrong, softWrap: false, maxLines: 1),
-              ),
+              label: segmentLabel(l10n.hapticStrong),
             ),
           ],
         ),
@@ -340,15 +362,15 @@ abstract final class GameSettingsControls {
       style: TextStyle(fontSize: 12, color: p.textSecondary),
     ),
     const SizedBox(height: 8),
-    Wrap(
-      spacing: 8,
-      runSpacing: 6,
-      children: [
+    SegmentedButton<ChessPieceSet>(
+      expandedInsets: EdgeInsets.zero,
+      selected: {settings.chessPieceSet},
+      onSelectionChanged: (sel) => ctrl.setChessPieceSet(sel.first),
+      segments: [
         for (final set in ChessPieceSet.values)
-          ChoiceChip(
-            selected: settings.chessPieceSet == set,
-            onSelected: (_) => ctrl.setChessPieceSet(set),
-            label: Text(set.label),
+          ButtonSegment(
+            value: set,
+            label: segmentLabel(set.label),
           ),
       ],
     ),
@@ -359,41 +381,21 @@ abstract final class GameSettingsControls {
     ),
     const SizedBox(height: 8),
     SegmentedButton<ChessMoveConfirmMode>(
+      expandedInsets: EdgeInsets.zero,
       selected: {settings.chessMoveConfirmMode},
       onSelectionChanged: (sel) => ctrl.setChessMoveConfirmMode(sel.first),
       segments: [
         ButtonSegment(
           value: ChessMoveConfirmMode.off,
-          label: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              l10n.settingsChessConfirmOff,
-              softWrap: false,
-              maxLines: 1,
-            ),
-          ),
+          label: segmentLabel(l10n.settingsChessConfirmOff),
         ),
         ButtonSegment(
           value: ChessMoveConfirmMode.fastOnly,
-          label: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              l10n.settingsChessConfirmFast,
-              softWrap: false,
-              maxLines: 1,
-            ),
-          ),
+          label: segmentLabel(l10n.settingsChessConfirmFast),
         ),
         ButtonSegment(
           value: ChessMoveConfirmMode.always,
-          label: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              l10n.settingsChessConfirmAlways,
-              softWrap: false,
-              maxLines: 1,
-            ),
-          ),
+          label: segmentLabel(l10n.settingsChessConfirmAlways),
         ),
       ],
     ),
@@ -633,17 +635,10 @@ class _InGameSettingsSheet extends ConsumerWidget {
                         style: TextStyle(fontSize: 12, color: p.textSecondary),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final mode in ZetzyThemeMode.values)
-                            ChoiceChip(
-                              selected: settings.themeMode == mode,
-                              onSelected: (_) => ctrl.setTheme(mode),
-                              label: Text(mode.localizedName(l10n)),
-                            ),
-                        ],
+                      GameSettingsControls.themePicker(
+                        selected: settings.themeMode,
+                        onSelected: ctrl.setTheme,
+                        l10n: l10n,
                       ),
                       const SizedBox(height: 8),
                       ...GameSettingsControls.sharedAudioFeedback(

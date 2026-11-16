@@ -1,12 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 
-/// Four visual skins specified in PRD Section 1.1.
+/// Six visual skins (4 dark, 2 light) for Tactile Modern Minimalist UI.
 enum ZetzyThemeMode {
   oledMidnight('oled_midnight'),
   classicWood('classic_wood'),
   nordicFrost('nordic_frost'),
-  draculaNeon('dracula_neon');
+  draculaNeon('dracula_neon'),
+  abyssalCyan('abyssal_cyan'),
+  warmParchment('warm_parchment');
 
   const ZetzyThemeMode(this.id);
   final String id;
@@ -21,6 +23,8 @@ enum ZetzyThemeMode {
     ZetzyThemeMode.classicWood => l10n.themeClassicWood,
     ZetzyThemeMode.nordicFrost => l10n.themeNordicFrost,
     ZetzyThemeMode.draculaNeon => l10n.themeDraculaNeon,
+    ZetzyThemeMode.abyssalCyan => l10n.themeAbyssalCyan,
+    ZetzyThemeMode.warmParchment => l10n.themeWarmParchment,
   };
 }
 
@@ -232,6 +236,46 @@ abstract final class ZetzyThemes {
       snakeHead: Color(0xFF8BE9FD),
       snakeBody: Color(0xFFBD93F9),
       brightness: Brightness.dark,
+    ),
+    ZetzyThemeMode.abyssalCyan => const ZetzyPalette(
+      background: Color(0xFF001C1C),
+      surface: Color(0xFF003838),
+      surfaceElevated: Color(0xFF005353),
+      glassTint: Color(0xCC001C1C),
+      border: Color(0xFF006F6F),
+      accent: Color(0xFF80C5C5),
+      accentSecondary: Color(0xFF4CAEAE),
+      success: Color(0xFF34D399),
+      warning: Color(0xFFFBBF24),
+      danger: Color(0xFFF87171),
+      textPrimary: Color(0xFFD9EEEE),
+      textSecondary: Color(0xFFB2DCDC),
+      boardLight: Color(0xFF006F6F),
+      boardDark: Color(0xFF003838),
+      boardHighlight: Color(0x5580C5C5),
+      snakeHead: Color(0xFF80C5C5),
+      snakeBody: Color(0xFF008B8B),
+      brightness: Brightness.dark,
+    ),
+    ZetzyThemeMode.warmParchment => const ZetzyPalette(
+      background: Color(0xFFF4EFE6),
+      surface: Color(0xFFFCF9F2),
+      surfaceElevated: Color(0xFFEAE2D3),
+      glassTint: Color(0xCCF5EFE6),
+      border: Color(0xFFD5C9B4),
+      accent: Color(0xFFB45309),
+      accentSecondary: Color(0xFF0F766E),
+      success: Color(0xFF15803D),
+      warning: Color(0xFFD97706),
+      danger: Color(0xFFB91C1C),
+      textPrimary: Color(0xFF29221B),
+      textSecondary: Color(0xFF6B5E4F),
+      boardLight: Color(0xFFEFE4D2),
+      boardDark: Color(0xFFC6A987),
+      boardHighlight: Color(0x55B45309),
+      snakeHead: Color(0xFF0F766E),
+      snakeBody: Color(0xFF2A9D8F),
+      brightness: Brightness.light,
     ),
   };
 

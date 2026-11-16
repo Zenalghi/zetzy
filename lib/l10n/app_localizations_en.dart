@@ -679,6 +679,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeDraculaNeon => 'Dracula Neon';
 
   @override
+  String get themeAbyssalCyan => 'Abyssal Cyan';
+
+  @override
+  String get themeWarmParchment => 'Warm Parchment';
+
+  @override
   String get cancel => 'Cancel';
 
   @override

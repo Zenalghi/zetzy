@@ -1688,6 +1688,114 @@ void main() {
     expect(audio.isBgmPlaying, isTrue);
     expect(playedTracks, equals(['audio/mp3/bgm/5.mp3']));
   });
+
+  testWidgets('ProfileScreen exposes 6 themes (Abyssal Cyan & Warm Parchment) and expanded equal-width segmented controls', (
+    WidgetTester tester,
+  ) async {
+    expect(ZetzyThemeMode.values.length, equals(6));
+    final cyanPalette = ZetzyThemes.paletteFor(ZetzyThemeMode.abyssalCyan);
+    expect(cyanPalette.background, equals(const Color(0xFF001C1C)));
+    expect(cyanPalette.textPrimary, equals(const Color(0xFFD9EEEE)));
+    expect(cyanPalette.accent, equals(const Color(0xFF80C5C5)));
+    expect(cyanPalette.snakeBody, equals(const Color(0xFF008B8B)));
+
+    final parchmentPalette = ZetzyThemes.paletteFor(
+      ZetzyThemeMode.warmParchment,
+    );
+    expect(parchmentPalette.brightness, equals(Brightness.light));
+    expect(parchmentPalette.background, equals(const Color(0xFFF4EFE6)));
+
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    Future<void> scrollTo(Finder finder) async {
+      await tester.scrollUntilVisible(
+        finder,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+    }
+
+    // Verify all 6 theme chips are available and switching works
+    await scrollTo(find.text('Abyssal Cyan'));
+    expect(find.text('Warm Parchment'), findsOneWidget);
+    await tester.tap(find.text('Abyssal Cyan'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().themeMode, equals(ZetzyThemeMode.abyssalCyan));
+
+    await tester.tap(find.text('Warm Parchment'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().themeMode, equals(ZetzyThemeMode.warmParchment));
+
+    // Verify the 5 requested segmented controls span edge-to-edge equally
+    await scrollTo(find.byType(SegmentedButton<BgmMode>));
+    final bgmFinder = find.byType(SegmentedButton<BgmMode>);
+    final bgmBtn = tester.widget<SegmentedButton<BgmMode>>(bgmFinder);
+    expect(bgmBtn.expandedInsets, equals(EdgeInsets.zero));
+    final expectedWidth = tester.getSize(bgmFinder).width;
+
+    await scrollTo(find.byType(SegmentedButton<HapticIntensity>));
+    final hapticFinder = find.byType(SegmentedButton<HapticIntensity>);
+    expect(
+      tester.widget<SegmentedButton<HapticIntensity>>(hapticFinder).expandedInsets,
+      equals(EdgeInsets.zero),
+    );
+    expect(tester.getSize(hapticFinder).width, closeTo(expectedWidth, 0.5));
+
+    await scrollTo(find.byType(SegmentedButton<ChessPieceSet>));
+    final piecesFinder = find.byType(SegmentedButton<ChessPieceSet>);
+    expect(
+      tester.widget<SegmentedButton<ChessPieceSet>>(piecesFinder).expandedInsets,
+      equals(EdgeInsets.zero),
+    );
+    expect(tester.getSize(piecesFinder).width, closeTo(expectedWidth, 0.5));
+    await tester.tap(find.text('Tatiana'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().chessPieceSet, equals(ChessPieceSet.tatiana));
+
+    await scrollTo(find.byType(SegmentedButton<ChessMoveConfirmMode>));
+    final confirmFinder = find.byType(SegmentedButton<ChessMoveConfirmMode>);
+    expect(
+      tester
+          .widget<SegmentedButton<ChessMoveConfirmMode>>(confirmFinder)
+          .expandedInsets,
+      equals(EdgeInsets.zero),
+    );
+    expect(tester.getSize(confirmFinder).width, closeTo(expectedWidth, 0.5));
+
+    await scrollTo(find.text('Rewind Steps on Loss'));
+    final rewindFinder = find.byWidgetPredicate(
+      (w) => w is SegmentedButton<int> && w.segments.length == 3,
+    );
+    await scrollTo(rewindFinder);
+    expect(
+      tester.widget<SegmentedButton<int>>(rewindFinder).expandedInsets,
+      equals(EdgeInsets.zero),
+    );
+    expect(tester.getSize(rewindFinder).width, closeTo(expectedWidth, 0.5));
+  });
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

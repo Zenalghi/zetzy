@@ -14,11 +14,13 @@ Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.m
 ### 1.1 Gaya Visual, Tema & Navigasi (Answers: 1C, 2C, 3AD, 4D, 5C, 6B)
 
 * **Visual Style:** **Tactile Modern Minimalist** — memadukan kebersihan desain datar ala Lichess/NYT Games (`3A`) dengan sentuhan kedalaman *Neumorphism/Glassmorphism* halus (`3D`) pada kartu (`TactileCard`), tombol keypad, dan *blur overlay* anti-cheat saat game dijeda.
-* **Multi-Theme Engine (`4D`):** Pergantian tema instan (bahkan saat match sedang berjalan):
+* **Multi-Theme Engine (`4D`):** Pergantian tema instan (bahkan saat match sedang berjalan) dengan **6 visual skin** (4 gelap, 2 terang):
   1. **OLED Midnight** (Hitam pekat `#0D0D0D`, hemat baterai).
   2. **Classic Wood & Slate** (Nuansa papan kayu hangat).
   3. **Nordic Frost** (Palet biru-abu dingin terang).
   4. **Dracula Neon** (Kontras tinggi ungu/sian).
+  5. **Abyssal Cyan** (Palet monokrom sian laut dalam `#001C1C` – `#D9EEEE` beraksen `#80C5C5` & `#4CAEAE`).
+  6. **Warm Parchment** (Nuansa kertas krem & tinta espresso terang beraksen amber hangat & forest teal).
 * **Bilingual (`5C`):** Mendukung **Bahasa Indonesia** dan **Bahasa Inggris** secara penuh (`flutter_localizations` + `AppLocalizations` ARB).
 * **Responsive Orientation (`1C`):** Mendukung *Auto-Rotate* (Portrait & Landscape) via `LayoutBuilder`:
   * **Portrait (Mobile):** Papan di tengah, *status HUD* di atas, kontrol/keypad di bawah.
