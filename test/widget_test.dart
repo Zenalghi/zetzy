@@ -2198,6 +2198,80 @@ void main() {
       expect(homeIconAsset(), 'assets/images/icons/abyssal_cyan1.jpeg');
     },
   );
+
+  testWidgets(
+    'HomeScreen exposes Guide & Tutorial button, slides visual rules, and runs pause-to-explain interactive tutorial',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final localStorage = LocalStorageService.forTesting(prefs: prefs);
+      final settingsRepo = SettingsRepository(prefs);
+      final audio = AudioService();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageProvider.overrideWithValue(localStorage),
+            settingsRepoProvider.overrideWithValue(settingsRepo),
+            supabaseServiceProvider.overrideWithValue(SupabaseService()),
+            audioServiceProvider.overrideWithValue(audio),
+          ],
+          child: const ZetzyApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('game_guide_btn_sudoku')), findsOneWidget);
+      expect(find.byKey(const ValueKey('game_guide_btn_chess')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('game_guide_btn_minesweeper')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('game_guide_btn_snake')), findsOneWidget);
+
+      // Open Chess visual guide and slide to rare rules (Castling & En Passant)
+      await tester.tap(find.byKey(const ValueKey('game_guide_btn_chess')));
+      await tester.pumpAndSettle();
+      expect(find.text('Chess Visual Guide'), findsOneWidget);
+      expect(find.text('1 / 5'), findsOneWidget);
+
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Castling (♔⇄♖): King + Rook Double Move'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('guide_close_btn')));
+      await tester.pumpAndSettle();
+
+      // Open Sudoku guide -> Start Interactive Tutorial -> complete 3 paused+action steps
+      await tester.tap(find.byKey(const ValueKey('game_guide_btn_sudoku')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guide_start_tutorial_btn')));
+      await tester.pumpAndSettle();
+
+      for (var step = 0; step < 3; step++) {
+        expect(find.text('⏸️ PAUSED • COACH GUIDE'), findsOneWidget);
+        await tester.tap(
+          find.byKey(const ValueKey('tutorial_resume_action_btn')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('👆 YOUR TURN • TRY IT'), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('tutorial_target_cell')));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text('Tutorial Complete! 🎉'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_finish_close_btn')));
+      await tester.pumpAndSettle();
+    },
+  );
 }
 
 class _FakeFeedbackSupabaseService extends _FakeAvailableSupabaseService {

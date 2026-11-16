@@ -108,40 +108,72 @@ abstract final class GameSettingsControls {
     required ValueChanged<String> onSelected,
     required ZetzyPalette p,
     required AppLocalizations l10n,
-  }) => SizedBox(
-    width: double.infinity,
-    child: Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 6,
-      children: [
-      for (final fileName in trackFilenames)
-        Builder(
-          builder: (_) {
-            final isFav = AudioService.isFavoriteBgm(fileName, favoriteTrack);
-            final isSelected = isFavoritePicker
-                ? isFav
-                : AudioService.trackMatches(fileName, selectedTrack ?? '');
-            final trackNum =
-                int.tryParse(AudioService.trackDisplayNumber(fileName)) ?? 1;
-            return ChoiceChip(
-              selected: isSelected,
-              onSelected: (_) => onSelected(fileName),
-              avatar: isFavoritePicker
-                  ? Icon(
-                      isFav ? Icons.star_rounded : Icons.star_outline_rounded,
-                      size: 15,
-                      color: isFav ? p.accent : p.textSecondary,
-                    )
-                  : (isFav
-                        ? Icon(Icons.star_rounded, size: 15, color: p.accent)
-                        : null),
-              label: Text(l10n.bgmTrackLabel(trackNum)),
-            );
-          },
+  }) => LayoutBuilder(
+    builder: (context, constraints) {
+      const spacing = 8.0;
+      const columns = 3;
+      final itemWidth =
+          ((constraints.maxWidth - spacing * (columns - 1)) / columns)
+              .clamp(84.0, 220.0);
+      return SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: spacing,
+          runSpacing: 6,
+          children: [
+            for (final fileName in trackFilenames)
+              Builder(
+                builder: (_) {
+                  final isFav = AudioService.isFavoriteBgm(
+                    fileName,
+                    favoriteTrack,
+                  );
+                  final isSelected = isFavoritePicker
+                      ? isFav
+                      : AudioService.trackMatches(
+                          fileName,
+                          selectedTrack ?? '',
+                        );
+                  final trackNum =
+                      int.tryParse(AudioService.trackDisplayNumber(fileName)) ??
+                      1;
+                  return SizedBox(
+                    width: itemWidth,
+                    child: ChoiceChip(
+                      selected: isSelected,
+                      onSelected: (_) => onSelected(fileName),
+                      avatar: isFavoritePicker
+                          ? Icon(
+                              isFav
+                                  ? Icons.star_rounded
+                                  : Icons.star_outline_rounded,
+                              size: 15,
+                              color: isFav ? p.accent : p.textSecondary,
+                            )
+                          : (isFav
+                                ? Icon(
+                                    Icons.star_rounded,
+                                    size: 15,
+                                    color: p.accent,
+                                  )
+                                : null),
+                      label: SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          l10n.bgmTrackLabel(trackNum),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
-      ],
-    ),
+      );
+    },
   );
 
   /// Builds shared audio, haptics, and wakelock toggles.

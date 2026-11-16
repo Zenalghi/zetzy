@@ -9,6 +9,7 @@ import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
 import 'package:zetzy/core/widgets/user_avatar.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
+import 'package:zetzy/features/home/game_guide_tutorial.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -199,7 +200,7 @@ class HomeScreen extends ConsumerWidget {
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 500,
-                    mainAxisExtent: 236,
+                    mainAxisExtent: 268,
                     mainAxisSpacing: 14,
                     crossAxisSpacing: 14,
                   ),
@@ -211,6 +212,12 @@ class HomeScreen extends ConsumerWidget {
                       slot: slot,
                       unlockedLevel: user.unlockedFor(game),
                       onNewGame: () => _launchNewGame(context, ref, game),
+                      onGuide: () => showGameGuideModal(
+                        context,
+                        game: game,
+                        onStartRealGame: () =>
+                            _launchNewGame(context, ref, game),
+                      ),
                       onContinue: slot != null
                           ? () => _resumeGame(context, slot)
                           : null,
@@ -267,6 +274,7 @@ class _GameBentoCard extends StatelessWidget {
     required this.slot,
     required this.unlockedLevel,
     required this.onNewGame,
+    required this.onGuide,
     this.onContinue,
   });
 
@@ -274,6 +282,7 @@ class _GameBentoCard extends StatelessWidget {
   final AutoSaveSlot? slot;
   final int unlockedLevel;
   final VoidCallback onNewGame;
+  final VoidCallback onGuide;
   final VoidCallback? onContinue;
 
   Widget _gamePreviewIcon(ZetzyPalette p) => switch (game) {
@@ -341,7 +350,7 @@ class _GameBentoCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Expanded(
             child: Text(
               game.localizedSubtitle(l10n),
@@ -350,6 +359,22 @@ class _GameBentoCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: OutlinedButton.icon(
+              key: ValueKey('game_guide_btn_${game.id}'),
+              onPressed: onGuide,
+              icon: const Icon(Icons.menu_book_rounded, size: 16),
+              label: Text(
+                Localizations.localeOf(context).languageCode == 'id'
+                    ? 'Panduan & Tutorial'
+                    : 'Guide & Tutorial',
+                style: const TextStyle(fontSize: 12.5),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               if (onContinue != null && slot != null) ...[
