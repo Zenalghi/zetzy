@@ -51,3 +51,6 @@ app.*.map.json
 .env
 .env.*
 supabase.json
+
+# Unused uncompressed audio assets (MP3 is used for SFX & BGM)
+assets/audio/wav/
