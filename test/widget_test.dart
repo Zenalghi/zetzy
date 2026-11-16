@@ -22,7 +22,9 @@ import 'package:zetzy/core/widgets/win_result_dialog.dart';
 import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/settings_repository.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
+import 'package:zetzy/data/models/feedback_entry.dart';
 import 'package:zetzy/data/models/game_record.dart';
+import 'package:zetzy/data/models/stats_summary.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_service.dart';
 import 'package:zetzy/features/games/chess/chess_screen.dart';
@@ -1233,6 +1235,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        key: const ValueKey('admin-scope'),
         overrides: [
           localStorageProvider.overrideWithValue(localStorage),
           settingsRepoProvider.overrideWithValue(settingsRepo),
@@ -1343,6 +1346,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        key: const ValueKey('admin-scope'),
         overrides: [
           localStorageProvider.overrideWithValue(localStorage),
           settingsRepoProvider.overrideWithValue(settingsRepo),
@@ -1912,6 +1916,295 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Reset All Statistics'), findsNothing);
   });
+
+  testWidgets('FeedbackScreen enforces 5-pending limit, 6h edit lock, delete anytime, Admin 20-item Load More, and 1x reply', (
+    WidgetTester tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'Zetzy',
+      packageName: 'com.zetzy.app',
+      version: '0.0.9',
+      buildNumber: '1',
+      buildSignature: '',
+    );
+
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = _FakeFeedbackSupabaseService();
+    final audio = AudioService();
+
+    // 1. Player flow: navigate from Profile -> Feedback page, edit <6h, blocked >6h, cap 5, delete
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Feedback'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Feedback can only be seen by you and admins.'),
+      findsOneWidget,
+    );
+    expect(find.text('Pending: 5/5'), findsOneWidget);
+    expect(
+      find.text(
+        'Max 5 pending feedback items reached. Wait for admin review or delete an older one.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('v0.0.9'), findsWidgets);
+
+    // Edit recent item (<6h)
+    await tester.tap(find.text('Edit').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      'Edited feedback text',
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edited feedback text'), findsOneWidget);
+
+    final listScrollable = find
+        .descendant(
+          of: find.byType(ListView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+
+    // Scroll down to verify older (>6h) item locks Edit button
+    await tester.scrollUntilVisible(
+      find.text('Edit locked (>6h)'),
+      200,
+      scrollable: listScrollable,
+    );
+    expect(find.text('Edit locked (>6h)'), findsWidgets);
+
+    // Delete 1 item frees pending slot to 4/5 and unlocks submit
+    await tester.ensureVisible(find.text('Delete').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Pending: 4/5'),
+      -200,
+      scrollable: listScrollable,
+    );
+    expect(find.text('Pending: 4/5'), findsOneWidget);
+
+    // 2. Admin flow: ADMIN badge on Profile, Inbox loads 20 + Load More (20), 1x approve + reply
+    supa.currentUser = UserProfile(
+      id: 'admin-1',
+      username: 'mod_admin',
+      role: UserRole.admin,
+      isGuest: false,
+      accountData: {
+        'stats': StatsSummary.fromRecords([
+          GameRecord(
+            id: 'r1',
+            userId: 'admin-1',
+            username: 'mod_admin',
+            gameType: GameType.sudoku,
+            difficulty: 5,
+            isWon: true,
+            score: 400,
+            durationMs: 22000,
+            platform: 'web',
+            playedAt: DateTime(2026, 11, 16),
+          ),
+        ]).toJson(),
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        key: const ValueKey('admin-scope'),
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify synced stats restored onto Statistics tab even with empty local storage
+    await tester.tap(find.text('Stats'));
+    await tester.pumpAndSettle();
+    expect(find.text('175 XP'), findsOneWidget);
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('ADMIN'), findsOneWidget);
+
+    await tester.tap(find.text('Feedback'));
+    await tester.pumpAndSettle();
+    expect(find.text('Feedback Inbox'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Load More (20)'),
+      300,
+      scrollable: listScrollable,
+    );
+    await tester.ensureVisible(find.text('Load More (20)'));
+    await tester.tap(find.text('Load More (20)'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Inbox item 22'),
+      200,
+      scrollable: listScrollable,
+    );
+    expect(find.text('Inbox item 22'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Inbox item 0'),
+      -300,
+      scrollable: listScrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Approve').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      'Fixed in next release!',
+    );
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fixed in next release!'), findsOneWidget);
+    expect(find.text('Approved'), findsWidgets);
+  });
+}
+
+class _FakeFeedbackSupabaseService extends _FakeAvailableSupabaseService {
+  _FakeFeedbackSupabaseService() {
+    final now = DateTime.now().toUtc();
+    myItems = [
+      FeedbackEntry(
+        id: 'my-recent',
+        userId: 'p-1',
+        username: 'player_one',
+        message: 'Recent editable item',
+        appVersion: '0.0.9',
+        createdAt: now.subtract(const Duration(minutes: 20)),
+        updatedAt: now.subtract(const Duration(minutes: 20)),
+      ),
+      for (var i = 1; i <= 4; i++)
+        FeedbackEntry(
+          id: 'my-old-$i',
+          userId: 'p-1',
+          username: 'player_one',
+          message: 'Older item $i',
+          appVersion: '0.0.9',
+          createdAt: now.subtract(const Duration(hours: 8)),
+          updatedAt: now.subtract(const Duration(hours: 8)),
+        ),
+    ];
+    inboxItems = [
+      for (var i = 0; i < 24; i++)
+        FeedbackEntry(
+          id: 'adm-$i',
+          userId: 'u-$i',
+          username: 'user_$i',
+          message: 'Inbox item $i',
+          appVersion: '0.0.9',
+          createdAt: now.subtract(Duration(minutes: i + 1)),
+          updatedAt: now.subtract(Duration(minutes: i + 1)),
+        ),
+    ];
+  }
+
+  UserProfile currentUser = const UserProfile(
+    id: 'p-1',
+    username: 'player_one',
+    isGuest: false,
+  );
+  late List<FeedbackEntry> myItems;
+  late List<FeedbackEntry> inboxItems;
+
+  @override
+  Future<UserProfile?> fetchCurrentProfile() async => currentUser;
+
+  @override
+  Future<Map<String, dynamic>?> updateAccountData({
+    Map<String, dynamic>? settingsJson,
+    StatsSummary? statsSummary,
+    Map<String, dynamic>? baseAccountData,
+  }) async {
+    final next = Map<String, dynamic>.from(baseAccountData ?? currentUser.accountData);
+    if (settingsJson != null) next['settings'] = settingsJson;
+    if (statsSummary != null) next['stats'] = statsSummary.toJson();
+    currentUser = currentUser.copyWith(accountData: next);
+    return next;
+  }
+
+  @override
+  Future<List<FeedbackEntry>> fetchMyFeedbacks() async => List.of(myItems);
+
+  @override
+  Future<List<FeedbackEntry>> fetchAllFeedbacks({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (offset >= inboxItems.length) return const [];
+    return inboxItems.skip(offset).take(limit).toList();
+  }
+
+  @override
+  Future<FeedbackEntry> updateFeedbackMessage({
+    required String feedbackId,
+    required String message,
+  }) async {
+    final idx = myItems.indexWhere((e) => e.id == feedbackId);
+    final updated = myItems[idx].copyWith(message: message);
+    myItems[idx] = updated;
+    return updated;
+  }
+
+  @override
+  Future<void> deleteFeedback(String feedbackId) async {
+    myItems.removeWhere((e) => e.id == feedbackId);
+    inboxItems.removeWhere((e) => e.id == feedbackId);
+  }
+
+  @override
+  Future<FeedbackEntry> reviewFeedback({
+    required String feedbackId,
+    required FeedbackStatus decision,
+    String? adminReply,
+  }) async {
+    final idx = inboxItems.indexWhere((e) => e.id == feedbackId);
+    final updated = inboxItems[idx].copyWith(
+      status: decision,
+      adminReply: (adminReply ?? '').isEmpty ? null : adminReply,
+      reviewedBy: currentUser.id,
+      reviewedAt: DateTime.now().toUtc(),
+    );
+    inboxItems[idx] = updated;
+    return updated;
+  }
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

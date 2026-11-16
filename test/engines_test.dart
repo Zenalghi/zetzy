@@ -18,7 +18,10 @@ import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/settings_repository.dart';
 import 'package:zetzy/data/local/zetzy_database.dart' hide AutoSaveSlot;
 import 'package:zetzy/data/models/auto_save_slot.dart';
+import 'package:zetzy/data/models/feedback_entry.dart';
 import 'package:zetzy/data/models/game_record.dart';
+import 'package:zetzy/data/models/stats_summary.dart';
+import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_service.dart';
 import 'package:zetzy/features/games/chess/chess_ai.dart';
 import 'package:zetzy/features/games/chess/chess_controller.dart';
@@ -1743,6 +1746,116 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
       expect(played.last, equals(('audio/mp3/bgm/6.mp3', true)));
+    });
+
+    test('Default ChessPieceSet is cburnettV2 and AppSettings + StatsSummary roundtrip cleanly for profiles.account_data', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      expect(repo.load().chessPieceSet, equals(ChessPieceSet.cburnettV2));
+
+      final customized = repo.load().copyWith(
+        chessPieceSet: ChessPieceSet.tatiana,
+        favoriteBgmTrack: '4.mp3',
+        practiceRewindSteps: 3,
+        abyssalCyanAlterEgo: true,
+      );
+      final restored = repo.load().mergeCloudJson(customized.toCloudJson());
+      expect(restored.chessPieceSet, equals(ChessPieceSet.tatiana));
+      expect(restored.favoriteBgmTrack, equals('4.mp3'));
+      expect(restored.practiceRewindSteps, equals(3));
+      expect(restored.abyssalCyanAlterEgo, isTrue);
+
+      final records = [
+        GameRecord(
+          id: 's1',
+          userId: 'u1',
+          username: 'p1',
+          gameType: GameType.sudoku,
+          difficulty: 5,
+          isWon: true,
+          score: 300,
+          durationMs: 25000,
+          platform: 'web',
+          playedAt: DateTime(2026, 11, 16, 10),
+        ),
+        GameRecord(
+          id: 'c1',
+          userId: 'u1',
+          username: 'p1',
+          gameType: GameType.chess,
+          difficulty: 3,
+          isWon: false,
+          score: 0,
+          durationMs: 45000,
+          platform: 'web',
+          playedAt: DateTime(2026, 11, 16, 11),
+        ),
+      ];
+      final summary = StatsSummary.fromRecords(records);
+      final decoded = StatsSummary.fromJson(summary.toJson());
+      expect(decoded.totalPlayed, equals(2));
+      expect(decoded.wins, equals(1));
+      expect(decoded.totalXp, equals(180));
+      expect(decoded.playerLevel, equals(1));
+      expect(decoded.bestStreak, equals(1));
+      expect(decoded.totalDurationMs, equals(70000));
+      expect(decoded.breakdownFor(GameType.sudoku).wins, equals(1));
+      expect(decoded.recentMatches.length, equals(2));
+    });
+
+    test('FeedbackEntry enforces 6h edit window, 3-day resolved expiry, and UserProfile role parsing', () {
+      final created = DateTime.utc(2026, 11, 16, 12, 0);
+      final pending = FeedbackEntry(
+        id: 'f1',
+        userId: 'u1',
+        username: 'player_one',
+        message: 'Great sudoku animations',
+        appVersion: '0.0.3',
+        createdAt: created,
+        updatedAt: created,
+      );
+
+      expect(
+        pending.canEdit(now: created.add(const Duration(hours: 5, minutes: 59))),
+        isTrue,
+      );
+      expect(
+        pending.canEdit(now: created.add(const Duration(hours: 6))),
+        isFalse,
+      );
+      expect(pending.isExpired(now: created.add(const Duration(days: 10))), isFalse);
+
+      final reviewedAt = created.add(const Duration(hours: 2));
+      final approved = pending.copyWith(
+        status: FeedbackStatus.approved,
+        adminReply: 'Thanks! Shipped in next patch.',
+        reviewedBy: 'admin-1',
+        reviewedAt: reviewedAt,
+      );
+      expect(approved.canEdit(now: created.add(const Duration(hours: 3))), isFalse);
+      expect(
+        approved.isExpired(now: reviewedAt.add(const Duration(days: 2, hours: 23))),
+        isFalse,
+      );
+      expect(
+        approved.isExpired(now: reviewedAt.add(const Duration(days: 3))),
+        isTrue,
+      );
+
+      final adminProfile = UserProfile.fromSupabase({
+        'id': 'admin-1',
+        'username': 'boss_admin',
+        'role': 'admin',
+        'chess_elo': 1420,
+        'account_data': {
+          'settings': {'locale_code': 'id'},
+          'stats': {'total_played': 4, 'wins': 3, 'total_xp': 500},
+        },
+      });
+      expect(adminProfile.isAdmin, isTrue);
+      expect(adminProfile.syncedSettingsJson?['locale_code'], equals('id'));
+      expect(adminProfile.syncedStats?.totalXp, equals(500));
     });
   });
 }
