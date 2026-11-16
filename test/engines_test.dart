@@ -1532,7 +1532,10 @@ void main() {
         expect(prefix, startsWith('sfx_'));
       }
 
-      final audio = AudioService(random: Random(7));
+      final audio = AudioService(
+        random: Random(7),
+        onPlayBgm: (_, {required bool loop}) async {},
+      );
       // Without loaded audio assets, lookup gracefully returns null
       expect(
         audio.pickSfxAsset(
@@ -1591,19 +1594,46 @@ void main() {
         }
       }
 
-      // BgmMode & selected track persistence
+      // Custom favorite track overrides default 5.mp3 priority in Auto shuffle
+      audio.updatePreferences(
+        sfxEnabled: true,
+        bgmMode: BgmMode.auto,
+        manualBgmTrack: '5.mp3',
+        favoriteBgmTrack: '2.mp3',
+      );
+      expect(audio.favoriteBgmTrack, equals('2.mp3'));
+      final customCounts = <String, int>{};
+      for (var i = 0; i < 600; i++) {
+        final track = audio.pickAutoBgmTrack(excludeCurrent: '');
+        expect(track, isNotNull);
+        customCounts[track!] = (customCounts[track] ?? 0) + 1;
+      }
+      final fav2Count = customCounts['audio/mp3/bgm/2.mp3'] ?? 0;
+      for (final entry in customCounts.entries) {
+        if (entry.key != 'audio/mp3/bgm/2.mp3') {
+          expect(fav2Count, greaterThan(entry.value));
+        }
+      }
+
+      // BgmMode, selected track, & favorite track persistence
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final repo = SettingsRepository(prefs);
       expect(repo.load().bgmMode, equals(BgmMode.auto));
       expect(repo.load().bgmEnabled, isTrue);
       expect(repo.load().bgmTrack, equals('5.mp3'));
+      expect(repo.load().favoriteBgmTrack, equals('5.mp3'));
 
       await repo.save(
-        repo.load().copyWith(bgmMode: BgmMode.manual, bgmTrack: '3.mp3'),
+        repo.load().copyWith(
+          bgmMode: BgmMode.manual,
+          bgmTrack: '3.mp3',
+          favoriteBgmTrack: '2.mp3',
+        ),
       );
       expect(repo.load().bgmMode, equals(BgmMode.manual));
       expect(repo.load().bgmTrack, equals('3.mp3'));
+      expect(repo.load().favoriteBgmTrack, equals('2.mp3'));
 
       await repo.save(repo.load().copyWith(bgmMode: BgmMode.off));
       expect(repo.load().bgmMode, equals(BgmMode.off));

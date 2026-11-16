@@ -586,6 +586,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDangerZone => 'Account & Data Management';
 
   @override
+  String get profileDangerZoneDesc =>
+      'Destructive actions here erase your statistics or permanently delete your account and cannot be undone.';
+
+  @override
   String profileAppVersion(String version) {
     return 'Zetzy v$version';
   }
@@ -902,8 +906,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bgmModeManual => 'Manual';
 
   @override
-  String get bgmAutoDesc =>
-      'Smart shuffle across all tracks (Track 5 appears more often).';
+  String bgmAutoDesc(int number) {
+    return 'Smart shuffle across all tracks (★ Track $number plays more often).';
+  }
+
+  @override
+  String get bgmFavoriteTrackLabel => 'Favorite Track (3× Priority in Auto)';
 
   @override
   String bgmTrackLabel(int number) {

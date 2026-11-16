@@ -279,6 +279,7 @@
   "profileResetStats": "Reset All Statistics",
   "profileDeleteAccount": "Delete Account Permanently",
   "profileDangerZone": "Account & Data Management",
+  "profileDangerZoneDesc": "Destructive actions here erase your statistics or permanently delete your account and cannot be undone.",
   "profileAppVersion": "Zetzy v{version}",
   "@profileAppVersion": {
     "placeholders": {
@@ -433,7 +434,13 @@
   "bgmModeOff": "Off",
   "bgmModeAuto": "Auto",
   "bgmModeManual": "Manual",
-  "bgmAutoDesc": "Smart shuffle across all tracks (Track 5 appears more often).",
+  "bgmAutoDesc": "Smart shuffle across all tracks (★ Track {number} plays more often).",
+  "@bgmAutoDesc": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "bgmFavoriteTrackLabel": "Favorite Track (3× Priority in Auto)",
   "bgmTrackLabel": "Track {number}",
   "@bgmTrackLabel": {
     "placeholders": {

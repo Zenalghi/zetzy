@@ -187,7 +187,7 @@ Seluruh asset gambar, ikon platform, set bidak catur, dan font **sudah tersedia*
 
 ### B. Asset Suara & Musik (`assets/audio/mp3/` & `assets/audio/mp3/bgm/`)
 
-*(Saat ini sudah terpasang dalam format `.mp3` bernomor variasi di `assets/audio/mp3/` dan 8 trek musik latar di `assets/audio/mp3/bgm/`, serta terdaftar di `pubspec.yaml`. `AudioService` otomatis mendeteksi semua variasi yang tersedia (`1..N`) dan memutarnya secara acak tanpa pengulangan berurutan; BGM mendukung mode **`Off`**, **`Auto` (Default — weighted shuffle dengan peluang `3×` lebih sering untuk `5.mp3`)**, dan **`Manual` (loop trek pilihan 1–8)**).*
+*(Saat ini sudah terpasang dalam format `.mp3` bernomor variasi di `assets/audio/mp3/` dan 8 trek musik latar di `assets/audio/mp3/bgm/`, serta terdaftar di `pubspec.yaml`. `AudioService` otomatis mendeteksi semua variasi yang tersedia (`1..N`) dan memutarnya secara acak tanpa pengulangan berurutan; BGM mendukung mode **`Off`**, **`Auto` (Default — weighted shuffle dengan trek favorit yang dapat dipilih pengguna, default `5.mp3`, berpeluang `3×` lebih sering)**, dan **`Manual` (loop trek pilihan 1–8)**).*
 
 #### 1. Asset Suara Inti (13 Prefix SFX + 8 Trek BGM)
 
@@ -206,7 +206,7 @@ Seluruh asset gambar, ikon platform, set bidak catur, dan font **sudah tersedia*
 | **`sfx_snake_eat`** | `1–3.mp3` | Ular memakan apel standar (`+10` poin) |
 | **`sfx_snake_powerup`** | `1–3.mp3` | Ular memakan *Golden Bonus* atau *Gunting* pemotong ekor |
 | **`sfx_game_win`** | `1–4.mp3` | Menang di game apa pun (bersamaan dengan animasi **Confetti**) |
-| **`bgm/1.mp3` – `bgm/8.mp3`** | `8 trek` | Musik latar: Mode **Off / Auto (Default, `5.mp3` 3× bobot) / Manual** |
+| **`bgm/1.mp3` – `bgm/8.mp3`** | `8 trek` | Musik latar: Mode **Off / Auto (Default, custom fav trek 3× bobot, default `5.mp3`) / Manual** |
 
 #### 2. Asset Suara Efek & Fitur Tambahan (7 Prefix Terpasang)
 

@@ -70,6 +70,7 @@ class AudioService {
   bool _sfxEnabled = true;
   BgmMode _bgmMode = BgmMode.auto;
   String _manualBgmTrack = favoriteBgmFilename;
+  String _favoriteBgmTrack = favoriteBgmFilename;
   String? _currentBgmAsset;
   bool _isBgmPlaying = false;
   bool _pausedByLifecycle = false;
@@ -88,6 +89,7 @@ class AudioService {
   List<String> get bgmTracks => _bgmTracks;
   String? get currentBgmAsset => _currentBgmAsset;
   BgmMode get bgmMode => _bgmMode;
+  String get favoriteBgmTrack => _favoriteBgmTrack;
 
   @visibleForTesting
   bool get isAwaitingUserGesture => _awaitingUserGesture;
@@ -99,10 +101,12 @@ class AudioService {
     required bool sfxEnabled,
     required BgmMode bgmMode,
     String manualBgmTrack = favoriteBgmFilename,
+    String favoriteBgmTrack = favoriteBgmFilename,
   }) async {
     _sfxEnabled = sfxEnabled;
     _bgmMode = bgmMode;
     _manualBgmTrack = manualBgmTrack;
+    _favoriteBgmTrack = favoriteBgmTrack;
     if (_initialized) return;
     _initialized = true;
 
@@ -150,6 +154,7 @@ class AudioService {
     required bool sfxEnabled,
     required BgmMode bgmMode,
     required String manualBgmTrack,
+    String? favoriteBgmTrack,
     bool fromUserAction = false,
   }) {
     _sfxEnabled = sfxEnabled;
@@ -157,6 +162,9 @@ class AudioService {
     final prevTrack = _manualBgmTrack;
     _bgmMode = bgmMode;
     _manualBgmTrack = manualBgmTrack;
+    if (favoriteBgmTrack != null) {
+      _favoriteBgmTrack = favoriteBgmTrack;
+    }
 
     if (bgmMode == BgmMode.off) {
       _pausedByLifecycle = false;
@@ -278,8 +286,23 @@ class AudioService {
     return fileName.replaceFirst(_audioExtRegex, '');
   }
 
-  static bool isFavoriteBgm(String assetPath) =>
-      assetPath.split('/').last.toLowerCase() == favoriteBgmFilename;
+  /// Returns whether two track references (`'5.mp3'`, `'5'`, `'audio/mp3/bgm/5.mp3'`) point to the same track.
+  static bool trackMatches(String a, String b) {
+    final normA = a.split('/').last.trim().toLowerCase();
+    final normB = b.split('/').last.trim().toLowerCase();
+    if (normA.isEmpty || normB.isEmpty) return false;
+    return normA == normB ||
+        trackDisplayNumber(normA) == trackDisplayNumber(normB);
+  }
+
+  static bool isFavoriteBgm(
+    String assetPath, [
+    String favoriteTrack = favoriteBgmFilename,
+  ]) => trackMatches(assetPath, favoriteTrack);
+
+  /// Returns whether [assetPath] matches the user's configured favorite Auto BGM track.
+  bool isFavoriteTrack(String assetPath) =>
+      trackMatches(assetPath, _favoriteBgmTrack);
 
   @visibleForTesting
   List<String> variantsFor(ZetzySfx sfx) => _sfxVariants[sfx] ?? const [];
@@ -321,11 +344,11 @@ class AudioService {
 
     final totalWeight = candidates.fold<int>(
       0,
-      (sum, t) => sum + (isFavoriteBgm(t) ? favoriteBgmWeight : 1),
+      (sum, t) => sum + (isFavoriteTrack(t) ? favoriteBgmWeight : 1),
     );
     var roll = _rng.nextInt(totalWeight);
     for (final track in candidates) {
-      roll -= isFavoriteBgm(track) ? favoriteBgmWeight : 1;
+      roll -= isFavoriteTrack(track) ? favoriteBgmWeight : 1;
       if (roll < 0) return track;
     }
     return candidates.last;

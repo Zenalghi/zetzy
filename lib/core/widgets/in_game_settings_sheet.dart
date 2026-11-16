@@ -17,32 +17,116 @@ abstract final class GameSettingsControls {
     child: Text(label, softWrap: false, maxLines: 1),
   );
 
-  /// Renders the 6-skin theme selector with mini background/accent preview dots.
+  /// Renders an inline setting row with a wrapping label on the left and a
+  /// right-aligned equal-width [SegmentedButton] that never overflows narrow screens.
+  static Widget inlineSegmentedRow<T extends Object>({
+    required String label,
+    TextStyle? labelStyle,
+    required T selected,
+    required ValueChanged<T> onSelected,
+    required List<(T value, String text)> options,
+  }) => LayoutBuilder(
+    builder: (context, constraints) {
+      final selectorWidth = (constraints.maxWidth * 0.56).clamp(140.0, 230.0);
+      return Row(
+        children: [
+          Expanded(child: Text(label, style: labelStyle)),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: selectorWidth,
+            child: SegmentedButton<T>(
+              expandedInsets: EdgeInsets.zero,
+              selected: {selected},
+              onSelectionChanged: (sel) => onSelected(sel.first),
+              segments: [
+                for (final (value, text) in options)
+                  ButtonSegment(value: value, label: segmentLabel(text)),
+              ],
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  /// Renders the 6-skin theme selector in a balanced 2×3 expanded grid.
   static Widget themePicker({
     required ZetzyThemeMode selected,
     required ValueChanged<ZetzyThemeMode> onSelected,
     required AppLocalizations l10n,
+  }) => Builder(
+    builder: (context) {
+      final p = context.palette;
+      const modes = ZetzyThemeMode.values;
+      return Column(
+        children: [
+          for (var i = 0; i < modes.length; i += 2) ...[
+            if (i > 0) const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _ThemeOptionButton(
+                    mode: modes[i],
+                    selected: selected == modes[i],
+                    palette: p,
+                    l10n: l10n,
+                    onTap: () => onSelected(modes[i]),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: i + 1 < modes.length
+                      ? _ThemeOptionButton(
+                          mode: modes[i + 1],
+                          selected: selected == modes[i + 1],
+                          palette: p,
+                          l10n: l10n,
+                          onTap: () => onSelected(modes[i + 1]),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+    },
+  );
+
+  static Widget _buildBgmTrackChips({
+    required List<String> trackFilenames,
+    required String favoriteTrack,
+    required String? selectedTrack,
+    required bool isFavoritePicker,
+    required ValueChanged<String> onSelected,
+    required ZetzyPalette p,
+    required AppLocalizations l10n,
   }) => Wrap(
     spacing: 8,
-    runSpacing: 8,
+    runSpacing: 6,
     children: [
-      for (final mode in ZetzyThemeMode.values)
+      for (final fileName in trackFilenames)
         Builder(
-          builder: (context) {
-            final swatch = ZetzyThemes.paletteFor(mode);
+          builder: (_) {
+            final isFav = AudioService.isFavoriteBgm(fileName, favoriteTrack);
+            final isSelected = isFavoritePicker
+                ? isFav
+                : AudioService.trackMatches(fileName, selectedTrack ?? '');
+            final trackNum =
+                int.tryParse(AudioService.trackDisplayNumber(fileName)) ?? 1;
             return ChoiceChip(
-              selected: selected == mode,
-              onSelected: (_) => onSelected(mode),
-              avatar: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: swatch.background,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: swatch.accent, width: 2.2),
-                ),
-              ),
-              label: Text(mode.localizedName(l10n)),
+              selected: isSelected,
+              onSelected: (_) => onSelected(fileName),
+              avatar: isFavoritePicker
+                  ? Icon(
+                      isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                      size: 15,
+                      color: isFav ? p.accent : p.textSecondary,
+                    )
+                  : (isFav
+                        ? Icon(Icons.star_rounded, size: 15, color: p.accent)
+                        : null),
+              label: Text(l10n.bgmTrackLabel(trackNum)),
             );
           },
         ),
@@ -139,7 +223,14 @@ abstract final class GameSettingsControls {
             children: [
               Expanded(
                 child: Text(
-                  l10n.bgmAutoDesc,
+                  l10n.bgmAutoDesc(
+                    int.tryParse(
+                          AudioService.trackDisplayNumber(
+                            settings.favoriteBgmTrack,
+                          ),
+                        ) ??
+                        5,
+                  ),
                   style: TextStyle(fontSize: 12, color: p.textSecondary),
                 ),
               ),
@@ -154,36 +245,31 @@ abstract final class GameSettingsControls {
               ],
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.bgmFavoriteTrackLabel,
+            style: TextStyle(fontSize: 12, color: p.textSecondary),
+          ),
+          const SizedBox(height: 6),
+          _buildBgmTrackChips(
+            trackFilenames: trackFilenames,
+            favoriteTrack: settings.favoriteBgmTrack,
+            selectedTrack: null,
+            isFavoritePicker: true,
+            onSelected: ctrl.setFavoriteBgmTrack,
+            p: p,
+            l10n: l10n,
+          ),
         ] else if (settings.bgmMode == BgmMode.manual) ...[
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              for (final fileName in trackFilenames)
-                ChoiceChip(
-                  selected:
-                      settings.bgmTrack == fileName ||
-                      AudioService.trackDisplayNumber(settings.bgmTrack) ==
-                          AudioService.trackDisplayNumber(fileName),
-                  onSelected: (_) => ctrl.setBgmTrack(fileName),
-                  avatar: AudioService.isFavoriteBgm(fileName)
-                      ? Icon(
-                          Icons.star_rounded,
-                          size: 15,
-                          color: p.accent,
-                        )
-                      : null,
-                  label: Text(
-                    l10n.bgmTrackLabel(
-                      int.tryParse(
-                            AudioService.trackDisplayNumber(fileName),
-                          ) ??
-                          1,
-                    ),
-                  ),
-                ),
-            ],
+          _buildBgmTrackChips(
+            trackFilenames: trackFilenames,
+            favoriteTrack: settings.favoriteBgmTrack,
+            selectedTrack: settings.bgmTrack,
+            isFavoritePicker: false,
+            onSelected: ctrl.setBgmTrack,
+            p: p,
+            l10n: l10n,
           ),
         ],
         const SizedBox(height: 8),
@@ -289,28 +375,15 @@ abstract final class GameSettingsControls {
       ),
     ),
     if (settings.sudokuAutoFinish) ...[
-      const SizedBox(height: 4),
-      Text(
-        l10n.settingsSudokuAutoFinishThreshold,
-        style: TextStyle(fontSize: 12, color: p.textSecondary),
-      ),
-      const SizedBox(height: 8),
-      SegmentedButton<int>(
-        selected: {settings.sudokuAutoFinishThreshold},
-        onSelectionChanged: (sel) => ctrl.setSudokuAutoFinishThreshold(sel.first),
-        segments: [
+      const SizedBox(height: 6),
+      inlineSegmentedRow<int>(
+        label: l10n.settingsSudokuAutoFinishThreshold,
+        labelStyle: TextStyle(fontSize: 13, color: p.textSecondary),
+        selected: settings.sudokuAutoFinishThreshold,
+        onSelected: ctrl.setSudokuAutoFinishThreshold,
+        options: [
           for (final count in const [5, 7])
-            ButtonSegment(
-              value: count,
-              label: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  l10n.sudokuRemainingCellsOption(count),
-                  softWrap: false,
-                  maxLines: 1,
-                ),
-              ),
-            ),
+            (count, l10n.sudokuRemainingCellsOption(count)),
         ],
       ),
       const SizedBox(height: 8),
@@ -653,6 +726,81 @@ class _InGameSettingsSheet extends ConsumerWidget {
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeOptionButton extends StatelessWidget {
+  const _ThemeOptionButton({
+    required this.mode,
+    required this.selected,
+    required this.palette,
+    required this.l10n,
+    required this.onTap,
+  });
+
+  final ZetzyThemeMode mode;
+  final bool selected;
+  final ZetzyPalette palette;
+  final AppLocalizations l10n;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final swatch = ZetzyThemes.paletteFor(mode);
+    final br = BorderRadius.circular(12);
+    return Material(
+      color: selected
+          ? palette.accent.withValues(alpha: 0.16)
+          : palette.surfaceElevated.withValues(alpha: 0.65),
+      shape: RoundedRectangleBorder(
+        borderRadius: br,
+        side: BorderSide(
+          color: selected ? palette.accent : palette.border,
+          width: selected ? 1.5 : 1.0,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: br,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: swatch.background,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: swatch.accent, width: 2.2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    mode.localizedName(l10n),
+                    softWrap: false,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? palette.accent : palette.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: 4),
+                Icon(Icons.check_rounded, size: 15, color: palette.accent),
+              ],
             ],
           ),
         ),

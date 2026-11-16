@@ -11,6 +11,7 @@ class AppSettings {
     this.sfxEnabled = true,
     this.bgmMode = BgmMode.auto,
     this.bgmTrack = '5.mp3',
+    this.favoriteBgmTrack = '5.mp3',
     this.hapticsEnabled = true,
     this.hapticIntensity = HapticIntensity.medium,
     this.wakelockEnabled = true,
@@ -47,6 +48,7 @@ class AppSettings {
   final bool sfxEnabled;
   final BgmMode bgmMode;
   final String bgmTrack;
+  final String favoriteBgmTrack;
   final bool hapticsEnabled;
   final HapticIntensity hapticIntensity;
 
@@ -80,6 +82,7 @@ class AppSettings {
     bool? sfxEnabled,
     BgmMode? bgmMode,
     String? bgmTrack,
+    String? favoriteBgmTrack,
     bool? bgmEnabled,
     bool? hapticsEnabled,
     HapticIntensity? hapticIntensity,
@@ -118,6 +121,7 @@ class AppSettings {
               ? this.bgmMode
               : (bgmEnabled ? BgmMode.auto : BgmMode.off)),
       bgmTrack: bgmTrack ?? this.bgmTrack,
+      favoriteBgmTrack: favoriteBgmTrack ?? this.favoriteBgmTrack,
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
       hapticIntensity: hapticIntensity ?? this.hapticIntensity,
       wakelockEnabled: wakelockEnabled ?? this.wakelockEnabled,
@@ -163,6 +167,7 @@ class SettingsRepository {
   static const _kBgm = 'zetzy_bgm';
   static const _kBgmMode = 'zetzy_bgm_mode';
   static const _kBgmTrack = 'zetzy_bgm_track';
+  static const _kFavoriteBgmTrack = 'zetzy_bgm_favorite_track';
   static const _kHaptics = 'zetzy_haptics';
   static const _kHapticIntensity = 'zetzy_haptic_intensity';
   static const _kWakelock = 'zetzy_wakelock';
@@ -218,6 +223,7 @@ class SettingsRepository {
         orElse: () => BgmMode.auto,
       ),
       bgmTrack: _prefs.getString(_kBgmTrack) ?? '5.mp3',
+      favoriteBgmTrack: _prefs.getString(_kFavoriteBgmTrack) ?? '5.mp3',
       hapticsEnabled: _prefs.getBool(_kHaptics) ?? true,
       hapticIntensity: HapticIntensity.values.firstWhere(
         (m) => m.name == _prefs.getString(_kHapticIntensity),
@@ -271,6 +277,7 @@ class SettingsRepository {
       _prefs.setBool(_kBgm, s.bgmEnabled),
       _prefs.setString(_kBgmMode, s.bgmMode.name),
       _prefs.setString(_kBgmTrack, s.bgmTrack),
+      _prefs.setString(_kFavoriteBgmTrack, s.favoriteBgmTrack),
       _prefs.setBool(_kHaptics, s.hapticsEnabled),
       _prefs.setString(_kHapticIntensity, s.hapticIntensity.name),
       _prefs.setBool(_kWakelock, s.wakelockEnabled),

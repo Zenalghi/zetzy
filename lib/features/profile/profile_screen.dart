@@ -252,6 +252,103 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _showDataManagementDialog(
+    AppLocalizations l10n, {
+    required bool isGuest,
+  }) async {
+    final p = context.palette;
+    var busy = false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => PopScope(
+          canPop: !busy,
+          child: AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 24,
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: p.danger, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    l10n.profileDangerZone,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      color: p.danger,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 340),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.profileDangerZoneDesc,
+                    style: TextStyle(fontSize: 12.5, color: p.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () async {
+                            setDialogState(() => busy = true);
+                            try {
+                              await ref
+                                  .read(authProvider.notifier)
+                                  .resetAllStats();
+                            } finally {
+                              if (ctx.mounted) Navigator.of(ctx).pop();
+                            }
+                          },
+                    icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                    label: Text(l10n.profileResetStats),
+                  ),
+                  if (!isGuest) ...[
+                    const SizedBox(height: 10),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: p.danger,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              setDialogState(() => busy = true);
+                              try {
+                                await ref
+                                    .read(authProvider.notifier)
+                                    .deleteAccount();
+                              } finally {
+                                if (ctx.mounted) Navigator.of(ctx).pop();
+                              }
+                            },
+                      icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                      label: Text(l10n.profileDeleteAccount),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.of(ctx).pop(),
+                child: Text(l10n.close),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -520,22 +617,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       l10n: l10n,
                     ),
                     const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(l10n.settingsLanguage),
-                        SegmentedButton<String>(
-                          selected: {settings.localeCode},
-                          onSelectionChanged: (s) =>
-                              settingsCtrl.setLocale(s.first),
-                          segments: const [
-                            ButtonSegment(value: 'en', label: Text('English')),
-                            ButtonSegment(
-                              value: 'id',
-                              label: Text('Indonesia'),
-                            ),
-                          ],
-                        ),
+                    GameSettingsControls.inlineSegmentedRow<String>(
+                      label: l10n.settingsLanguage,
+                      selected: settings.localeCode,
+                      onSelected: settingsCtrl.setLocale,
+                      options: const [
+                        ('en', 'English'),
+                        ('id', 'Indonesia'),
                       ],
                     ),
                   ],
@@ -709,35 +797,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         fontSize: 13,
                       ),
                     ),
-                    const Divider(height: 24),
-                    Text(
-                      l10n.profileDangerZone,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: p.danger,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () =>
-                              ref.read(authProvider.notifier).resetAllStats(),
-                          child: Text(l10n.profileResetStats),
-                        ),
-                        if (!user.isGuest)
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: p.danger,
-                              foregroundColor: Colors.white,
-                            ),
-                            onPressed: () =>
-                                ref.read(authProvider.notifier).deleteAccount(),
-                            child: Text(l10n.profileDeleteAccount),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: p.danger,
+                          side: BorderSide(
+                            color: p.danger.withValues(alpha: 0.45),
                           ),
-                      ],
+                        ),
+                        onPressed: () => _showDataManagementDialog(
+                          l10n,
+                          isGuest: user.isGuest,
+                        ),
+                        icon: const Icon(
+                          Icons.admin_panel_settings_outlined,
+                          size: 18,
+                        ),
+                        label: Text(l10n.profileDangerZone),
+                      ),
                     ),
                   ],
                 ),

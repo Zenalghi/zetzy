@@ -24,6 +24,7 @@ Future<void> main() async {
     sfxEnabled: initialSettings.sfxEnabled,
     bgmMode: initialSettings.bgmMode,
     manualBgmTrack: initialSettings.bgmTrack,
+    favoriteBgmTrack: initialSettings.favoriteBgmTrack,
   );
 
   runApp(

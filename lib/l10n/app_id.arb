@@ -214,6 +214,7 @@
   "profileResetStats": "Reset Semua Statistik",
   "profileDeleteAccount": "Hapus Akun Permanen",
   "profileDangerZone": "Manajemen Akun & Data",
+  "profileDangerZoneDesc": "Tindakan di bawah ini menghapus progres statistik atau menghapus akun secara permanen dan tidak dapat dibatalkan.",
   "profileAppVersion": "Zetzy v{version}",
   "@profileAppVersion": {
     "placeholders": {
@@ -365,7 +366,13 @@
   "bgmModeOff": "Mati",
   "bgmModeAuto": "Otomatis",
   "bgmModeManual": "Manual",
-  "bgmAutoDesc": "Acak otomatis semua trek (Trek 5 muncul lebih sering).",
+  "bgmAutoDesc": "Acak otomatis semua trek (★ Trek {number} diputar lebih sering).",
+  "@bgmAutoDesc": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "bgmFavoriteTrackLabel": "Trek Favorit (Prioritas 3× di Otomatis)",
   "bgmTrackLabel": "Trek {number}",
   "@bgmTrackLabel": {
     "placeholders": {

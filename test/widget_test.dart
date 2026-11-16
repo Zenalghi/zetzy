@@ -1796,6 +1796,93 @@ void main() {
     );
     expect(tester.getSize(rewindFinder).width, closeTo(expectedWidth, 0.5));
   });
+
+  testWidgets('ProfileScreen arranges 6 theme buttons in 2x3 expanded grid, customizes Auto favorite BGM, places Sudoku cells threshold inline, and gates Danger Zone inside 1 dialog', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = _FakeAvailableSupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    Future<void> scrollTo(Finder finder) async {
+      await tester.scrollUntilVisible(
+        finder,
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+    }
+
+    // 1. Verify Theme Skin is 2 columns x 3 rows expanded evenly left-to-right
+    await scrollTo(find.text('Abyssal Cyan'));
+    await scrollTo(find.text('OLED Midnight'));
+    final oledRect = tester.getRect(find.text('OLED Midnight'));
+    final woodRect = tester.getRect(find.text('Classic Wood & Slate'));
+    final frostRect = tester.getRect(find.text('Nordic Frost'));
+    final draculaRect = tester.getRect(find.text('Dracula Neon'));
+    final cyanRect = tester.getRect(find.text('Abyssal Cyan'));
+    final parchmentRect = tester.getRect(find.text('Warm Parchment'));
+    expect(oledRect.center.dy, closeTo(woodRect.center.dy, 2.0));
+    expect(frostRect.center.dy, closeTo(draculaRect.center.dy, 2.0));
+    expect(cyanRect.center.dy, closeTo(parchmentRect.center.dy, 2.0));
+    expect(frostRect.top, greaterThan(oledRect.bottom));
+    expect(cyanRect.top, greaterThan(frostRect.bottom));
+
+    // 2. Verify Auto BGM shows customizable Favorite Track picker (default Track 5)
+    await scrollTo(find.text('Background Music (BGM)'));
+    expect(find.textContaining('★ Track 5'), findsOneWidget);
+    expect(find.text('Favorite Track (3× Priority in Auto)'), findsOneWidget);
+    await scrollTo(find.text('Track 2'));
+    await tester.tap(find.text('Track 2'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().favoriteBgmTrack, equals('2.mp3'));
+    expect(find.textContaining('★ Track 2'), findsOneWidget);
+
+    // 3. Verify Remaining Empty Cells sits inline beside [5 Cells | 7 Cells]
+    await scrollTo(find.text('Remaining Empty Cells'));
+    final cellsLabelRect = tester.getRect(find.text('Remaining Empty Cells'));
+    final cellsBtnRect = tester.getRect(find.text('5 Cells'));
+    expect(cellsLabelRect.center.dy, closeTo(cellsBtnRect.center.dy, 4.0));
+    expect(cellsBtnRect.left, greaterThan(cellsLabelRect.right));
+
+    // 4. Verify Cloud & Sync shows 1 Account & Data Management button opening dialog
+    await scrollTo(find.text('Account & Data Management'));
+    expect(find.text('Reset All Statistics'), findsNothing);
+    expect(find.text('Delete Account Permanently'), findsNothing);
+
+    await tester.tap(find.text('Account & Data Management'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reset All Statistics'), findsOneWidget);
+    // Guest user sees Reset All Statistics inside the dialog; Close dismisses cleanly
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reset All Statistics'), findsNothing);
+  });
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

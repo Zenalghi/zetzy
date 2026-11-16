@@ -247,7 +247,9 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(fontSize: 11, color: color)),
+          Flexible(
+            child: Text(text, style: TextStyle(fontSize: 11, color: color)),
+          ),
         ],
       ),
     );

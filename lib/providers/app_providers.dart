@@ -70,6 +70,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
       sfxEnabled: s.sfxEnabled,
       bgmMode: s.bgmMode,
       manualBgmTrack: s.bgmTrack,
+      favoriteBgmTrack: s.favoriteBgmTrack,
       fromUserAction: fromUserAction,
     );
     ref.read(hapticServiceProvider)
@@ -105,6 +106,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
       bgmTrack: track,
     ),
   );
+
+  Future<void> setFavoriteBgmTrack(String track) =>
+      _commit(state.copyWith(favoriteBgmTrack: track));
 
   Future<void> skipNextBgm() =>
       ref.read(audioServiceProvider).skipToNextAutoBgm();

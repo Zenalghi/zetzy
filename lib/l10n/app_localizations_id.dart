@@ -585,6 +585,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get profileDangerZone => 'Manajemen Akun & Data';
 
   @override
+  String get profileDangerZoneDesc =>
+      'Tindakan di bawah ini menghapus progres statistik atau menghapus akun secara permanen dan tidak dapat dibatalkan.';
+
+  @override
   String profileAppVersion(String version) {
     return 'Zetzy v$version';
   }
@@ -895,8 +899,12 @@ class AppLocalizationsId extends AppLocalizations {
   String get bgmModeManual => 'Manual';
 
   @override
-  String get bgmAutoDesc =>
-      'Acak otomatis semua trek (Trek 5 muncul lebih sering).';
+  String bgmAutoDesc(int number) {
+    return 'Acak otomatis semua trek (★ Trek $number diputar lebih sering).';
+  }
+
+  @override
+  String get bgmFavoriteTrackLabel => 'Trek Favorit (Prioritas 3× di Otomatis)';
 
   @override
   String bgmTrackLabel(int number) {

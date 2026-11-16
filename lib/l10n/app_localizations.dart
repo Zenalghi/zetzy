@@ -1143,6 +1143,12 @@ abstract class AppLocalizations {
   /// **'Account & Data Management'**
   String get profileDangerZone;
 
+  /// No description provided for @profileDangerZoneDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Destructive actions here erase your statistics or permanently delete your account and cannot be undone.'**
+  String get profileDangerZoneDesc;
+
   /// No description provided for @profileAppVersion.
   ///
   /// In en, this message translates to:
@@ -1710,8 +1716,14 @@ abstract class AppLocalizations {
   /// No description provided for @bgmAutoDesc.
   ///
   /// In en, this message translates to:
-  /// **'Smart shuffle across all tracks (Track 5 appears more often).'**
-  String get bgmAutoDesc;
+  /// **'Smart shuffle across all tracks (★ Track {number} plays more often).'**
+  String bgmAutoDesc(int number);
+
+  /// No description provided for @bgmFavoriteTrackLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Track (3× Priority in Auto)'**
+  String get bgmFavoriteTrackLabel;
 
   /// No description provided for @bgmTrackLabel.
   ///
