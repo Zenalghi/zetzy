@@ -367,9 +367,7 @@ class _GameBentoCard extends StatelessWidget {
               onPressed: onGuide,
               icon: const Icon(Icons.menu_book_rounded, size: 16),
               label: Text(
-                Localizations.localeOf(context).languageCode == 'id'
-                    ? 'Panduan & Tutorial'
-                    : 'Guide & Tutorial',
+                l10n.homeGuideTutorialButton,
                 style: const TextStyle(fontSize: 12.5),
               ),
             ),

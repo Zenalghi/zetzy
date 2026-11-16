@@ -2250,25 +2250,82 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('guide_close_btn')));
       await tester.pumpAndSettle();
 
-      // Open Sudoku guide -> Start Interactive Tutorial -> complete 3 paused+action steps
+      // Open Sudoku guide -> Start full-screen Interactive Tutorial (cell -> digit pad 1-9)
       await tester.tap(find.byKey(const ValueKey('game_guide_btn_sudoku')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('guide_start_tutorial_btn')));
       await tester.pumpAndSettle();
 
-      for (var step = 0; step < 3; step++) {
-        expect(find.text('⏸️ PAUSED • COACH GUIDE'), findsOneWidget);
-        await tester.tap(
-          find.byKey(const ValueKey('tutorial_resume_action_btn')),
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('👆 YOUR TURN • TRY IT'), findsOneWidget);
-        await tester.tap(find.byKey(const ValueKey('tutorial_target_cell')));
-        await tester.pumpAndSettle();
+      // Step 1: 2 actions (tap cell -> tap digit 5)
+      expect(find.text('⏸️ PAUSED • COACH GUIDE'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_resume_action_btn')));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Action 1/2'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_blink_target')));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Action 2/2'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_blink_target')));
+      await tester.pumpAndSettle();
+
+      // Step 2: 4 actions (Notes ON -> cell -> 3 -> 4)
+      expect(find.text('⏸️ PAUSED • COACH GUIDE'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_resume_action_btn')));
+      await tester.pump(const Duration(milliseconds: 100));
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.byKey(const ValueKey('tutorial_blink_target')));
+        await tester.pump(const Duration(milliseconds: 100));
       }
+      await tester.pumpAndSettle();
+
+      // Step 3: 5 actions (Notes OFF -> cell1 -> 3 -> cell2 -> 4)
+      expect(find.text('⏸️ PAUSED • COACH GUIDE'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_resume_action_btn')));
+      await tester.pump(const Duration(milliseconds: 100));
+      for (var i = 0; i < 5; i++) {
+        await tester.tap(find.byKey(const ValueKey('tutorial_blink_target')));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.pumpAndSettle();
 
       expect(find.text('Tutorial Complete! 🎉'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('tutorial_finish_close_btn')));
+      await tester.pumpAndSettle();
+
+      // Open Minesweeper tutorial -> check Dig / Flag / Mark (?) tools & blinking step
+      await tester.tap(find.byKey(const ValueKey('game_guide_btn_minesweeper')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guide_start_tutorial_btn')));
+      await tester.pumpAndSettle();
+      expect(find.text('Dig'), findsOneWidget);
+      expect(find.text('Flag'), findsOneWidget);
+      expect(find.text('Mark (?)'), findsOneWidget);
+      await tester.tap(find.byTooltip('Exit Tutorial'));
+      await tester.pumpAndSettle();
+
+      // Open Chess tutorial -> tap Knight first, then blinking red capture square
+      await tester.tap(find.byKey(const ValueKey('game_guide_btn_chess')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guide_start_tutorial_btn')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tutorial_resume_action_btn')));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Action 1/2'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tutorial_blink_target')));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Action 2/2'), findsOneWidget);
+      await tester.tap(find.byTooltip('Exit Tutorial'));
+      await tester.pumpAndSettle();
+
+      // Verify Snake tutorial fits cleanly on both desktop (900x900) and compact phone (360x740)
+      await tester.tap(find.byKey(const ValueKey('game_guide_btn_snake')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('guide_start_tutorial_btn')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.binding.setSurfaceSize(const Size(360, 740));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byTooltip('Exit Tutorial'));
       await tester.pumpAndSettle();
     },
   );

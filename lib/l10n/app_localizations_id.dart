@@ -1055,4 +1055,635 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get profileRoleAdminBadge => 'ADMIN';
+
+  @override
+  String get homeGuideTutorialButton => 'Panduan & Tutorial';
+
+  @override
+  String guideDialogTitle(String game) {
+    return 'Panduan & Aturan $game';
+  }
+
+  @override
+  String get guideDialogSubtitle =>
+      'Geser slide untuk melihat ilustrasi & aturan';
+
+  @override
+  String get guidePrev => 'Sebelumnya';
+
+  @override
+  String get guideNext => 'Berikutnya';
+
+  @override
+  String get guideClose => 'Keluar Panduan';
+
+  @override
+  String get guideStartTutorial => 'Mulai Tutorial';
+
+  @override
+  String get guideSudokuS1Badge => '1. ATURAN DASAR';
+
+  @override
+  String get guideSudokuS1Title => 'Isi Angka 1–9 Tanpa Kembar';
+
+  @override
+  String get guideSudokuS1Desc =>
+      'Papan Sudoku berukuran 9×9 yang terbagi menjadi 9 blok kotak 3×3. Tugasmu mengisi semua kotak kosong dengan angka 1 sampai 9.';
+
+  @override
+  String get guideSudokuS1Bullets =>
+      'Setiap BARIS mendatar wajib berisi angka 1–9 tanpa ada yang kembar.\nSetiap KOLOM menurun wajib berisi angka 1–9 tanpa ada yang kembar.\nSetiap KOTAK 3×3 tebal wajib berisi angka 1–9 tanpa ada yang kembar.';
+
+  @override
+  String get guideSudokuS1VisualCaption => 'Kotak tengah hanya kurang angka 5!';
+
+  @override
+  String get guideSudokuS2Badge => '2. CARA BERMAIN';
+
+  @override
+  String get guideSudokuS2Title => 'Ketuk Kotak & Gunakan Sorotan Angka';
+
+  @override
+  String get guideSudokuS2Desc =>
+      'Saat kamu mengetuk sebuah angka di papan atau keypad bawah, semua angka yang sama otomatis disorot agar mudah mencari posisi kosong.';
+
+  @override
+  String get guideSudokuS2Bullets =>
+      'Pilih kotak kosong lalu ketuk angka 1–9 di bagian bawah layar.\nDi Level 1–4, jawaban yang benar otomatis terkunci aman.\nKetuk lagi kotak yang sama untuk mematikan sorotan.';
+
+  @override
+  String get guideSudokuS3Badge => '3. STRATEGI AMAN';
+
+  @override
+  String get guideSudokuS3Title => 'Gunakan Mode Notes (Catatan Pensil)';
+
+  @override
+  String get guideSudokuS3Desc =>
+      'Belum yakin antara 2 angka? Jangan menebak! Aktifkan tombol Notes (✏️) untuk menulis angka kandidat kecil di dalam kotak.';
+
+  @override
+  String get guideSudokuS3Bullets =>
+      'Mode Notes tidak akan mengurangi nyawa (♥) meskipun angkanya belum pasti.\nFitur Smart Notes otomatis menghapus catatan yang sudah tidak mungkin.\nGunakan tombol Erase untuk membersihkan kotak atau catatan.';
+
+  @override
+  String get guideSudokuS3VisualBadge => 'Notes ON (Aman)';
+
+  @override
+  String get guideSudokuS4Badge => '4. NYAWA & BANTUAN';
+
+  @override
+  String get guideSudokuS4Title => '3 Nyawa (♥), 3 Hint & ⚡ Auto-Finish';
+
+  @override
+  String get guideSudokuS4Desc =>
+      'Kamu punya 3 nyawa dan maksimal 3 Hint per permainan. Saat sisa kotak kosong tinggal sedikit, tombol kilat Auto-Finish akan muncul!';
+
+  @override
+  String get guideSudokuS4Bullets =>
+      'Salah isi angka akan memicu tanda merah & mengurangi 1 nyawa (♥).\nTombol ⚡ Auto-Finish otomatis menyelesaikan sisa papan saat hampir menang.\nDi Practice Mode, kamu bebas memakai Undo & Rewind saat kalah!';
+
+  @override
+  String get guideSudokuS4VisualBadge => 'Auto-Finish (Sisa ≤ 5 Kotak)';
+
+  @override
+  String get guideMineS1Badge => '1. ARTI ANGKA';
+
+  @override
+  String get guideMineS1Title => 'Angka = Jumlah Ranjau di Sekelilingnya';
+
+  @override
+  String get guideMineS1Desc =>
+      'Setiap kotak yang terbuka dan berisi angka (1, 2, 3...) memberi tahu berapa banyak ranjau di 8 kotak tetangga yang menyentuhnya (termasuk miring/diagonal).';
+
+  @override
+  String get guideMineS1Bullets =>
+      'Klik pertama dijamin 100% AMAN dan langsung membuka area bersih.\nAngka 1 berarti tepat ada 1 ranjau di antara kotak tertutup di sebelahnya.\nKotak kosong (0) otomatis membuka seluruh tetangganya yang aman.';
+
+  @override
+  String get guideMineS1VisualCaption =>
+      'Angka \"1\" di tengah menyentuh tepat 1 ranjau di pojok kanan atas!';
+
+  @override
+  String get guideMineS2Badge => '2. GALI VS BENDERA';
+
+  @override
+  String get guideMineS2Title => 'Tancapkan Bendera (🚩) di Kotak Curiga';
+
+  @override
+  String get guideMineS2Desc =>
+      'Jangan pernah menggali kotak yang kamu yakini berisi ranjau! Pasang Bendera (🚩) agar kotak tersebut terkunci dan tidak sengaja tergali.';
+
+  @override
+  String get guideMineS2Bullets =>
+      'Tahan lama (Long-Press) pada kotak tertutup untuk pasang/cabut Bendera.\nAtau gunakan tombol 1-Tap Swap di bawah untuk berganti mode Gali ⇄ Bendera.\nMenang terjadi saat SEMUA kotak aman berhasil dibuka!';
+
+  @override
+  String get guideMineS2VisualCaption =>
+      'Tandai kotak ranjau dengan Bendera (🚩) agar aman!';
+
+  @override
+  String get guideMineS3Badge => '3. TEKNIK PRO';
+
+  @override
+  String get guideMineS3Title => 'Chord: Ketuk Angka untuk Buka Cepat';
+
+  @override
+  String get guideMineS3Desc =>
+      'Jika sebuah angka sudah dikelilingi jumlah Bendera (🚩) yang pas, ketuk angka tersebut untuk membuka semua sisa kotak tetangga sekaligus!';
+
+  @override
+  String get guideMineS3Bullets =>
+      'Contoh: Angka \"1\" sudah menyentuh 1 Bendera → ketuk angka \"1\" itu!\nSemua kotak tertutup lain di sebelahnya langsung terbuka otomatis.\nHati-hati: pastikan posisi benderamu benar sebelum melakukan Chord!';
+
+  @override
+  String get guideMineS4Badge => '4. PERISAI PEMULA';
+
+  @override
+  String get guideMineS4Title => 'Perisai Defuse (🛡️) Penyelamat Nyawa';
+
+  @override
+  String get guideMineS4Desc =>
+      'Khusus untuk pemula di Level 1–2, kamu dibekali Perisai Defuse (🛡️) yang otomatis menjinakkan ranjau jika kamu salah langkah!';
+
+  @override
+  String get guideMineS4Bullets =>
+      'Ranjau yang dijinakkan berubah menjadi ikon ranjau hijau aman.\nDi akhir permainan, semua posisi ranjau & bendera yang salah akan ditampilkan.\nGunakan tombol View Board setelah selesai untuk belajar dari pola papan.';
+
+  @override
+  String get guideMineS4VisualCaption =>
+      'Perisai Lv. 1–2 otomatis menjinakkan ranjau!';
+
+  @override
+  String get guideChessS1Badge => '1. GERAK 6 BIDAK';
+
+  @override
+  String get guideChessS1Title => 'Cara Jalan Setiap Bidak Catur';
+
+  @override
+  String get guideChessS1Desc =>
+      'Ketuk bidakmu untuk melihat titik hijau langkah sah di papan. Hanya Kuda (♘) yang boleh melompati bidak lain!';
+
+  @override
+  String get guideChessS1Bullets =>
+      '♔ Raja: 1 petak ke segala arah • ♕ Menteri: bebas lurus & diagonal.\n♖ Benteng: lurus vertikal/horizontal • ♗ Gajah: miring diagonal.\n♘ Kuda: huruf \"L\" (2+1 petak) • ♙ Pion: maju 1 (awal 2), makan miring.';
+
+  @override
+  String get guideChessS2Badge => '2. SKAKMAT VS STALEMATE';
+
+  @override
+  String get guideChessS2Title => 'Awas! Stalemate Itu Seri, Bukan Menang';
+
+  @override
+  String get guideChessS2Desc =>
+      'Banyak pemula mengira mengurung Raja lawan tanpa skak adalah menang. Padahal jika lawan tidak sedang Skak tapi habis langkah sah, hasilnya SERI (Stalemate)!';
+
+  @override
+  String get guideChessS2Bullets =>
+      'Skak (Check): Raja diserang — wajib menyelamatkan Raja di giliran itu.\nSkakmat (Checkmate): Raja diserang & tidak ada jalan selamat → MENANG!\nRemis (Draw): terjadi karena Stalemate, 3× posisi sama, atau 50 langkah kosong.';
+
+  @override
+  String get guideChessS2Checkmate => 'SKAKMAT (Menang)';
+
+  @override
+  String get guideChessS2Stalemate => 'STALEMATE (Seri!)';
+
+  @override
+  String get guideChessS3Badge => '3. ATURAN LANGKA #1';
+
+  @override
+  String get guideChessS3Title => 'Rokade (Castling ♔⇄♖): Amankan Raja';
+
+  @override
+  String get guideChessS3Desc =>
+      'Satu-satunya langkah di mana 2 bidak bergerak sekaligus! Raja bergeser 2 petak mendekati Benteng, lalu Benteng melompat ke sebelahnya.';
+
+  @override
+  String get guideChessS3Bullets =>
+      'Syarat 1: Raja dan Benteng tersebut sama-sama BELUM PERNAH bergerak.\nSyarat 2: Semua petak di antara Raja & Benteng harus kosong.\nSyarat 3: Raja tidak sedang Skak, dan tidak melewati petak yang diserang lawan.';
+
+  @override
+  String get guideChessS3VisualCaption =>
+      'Rokade Pendek: Raja e1 → g1, Benteng h1 → f1 melompati Raja!';
+
+  @override
+  String get guideChessS4Badge => '4. ATURAN LANGKA #2';
+
+  @override
+  String get guideChessS4Title => 'En Passant & Promosi Pion (♙ → ♕)';
+
+  @override
+  String get guideChessS4Desc =>
+      'Dua aturan pion yang sering mengejutkan pemain baru: tangkapan sambil lalu (En Passant) dan perubahan wujud pion di baris ujung!';
+
+  @override
+  String get guideChessS4Bullets =>
+      'En Passant: Jika pion lawan loncat 2 petak tepat di samping pionmu, kamu boleh memakannya miring seolah ia baru maju 1 petak (wajib langsung di giliran itu!).\nPromosi: Pion yang mencapai baris paling ujung langsung berubah jadi Menteri (♕), Benteng, Gajah, atau Kuda!';
+
+  @override
+  String get guideChessS4VisualPromo => 'Promosi → Menteri';
+
+  @override
+  String get guideChessS5Badge => '5. FITUR CATUR ZETZY';
+
+  @override
+  String get guideChessS5Title => 'Konfirmasi Langkah, Flip Papan & Review';
+
+  @override
+  String get guideChessS5Desc =>
+      'Zetzy menyediakan fitur bantu agar kamu tidak salah sentuh (blunder) saat bermain di layar sentuh.';
+
+  @override
+  String get guideChessS5Bullets =>
+      'Touch Move Confirmation: pratinjau langkahmu sebelum menekan Confirm.\n4 Mode: Vs AI (Lv. 1–7), Pass & Play (2P satu HP), Friend Room, & Find Match ELO.\nSetelah selesai, gunakan tombol ⏮ ◀ ▶ ⏭ untuk memutar ulang seluruh langkah!';
+
+  @override
+  String get guideSnakeS1Badge => '1. KONTROL & GERAK';
+
+  @override
+  String get guideSnakeS1Title => 'Belok 90° & Jangan Menabrak Ekor Sendiri';
+
+  @override
+  String get guideSnakeS1Desc =>
+      'Ular bergerak maju mengikuti ketukan grid. Arahkan kepala ular ke apel dan hindari menabrak tubuh sendiri atau dinding.';
+
+  @override
+  String get guideSnakeS1Bullets =>
+      'Pilih gaya kontrol favorit di Profile: Swipe, Virtual D-Pad, atau Split-Screen Tap.\nUlar hanya bisa belok 90° (kiri/kanan dari arah jalan), tidak bisa putar balik 180°.\nDi desktop/web, kamu juga bisa memakai tombol Panah atau WASD.';
+
+  @override
+  String get guideSnakeS2Badge => '2. APEL & POWER-UP';
+
+  @override
+  String get guideSnakeS2Title => 'Apel Merah, Apel Emas, Gunting & Racun';
+
+  @override
+  String get guideSnakeS2Desc =>
+      'Kenali setiap item yang muncul di arena agar skormu naik cepat dan tubuh ular tidak kepanjangan!';
+
+  @override
+  String get guideSnakeS2Bullets =>
+      '🍎 Apel Merah (+10 poin): makanan utama untuk mencapai target kemenangan.\n🌟 Apel Emas (+30 poin): muncul sementara dengan poin ekstra besar!\n✂️ Gunting: memotong ekor ular agar kembali pendek & leluasa bergerak.\n☠️ Racun: hindari! Memakannya memicu penalti & bahaya.';
+
+  @override
+  String get guideSnakeS2Trim => 'Potong';
+
+  @override
+  String get guideSnakeS2Hazard => 'Awas!';
+
+  @override
+  String get guideSnakeS3Badge => '3. DINDING & RINTANGAN';
+
+  @override
+  String get guideSnakeS3Title => 'Dinding Bata & Rintangan Dinamis';
+
+  @override
+  String get guideSnakeS3Desc =>
+      'Semakin tinggi level yang kamu pilih, arena akan memunculkan blok dinding bata di tengah papan yang harus kamu hindari.';
+
+  @override
+  String get guideSnakeS3Bullets =>
+      'Input Queue 2-Langkah memungkinkan kamu melakukan belokan zig-zag cepat.\nAktifkan Assist Overlay di pengaturan untuk melihat indikator bahaya.';
+
+  @override
+  String get guideSnakeS3VisualCaption =>
+      'Hindari dinding bata di tengah arena!';
+
+  @override
+  String get guideSnakeS4Badge => '4. BAR KELAPARAN';
+
+  @override
+  String get guideSnakeS4Title => 'Waspadai Bar Kelaparan di Level Tinggi!';
+
+  @override
+  String get guideSnakeS4Desc =>
+      'Di Level 6–7, ular tidak boleh berlama-lama berputar tanpa makan! Bar stamina akan terus berkurang dan terisi penuh kembali setiap makan apel.';
+
+  @override
+  String get guideSnakeS4Bullets =>
+      'Rencanakan rute terpendek menuju Apel Merah berikutnya.\nJika menabrak di Practice Mode, gunakan Rewind 1–3 langkah untuk lanjut main!';
+
+  @override
+  String get guideSnakeS4VisualCaption => 'Stamina Kelaparan (Lv. 6–7)';
+
+  @override
+  String get tutorialExitTooltip => 'Keluar Tutorial';
+
+  @override
+  String tutorialAppBarTitle(String game) {
+    return 'Tutorial • $game';
+  }
+
+  @override
+  String get tutorialPausedBadge => '⏸️ PAUSED • PENJELASAN';
+
+  @override
+  String get tutorialTryItBadge => '👆 GILIRANMU • PRAKTIK';
+
+  @override
+  String tutorialActionProgress(int current, int total) {
+    return 'Aksi $current/$total';
+  }
+
+  @override
+  String get tutorialGotItBtn => 'Mengerti, Coba Sekarang!';
+
+  @override
+  String get tutorialReadTipFirst =>
+      'Baca penjelasan dulu, lalu tekan \"Mengerti, Coba Sekarang!\"';
+
+  @override
+  String get tutorialTapBlinking =>
+      'Ketuk tombol / kotak yang sedang berkedip ya!';
+
+  @override
+  String get tutorialCompleteTitle => 'Tutorial Selesai! 🎉';
+
+  @override
+  String tutorialCompleteBody(String game) {
+    return 'Kamu sudah mempraktikkan aturan inti $game. Siap main sungguhan?';
+  }
+
+  @override
+  String get tutorialDoneBtn => 'Selesai';
+
+  @override
+  String get tutorialPlayNowBtn => 'Main Sekarang!';
+
+  @override
+  String get tutorialHudLabel => 'Tutorial';
+
+  @override
+  String get tutSudokuS1Title => 'Langkah 1/3: Pilih Kotak, Lalu Tekan Angka';
+
+  @override
+  String get tutSudokuS1Exp =>
+      'Kotak 3×3 di tengah (disorot) sudah berisi 1, 2, 3, 4, 6, 7, 8, 9. Yang belum ada hanya angka 5! Cara mengisi di Sudoku: ketuk kotaknya dulu, lalu tekan angka pada tombol angka di bawah.';
+
+  @override
+  String get tutSudokuS1A1 =>
+      'Ketuk kotak kosong yang berkedip di tengah papan.';
+
+  @override
+  String get tutSudokuS1A2 =>
+      'Bagus! Sekarang tekan angka 5 pada tombol angka di bawah.';
+
+  @override
+  String get tutSudokuS2Title =>
+      'Langkah 2/3: Catat Kandidat dengan Notes (✏️)';
+
+  @override
+  String get tutSudokuS2Exp =>
+      'Baris paling atas (disorot) kehilangan 2 angka: 3 dan 4. Belum tahu mana yang di mana? Jangan menebak! Aktifkan Notes untuk menulis angka kandidat kecil — mencatat tidak akan mengurangi nyawa ♥.';
+
+  @override
+  String get tutSudokuS2A1 => 'Tekan tombol Notes yang berkedip.';
+
+  @override
+  String get tutSudokuS2A2 => 'Ketuk kotak kosong pertama di baris atas.';
+
+  @override
+  String get tutSudokuS2A3 => 'Tekan 3 untuk mencatat kandidat pertama.';
+
+  @override
+  String get tutSudokuS2A4 => 'Tekan 4 untuk mencatat kandidat kedua.';
+
+  @override
+  String get tutSudokuS3Title => 'Langkah 3/3: Eliminasi & Selesaikan!';
+
+  @override
+  String get tutSudokuS3Exp =>
+      'Lihat kolom kotak tadi (disorot): di bagian bawah sudah ada angka 4 (kuning). Satu kolom tidak boleh kembar, jadi kotak bercatatan 3·4 pasti 3, dan kotak sebelahnya pasti 4! Matikan Notes dulu agar angka terisi penuh.';
+
+  @override
+  String get tutSudokuS3A1 => 'Matikan Notes dulu.';
+
+  @override
+  String get tutSudokuS3A2 => 'Ketuk kotak yang berisi catatan 3·4.';
+
+  @override
+  String get tutSudokuS3A3 => 'Tekan 3.';
+
+  @override
+  String get tutSudokuS3A4 =>
+      'Sisa satu kotak kosong di sebelahnya. Ketuk kotaknya.';
+
+  @override
+  String get tutSudokuS3A5 => 'Tekan 4 untuk menyelesaikan papan!';
+
+  @override
+  String get tutSudokuWrongCellFirst =>
+      'Pilih kotaknya dulu, baru tekan angka.';
+
+  @override
+  String get tutSudokuWrongPressDigit =>
+      'Kotak sudah terpilih — sekarang tekan angka yang berkedip di bawah.';
+
+  @override
+  String get tutMineS1Title => 'Langkah 1/5: Gali Pertama Pasti Aman';
+
+  @override
+  String get tutMineS1Exp =>
+      'Mode Gali (⛏️) sudah aktif. Di Zetzy, galian pertamamu dijamin aman dan akan membuka area kosong beserta angka petunjuk. Angka = jumlah ranjau di 8 kotak sekelilingnya.';
+
+  @override
+  String get tutMineS1A1 => 'Ketuk kotak tengah yang berkedip untuk menggali.';
+
+  @override
+  String get tutMineS2Title => 'Langkah 2/5: Tancapkan Bendera (🚩)';
+
+  @override
+  String get tutMineS2Exp =>
+      'Lihat angka 1 yang disorot di baris atas. Dari semua tetangganya, hanya ADA SATU kotak yang masih tertutup — berarti kotak itu PASTI ranjau. Ganti ke mode Bendera, lalu tandai kotaknya.';
+
+  @override
+  String get tutMineS2A1 => 'Tekan tombol Bendera yang berkedip.';
+
+  @override
+  String get tutMineS2A2 =>
+      'Ketuk kotak tertutup di samping angka 1 untuk memasang Bendera.';
+
+  @override
+  String get tutMineS3Title => 'Langkah 3/5: Ragu? Tandai dengan (?)';
+
+  @override
+  String get tutMineS3Exp =>
+      'Angka 2 yang disorot butuh 2 ranjau. Sudah ada 1 bendera, jadi 1 ranjau lagi ada di antara 2 kotak pojok. Belum yakin yang mana? Pakai mode (?) sebagai pengingat — kotak ber-(?) tidak bisa tergali tanpa sengaja.';
+
+  @override
+  String get tutMineS3A1 => 'Tekan tombol (?) yang berkedip.';
+
+  @override
+  String get tutMineS3A2 => 'Ketuk kotak pojok kiri atas untuk menandai (?).';
+
+  @override
+  String get tutMineS4Title => 'Langkah 4/5: Temukan Ranjau Kedua';
+
+  @override
+  String get tutMineS4Exp =>
+      'Sekarang lihat angka 1 yang disorot di kolom kiri. Tetangganya yang tertutup hanya satu — kotak di atasnya. Itu ranjau kedua! Ganti ke Bendera lagi.';
+
+  @override
+  String get tutMineS4A1 => 'Tekan tombol Bendera.';
+
+  @override
+  String get tutMineS4A2 =>
+      'Ketuk kotak di atas angka 1 untuk memasang Bendera.';
+
+  @override
+  String get tutMineS5Title => 'Langkah 5/5: Gali Kotak Aman Terakhir!';
+
+  @override
+  String get tutMineS5Exp =>
+      'Angka 2 yang disorot kini sudah menyentuh 2 bendera — jumlah ranjaunya lengkap. Maka kotak (?) di pojok PASTI aman. Kembali ke mode Gali lalu buka kotaknya untuk menang!';
+
+  @override
+  String get tutMineS5A1 => 'Tekan tombol Gali.';
+
+  @override
+  String get tutMineS5A2 =>
+      'Ketuk kotak (?) di pojok kiri atas untuk menggalinya.';
+
+  @override
+  String get tutMineWrongSwitchTool =>
+      'Ganti mode dulu dengan tombol yang berkedip di bawah.';
+
+  @override
+  String get tutChessS1Title => 'Langkah 1/4: Kuda (♘) Melompat Huruf L';
+
+  @override
+  String get tutChessS1Exp =>
+      'Di catur, ketuk bidakmu dulu untuk melihat ke mana saja ia bisa bergerak. Titik = petak kosong yang bisa dituju, MERAH = bisa memakan bidak lawan. Kuda bergerak membentuk huruf L dan bisa melompati bidak lain.';
+
+  @override
+  String get tutChessS1A1 => 'Ketuk Kuda putih yang berkedip.';
+
+  @override
+  String get tutChessS1A2 =>
+      'Lihat semua langkah Kuda yang disorot. Petak MERAH berisi Menteri lawan — ketuk untuk memakannya!';
+
+  @override
+  String get tutChessS2Title => 'Langkah 2/4: Rokade (♔⇄♖)';
+
+  @override
+  String get tutChessS2Exp =>
+      'Rokade = Raja bergeser 2 petak ke arah Benteng, lalu Benteng melompat ke sisi sebelahnya. Syarat: Raja & Benteng belum pernah bergerak, jalur di antaranya kosong, dan Raja tidak sedang / tidak melewati petak yang diserang.';
+
+  @override
+  String get tutChessS2A1 => 'Ketuk Raja putih yang berkedip dulu.';
+
+  @override
+  String get tutChessS2A2 =>
+      'Petak bertanda ⇄ adalah langkah Rokade. Ketuk untuk Rokade!';
+
+  @override
+  String get tutChessS3Title => 'Langkah 3/4: En Passant (♙↗)';
+
+  @override
+  String get tutChessS3Exp =>
+      'Pion hitam baru saja maju 2 petak (d7 → d5, disorot kuning) dan berhenti tepat di samping pion putihmu. Khusus di giliran ini, pionmu boleh memakannya secara diagonal seolah ia baru maju 1 petak — disebut En Passant.';
+
+  @override
+  String get tutChessS3A1 => 'Ketuk pion putih di e5.';
+
+  @override
+  String get tutChessS3A2 =>
+      'Ketuk petak MERAH di belakang pion hitam untuk En Passant!';
+
+  @override
+  String get tutChessS4Title => 'Langkah 4/4: Promosi Pion → Skakmat!';
+
+  @override
+  String get tutChessS4Exp =>
+      'Pion yang mencapai baris paling ujung WAJIB berubah menjadi Menteri, Benteng, Gajah, atau Kuda. Raja hitam terkurung pionnya sendiri — promosi ke Menteri di a8 akan menjadi Skakmat!';
+
+  @override
+  String get tutChessS4A1 => 'Ketuk pion putih di a7.';
+
+  @override
+  String get tutChessS4A2 => 'Ketuk petak a8 di baris paling ujung.';
+
+  @override
+  String get tutChessS4A3 => 'Pilih Menteri (♕) — bidak terkuat!';
+
+  @override
+  String get tutChessWrongOtherLegal =>
+      'Itu langkah sah, tapi di tutorial ini pilih petak yang berkedip ya.';
+
+  @override
+  String get tutChessWrongTapPieceFirst =>
+      'Ketuk bidak yang berkedip dulu untuk melihat langkahnya.';
+
+  @override
+  String get tutChessPromoLabel => 'Promosi pion menjadi:';
+
+  @override
+  String get tutChessCheckmateStatus => '♛ SKAKMAT! Putih menang.';
+
+  @override
+  String get tutChessWhiteToMove => 'Giliran Putih';
+
+  @override
+  String get tutSnakeS1Title => 'Langkah 1/3: Belok 90° Menuju Apel 🍎';
+
+  @override
+  String get tutSnakeS1Exp =>
+      'Ular bergerak terus ke kanan — dan di depannya ada RACUN ☠️! Apel merah (+10) ada di atas kepala ular. Belokkan ular ke atas. Ular hanya bisa belok 90°, tidak bisa putar balik 180°.';
+
+  @override
+  String get tutSnakeS2Title => 'Langkah 2/3: Ambil Gunting ✂️ Pemotong Ekor';
+
+  @override
+  String get tutSnakeS2Exp =>
+      'Nyam! Skor +10 dan ular bertambah panjang. Di depan (atas) adalah tepi arena. Gunting ✂️ di sebelah kanan akan memotong ekormu agar ruang gerak lebih lega. Hindari dinding bata 🧱!';
+
+  @override
+  String get tutSnakeS3Title => 'Langkah 3/3: Apel Emas 🌟 (+30)';
+
+  @override
+  String get tutSnakeS3Exp =>
+      'Ekor terpotong! Sekarang tepi arena ada di depan (kanan). Apel Emas (+30) ada di bawah, dan jalurnya aman dari racun ☠️. Belok ke bawah untuk mengambilnya!';
+
+  @override
+  String tutSnakePromptDpad(String dir) {
+    return 'Tekan tombol arah $dir yang berkedip pada D-Pad.';
+  }
+
+  @override
+  String get tutSnakePromptSplitLeft =>
+      'Ketuk sisi KIRI (putar berlawanan jarum jam) yang berkedip.';
+
+  @override
+  String get tutSnakePromptSplitRight =>
+      'Ketuk sisi KANAN (putar searah jarum jam) yang berkedip.';
+
+  @override
+  String tutSnakePromptSwipe(String dir) {
+    return 'Usap arena ke $dir (atau ketuk panah yang berkedip).';
+  }
+
+  @override
+  String get tutSnakeDirUp => 'ATAS';
+
+  @override
+  String get tutSnakeDirDown => 'BAWAH';
+
+  @override
+  String get tutSnakeDirLeft => 'KIRI';
+
+  @override
+  String get tutSnakeDirRight => 'KANAN';
+
+  @override
+  String get tutSnakeWrongUTurn =>
+      'Ular tidak bisa putar balik 180° — itu akan menabrak tubuhnya sendiri!';
+
+  @override
+  String get tutSnakeCtrlLeftSide => 'Sisi Kiri';
+
+  @override
+  String get tutSnakeCtrlRightSide => 'Sisi Kanan';
+
+  @override
+  String get tutSnakeSwipeHint =>
+      'Kontrol Swipe (sesuai Profile): usap arena ke arah tujuan.';
 }
