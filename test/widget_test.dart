@@ -2142,6 +2142,62 @@ void main() {
       expect(snakeSeg.expandedInsets, EdgeInsets.zero);
     },
   );
+
+  testWidgets(
+    'HomeScreen updates app icon dynamically to match active theme and Abyssal alter ego',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final localStorage = LocalStorageService.forTesting(prefs: prefs);
+      final settingsRepo = SettingsRepository(prefs);
+      final audio = AudioService();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageProvider.overrideWithValue(localStorage),
+            settingsRepoProvider.overrideWithValue(settingsRepo),
+            supabaseServiceProvider.overrideWithValue(SupabaseService()),
+            audioServiceProvider.overrideWithValue(audio),
+          ],
+          child: const ZetzyApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      String homeIconAsset() {
+        final img = tester.widgetList<Image>(find.byType(Image)).firstWhere(
+              (w) =>
+                  w.image is AssetImage &&
+                  (w.image as AssetImage).assetName.startsWith(
+                    'assets/images/icons/',
+                  ),
+            );
+        return (img.image as AssetImage).assetName;
+      }
+
+      expect(homeIconAsset(), 'assets/images/icons/oled_midnight.jpeg');
+
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Abyssal Cyan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Play'));
+      await tester.pumpAndSettle();
+      expect(homeIconAsset(), 'assets/images/icons/abyssal_cyan0.jpeg');
+
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Abyssal Cyan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Play'));
+      await tester.pumpAndSettle();
+      expect(homeIconAsset(), 'assets/images/icons/abyssal_cyan1.jpeg');
+    },
+  );
 }
 
 class _FakeFeedbackSupabaseService extends _FakeAvailableSupabaseService {

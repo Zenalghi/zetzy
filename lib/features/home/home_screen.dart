@@ -70,8 +70,13 @@ class HomeScreen extends ConsumerWidget {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
     final user = ref.watch(authProvider);
+    final settings = ref.watch(settingsProvider);
     final slots = ref.watch(autoSaveSlotsProvider);
     final pendingQueue = ref.watch(pendingQueueCountProvider).value ?? 0;
+    final themeIconPath = AssetPaths.themeAppIcon(
+      settings.themeMode,
+      abyssalAlterEgo: settings.abyssalCyanAlterEgo,
+    );
 
     return SafeArea(
       child: Center(
@@ -90,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(14),
                             child: Image.asset(
-                              AssetPaths.appIcon,
+                              themeIconPath,
                               width: 48,
                               height: 48,
                               fit: BoxFit.cover,

@@ -56,6 +56,11 @@ class _MainShellState extends ConsumerState<MainShell> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final settings = ref.watch(settingsProvider);
+    final themeIconPath = AssetPaths.themeAppIcon(
+      settings.themeMode,
+      abyssalAlterEgo: settings.abyssalCyanAlterEgo,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -74,7 +79,7 @@ class _MainShellState extends ConsumerState<MainShell> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.asset(
-                        AssetPaths.appIcon,
+                        themeIconPath,
                         width: 40,
                         height: 40,
                         fit: BoxFit.cover,

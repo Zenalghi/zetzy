@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 
 /// The four core games in the Zetzy suite.
@@ -104,7 +105,21 @@ enum ChessPieceSet {
 
 /// Asset paths matching the repository's assets directory.
 abstract final class AssetPaths {
-  static const String appIcon = 'assets/images/ico.jpeg';
+  static const String appIcon = 'assets/images/icons/warm_parchment.jpeg';
+
+  static String themeAppIcon(
+    ZetzyThemeMode mode, {
+    bool abyssalAlterEgo = false,
+  }) => switch (mode) {
+    ZetzyThemeMode.oledMidnight => 'assets/images/icons/oled_midnight.jpeg',
+    ZetzyThemeMode.classicWood => 'assets/images/icons/classic_wood.jpeg',
+    ZetzyThemeMode.nordicFrost => 'assets/images/icons/nordic_frost.jpeg',
+    ZetzyThemeMode.draculaNeon => 'assets/images/icons/dracula_neon.jpeg',
+    ZetzyThemeMode.abyssalCyan => abyssalAlterEgo
+        ? 'assets/images/icons/abyssal_cyan1.jpeg'
+        : 'assets/images/icons/abyssal_cyan0.jpeg',
+    ZetzyThemeMode.warmParchment => 'assets/images/icons/warm_parchment.jpeg',
+  };
 
   // Minesweeper images
   static const String mineNormal = 'assets/images/minesweeper/mine_normal.png';

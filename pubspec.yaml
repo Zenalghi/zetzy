@@ -46,29 +46,29 @@ flutter_launcher_icons:
   android: true
   ios: true
   remove_alpha_ios: true
-  image_path: "assets/images/ico.jpeg"
+  image_path: "assets/images/icons/warm_parchment.jpeg"
   min_sdk_android: 21
   adaptive_icon_background: "#0D0D0D"
-  adaptive_icon_foreground: "assets/images/ico.jpeg"
+  adaptive_icon_foreground: "assets/images/icons/warm_parchment.jpeg"
   web:
     generate: true
-    image_path: "assets/images/ico.jpeg"
+    image_path: "assets/images/icons/warm_parchment.jpeg"
     background_color: "#0D0D0D"
     theme_color: "#0D0D0D"
   windows:
     generate: true
-    image_path: "assets/images/ico.jpeg"
+    image_path: "assets/images/icons/warm_parchment.jpeg"
     icon_size: 256
   macos:
     generate: true
-    image_path: "assets/images/ico.jpeg"
+    image_path: "assets/images/icons/warm_parchment.jpeg"
 
 flutter:
   generate: true
   uses-material-design: true
 
   assets:
-    - assets/images/ico.jpeg
+    - assets/images/icons/
     - assets/images/badge/
     - assets/images/minesweeper/
     - assets/images/snake/
