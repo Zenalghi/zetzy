@@ -22,6 +22,11 @@ on:
         required: false
         default: true
         type: boolean
+      publish_docker:
+        description: "Build & push Web Docker container to GHCR (when target is all or web)"
+        required: false
+        default: true
+        type: boolean
       publish_release:
         description: "Publish GitHub Release using version from pubspec.yaml (e.g. v1.0.0)"
         required: false
@@ -32,6 +37,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  packages: write
 
 concurrency:
   group: "zetzy-build-${{ github.ref }}"
@@ -52,6 +58,7 @@ jobs:
       run_android: ${{ steps.version.outputs.run_android }}
       run_web: ${{ steps.version.outputs.run_web }}
       run_deploy_pages: ${{ steps.version.outputs.run_deploy_pages }}
+      run_docker: ${{ steps.version.outputs.run_docker }}
       run_windows: ${{ steps.version.outputs.run_windows }}
       run_linux: ${{ steps.version.outputs.run_linux }}
     steps:
@@ -82,17 +89,20 @@ jobs:
             SHOULD_RELEASE="true"
             TARGET="all"
             DEPLOY_PAGES="true"
+            PUBLISH_DOCKER="true"
           else
             TAG_NAME="v${VERSION_NAME}"
             PRERELEASE="false"
             SHOULD_RELEASE="${{ inputs.publish_release }}"
             TARGET="${{ inputs.target }}"
             DEPLOY_PAGES="${{ inputs.deploy_pages }}"
+            PUBLISH_DOCKER="${{ inputs.publish_docker }}"
           fi
 
           RUN_ANDROID=$([[ "$TARGET" = "all" || "$TARGET" = "android" ]] && echo "true" || echo "false")
           RUN_WEB=$([[ "$TARGET" = "all" || "$TARGET" = "web" ]] && echo "true" || echo "false")
           RUN_DEPLOY_PAGES=$([[ "$RUN_WEB" = "true" && "$DEPLOY_PAGES" = "true" ]] && echo "true" || echo "false")
+          RUN_DOCKER=$([[ "$RUN_WEB" = "true" && "$PUBLISH_DOCKER" = "true" ]] && echo "true" || echo "false")
           RUN_WINDOWS=$([[ "$TARGET" = "all" || "$TARGET" = "windows" ]] && echo "true" || echo "false")
           RUN_LINUX=$([[ "$TARGET" = "all" || "$TARGET" = "linux" ]] && echo "true" || echo "false")
 
@@ -105,6 +115,7 @@ jobs:
             echo "run_android=$RUN_ANDROID"
             echo "run_web=$RUN_WEB"
             echo "run_deploy_pages=$RUN_DEPLOY_PAGES"
+            echo "run_docker=$RUN_DOCKER"
             echo "run_windows=$RUN_WINDOWS"
             echo "run_linux=$RUN_LINUX"
           } >> "$GITHUB_OUTPUT"
@@ -230,6 +241,50 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
+
+      - name: Build Flutter Web Release for Docker (Root Base Href)
+        if: ${{ needs.test.outputs.run_docker == 'true' }}
+        run: |
+          flutter build web --release \
+            --base-href "/" \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+
+      - name: Set up Docker Buildx
+        if: ${{ needs.test.outputs.run_docker == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        if: ${{ needs.test.outputs.run_docker == 'true' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata & Tags
+        id: meta
+        if: ${{ needs.test.outputs.run_docker == 'true' }}
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ needs.test.outputs.version_name }}
+            type=raw,value=${{ needs.test.outputs.tag_name }}
+            type=raw,value=latest,enable=${{ needs.test.outputs.prerelease != 'true' }}
+
+      - name: Build & Push Docker Image to GHCR
+        if: ${{ needs.test.outputs.run_docker == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.ci
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy_pages:
     name: Deploy to GitHub Pages

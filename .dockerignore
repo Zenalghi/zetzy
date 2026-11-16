@@ -1,0 +1,16 @@
+.git/
+.github/
+.dart_tool/
+build/
+!build/web/
+dist/
+release-assets/
+android/
+ios/
+macos/
+windows/
+linux/
+test/
+docs/
+supabase.json
+*.iml
