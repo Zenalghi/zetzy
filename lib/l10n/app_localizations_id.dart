@@ -949,4 +949,110 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get badgeSelectedPreview => 'Tier Dipilih';
+
+  @override
+  String get feedbackTitle => 'Feedback';
+
+  @override
+  String get feedbackAdminInboxTitle => 'Kotak Masuk Feedback';
+
+  @override
+  String get feedbackTabInbox => 'Kotak Masuk';
+
+  @override
+  String get feedbackTabMine => 'Feedback Saya';
+
+  @override
+  String get feedbackPrivacyNote =>
+      'Feedback hanya dapat dilihat oleh Anda dan admin.';
+
+  @override
+  String get feedbackSignInRequired =>
+      'Masuk ke akun Anda untuk mengirim feedback dan melihat balasan admin.';
+
+  @override
+  String feedbackPendingCount(int count, int max) {
+    return 'Menunggu: $count/$max';
+  }
+
+  @override
+  String get feedbackPlaceholder =>
+      'Tulis laporan bug, saran fitur, atau masukan Anda...';
+
+  @override
+  String get feedbackSubmit => 'Kirim Feedback';
+
+  @override
+  String feedbackLimitReached(int max) {
+    return 'Batas $max feedback menunggu tercapai. Tunggu tinjauan admin atau hapus yang lama.';
+  }
+
+  @override
+  String get feedbackStatusPending => 'Menunggu';
+
+  @override
+  String get feedbackStatusApproved => 'Disetujui';
+
+  @override
+  String get feedbackStatusRejected => 'Ditolak';
+
+  @override
+  String get feedbackEditAction => 'Edit';
+
+  @override
+  String get feedbackEditDialogTitle => 'Edit Feedback';
+
+  @override
+  String feedbackEditWindow(String time) {
+    return 'Bisa edit ($time)';
+  }
+
+  @override
+  String get feedbackEditLocked => 'Edit terkunci (>6 jam)';
+
+  @override
+  String get feedbackDeleteAction => 'Hapus';
+
+  @override
+  String get feedbackDeleteConfirmTitle => 'Hapus Feedback?';
+
+  @override
+  String get feedbackDeleteConfirmBody =>
+      'Feedback ini akan dihapus secara permanen.';
+
+  @override
+  String get feedbackAdminReplyLabel => 'Balasan Admin';
+
+  @override
+  String feedbackAutoDeleteNotice(String time) {
+    return 'Terhapus dlm $time';
+  }
+
+  @override
+  String get feedbackReviewActionApprove => 'Centang';
+
+  @override
+  String get feedbackReviewActionReject => 'Tolak';
+
+  @override
+  String get feedbackReviewDialogTitle => 'Tinjau & Balas (1× Saja)';
+
+  @override
+  String get feedbackReviewReplyHint =>
+      'Pesan balasan opsional untuk pemain...';
+
+  @override
+  String get feedbackEmptyMine => 'Belum ada feedback yang dikirim.';
+
+  @override
+  String get feedbackEmptyInbox => 'Belum ada feedback dari pemain.';
+
+  @override
+  String get feedbackLoadMore => 'Muat Lagi (20)';
+
+  @override
+  String get profileFeedbackButton => 'Feedback';
+
+  @override
+  String get profileRoleAdminBadge => 'ADMIN';
 }

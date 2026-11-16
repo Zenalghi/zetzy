@@ -474,5 +474,58 @@
   "badgeStatusLocked": "Locked",
   "badgeAvailableAllGames": "Open from start across all 4 games",
   "badgeUnlockedChallenge": "Unlocked tier — Master-level challenge",
-  "badgeSelectedPreview": "Selected Tier"
+  "badgeSelectedPreview": "Selected Tier",
+
+  "feedbackTitle": "Feedback",
+  "feedbackAdminInboxTitle": "Feedback Inbox",
+  "feedbackTabInbox": "Admin Inbox",
+  "feedbackTabMine": "My Feedback",
+  "feedbackPrivacyNote": "Feedback can only be seen by you and admins.",
+  "feedbackSignInRequired": "Sign in to your account to send feedback or view admin responses.",
+  "feedbackPendingCount": "Pending: {count}/{max}",
+  "@feedbackPendingCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+  "feedbackPlaceholder": "Share a bug report, feature suggestion, or experience...",
+  "feedbackSubmit": "Send Feedback",
+  "feedbackLimitReached": "Max {max} pending feedback items reached. Wait for admin review or delete an older one.",
+  "@feedbackLimitReached": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
+  "feedbackStatusPending": "Pending",
+  "feedbackStatusApproved": "Approved",
+  "feedbackStatusRejected": "Rejected",
+  "feedbackEditAction": "Edit",
+  "feedbackEditDialogTitle": "Edit Feedback",
+  "feedbackEditWindow": "Editable ({time})",
+  "@feedbackEditWindow": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "feedbackEditLocked": "Edit locked (>6h)",
+  "feedbackDeleteAction": "Delete",
+  "feedbackDeleteConfirmTitle": "Delete Feedback?",
+  "feedbackDeleteConfirmBody": "This feedback item will be removed permanently.",
+  "feedbackAdminReplyLabel": "Admin Reply",
+  "feedbackAutoDeleteNotice": "Deletes in {time}",
+  "@feedbackAutoDeleteNotice": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "feedbackReviewActionApprove": "Approve",
+  "feedbackReviewActionReject": "Reject",
+  "feedbackReviewDialogTitle": "Review & Reply (1× Only)",
+  "feedbackReviewReplyHint": "Optional reply message for player...",
+  "feedbackEmptyMine": "No feedback sent yet.",
+  "feedbackEmptyInbox": "No player feedback yet.",
+  "feedbackLoadMore": "Load More (20)",
+  "profileFeedbackButton": "Feedback",
+  "profileRoleAdminBadge": "ADMIN"
 }

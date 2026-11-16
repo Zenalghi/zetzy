@@ -406,5 +406,58 @@
   "badgeStatusLocked": "Terkunci",
   "badgeAvailableAllGames": "Terbuka sejak awal di semua 4 game",
   "badgeUnlockedChallenge": "Tier terbuka — Tantangan tingkat ahli",
-  "badgeSelectedPreview": "Tier Dipilih"
+  "badgeSelectedPreview": "Tier Dipilih",
+
+  "feedbackTitle": "Feedback",
+  "feedbackAdminInboxTitle": "Kotak Masuk Feedback",
+  "feedbackTabInbox": "Kotak Masuk",
+  "feedbackTabMine": "Feedback Saya",
+  "feedbackPrivacyNote": "Feedback hanya dapat dilihat oleh Anda dan admin.",
+  "feedbackSignInRequired": "Masuk ke akun Anda untuk mengirim feedback dan melihat balasan admin.",
+  "feedbackPendingCount": "Menunggu: {count}/{max}",
+  "@feedbackPendingCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+  "feedbackPlaceholder": "Tulis laporan bug, saran fitur, atau masukan Anda...",
+  "feedbackSubmit": "Kirim Feedback",
+  "feedbackLimitReached": "Batas {max} feedback menunggu tercapai. Tunggu tinjauan admin atau hapus yang lama.",
+  "@feedbackLimitReached": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
+  "feedbackStatusPending": "Menunggu",
+  "feedbackStatusApproved": "Disetujui",
+  "feedbackStatusRejected": "Ditolak",
+  "feedbackEditAction": "Edit",
+  "feedbackEditDialogTitle": "Edit Feedback",
+  "feedbackEditWindow": "Bisa edit ({time})",
+  "@feedbackEditWindow": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "feedbackEditLocked": "Edit terkunci (>6 jam)",
+  "feedbackDeleteAction": "Hapus",
+  "feedbackDeleteConfirmTitle": "Hapus Feedback?",
+  "feedbackDeleteConfirmBody": "Feedback ini akan dihapus secara permanen.",
+  "feedbackAdminReplyLabel": "Balasan Admin",
+  "feedbackAutoDeleteNotice": "Terhapus dlm {time}",
+  "@feedbackAutoDeleteNotice": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "feedbackReviewActionApprove": "Centang",
+  "feedbackReviewActionReject": "Tolak",
+  "feedbackReviewDialogTitle": "Tinjau & Balas (1× Saja)",
+  "feedbackReviewReplyHint": "Pesan balasan opsional untuk pemain...",
+  "feedbackEmptyMine": "Belum ada feedback yang dikirim.",
+  "feedbackEmptyInbox": "Belum ada feedback dari pemain.",
+  "feedbackLoadMore": "Muat Lagi (20)",
+  "profileFeedbackButton": "Feedback",
+  "profileRoleAdminBadge": "ADMIN"
 }

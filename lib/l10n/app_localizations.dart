@@ -1796,6 +1796,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Selected Tier'**
   String get badgeSelectedPreview;
+
+  /// No description provided for @feedbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get feedbackTitle;
+
+  /// No description provided for @feedbackAdminInboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback Inbox'**
+  String get feedbackAdminInboxTitle;
+
+  /// No description provided for @feedbackTabInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Inbox'**
+  String get feedbackTabInbox;
+
+  /// No description provided for @feedbackTabMine.
+  ///
+  /// In en, this message translates to:
+  /// **'My Feedback'**
+  String get feedbackTabMine;
+
+  /// No description provided for @feedbackPrivacyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback can only be seen by you and admins.'**
+  String get feedbackPrivacyNote;
+
+  /// No description provided for @feedbackSignInRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to your account to send feedback or view admin responses.'**
+  String get feedbackSignInRequired;
+
+  /// No description provided for @feedbackPendingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending: {count}/{max}'**
+  String feedbackPendingCount(int count, int max);
+
+  /// No description provided for @feedbackPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Share a bug report, feature suggestion, or experience...'**
+  String get feedbackPlaceholder;
+
+  /// No description provided for @feedbackSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Feedback'**
+  String get feedbackSubmit;
+
+  /// No description provided for @feedbackLimitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Max {max} pending feedback items reached. Wait for admin review or delete an older one.'**
+  String feedbackLimitReached(int max);
+
+  /// No description provided for @feedbackStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get feedbackStatusPending;
+
+  /// No description provided for @feedbackStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get feedbackStatusApproved;
+
+  /// No description provided for @feedbackStatusRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get feedbackStatusRejected;
+
+  /// No description provided for @feedbackEditAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get feedbackEditAction;
+
+  /// No description provided for @feedbackEditDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Feedback'**
+  String get feedbackEditDialogTitle;
+
+  /// No description provided for @feedbackEditWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Editable ({time})'**
+  String feedbackEditWindow(String time);
+
+  /// No description provided for @feedbackEditLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit locked (>6h)'**
+  String get feedbackEditLocked;
+
+  /// No description provided for @feedbackDeleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get feedbackDeleteAction;
+
+  /// No description provided for @feedbackDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Feedback?'**
+  String get feedbackDeleteConfirmTitle;
+
+  /// No description provided for @feedbackDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This feedback item will be removed permanently.'**
+  String get feedbackDeleteConfirmBody;
+
+  /// No description provided for @feedbackAdminReplyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Reply'**
+  String get feedbackAdminReplyLabel;
+
+  /// No description provided for @feedbackAutoDeleteNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Deletes in {time}'**
+  String feedbackAutoDeleteNotice(String time);
+
+  /// No description provided for @feedbackReviewActionApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get feedbackReviewActionApprove;
+
+  /// No description provided for @feedbackReviewActionReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get feedbackReviewActionReject;
+
+  /// No description provided for @feedbackReviewDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review & Reply (1× Only)'**
+  String get feedbackReviewDialogTitle;
+
+  /// No description provided for @feedbackReviewReplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional reply message for player...'**
+  String get feedbackReviewReplyHint;
+
+  /// No description provided for @feedbackEmptyMine.
+  ///
+  /// In en, this message translates to:
+  /// **'No feedback sent yet.'**
+  String get feedbackEmptyMine;
+
+  /// No description provided for @feedbackEmptyInbox.
+  ///
+  /// In en, this message translates to:
+  /// **'No player feedback yet.'**
+  String get feedbackEmptyInbox;
+
+  /// No description provided for @feedbackLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load More (20)'**
+  String get feedbackLoadMore;
+
+  /// No description provided for @profileFeedbackButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get profileFeedbackButton;
+
+  /// No description provided for @profileRoleAdminBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'ADMIN'**
+  String get profileRoleAdminBadge;
 }
 
 class _AppLocalizationsDelegate

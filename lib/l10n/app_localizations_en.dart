@@ -956,4 +956,109 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get badgeSelectedPreview => 'Selected Tier';
+
+  @override
+  String get feedbackTitle => 'Feedback';
+
+  @override
+  String get feedbackAdminInboxTitle => 'Feedback Inbox';
+
+  @override
+  String get feedbackTabInbox => 'Admin Inbox';
+
+  @override
+  String get feedbackTabMine => 'My Feedback';
+
+  @override
+  String get feedbackPrivacyNote =>
+      'Feedback can only be seen by you and admins.';
+
+  @override
+  String get feedbackSignInRequired =>
+      'Sign in to your account to send feedback or view admin responses.';
+
+  @override
+  String feedbackPendingCount(int count, int max) {
+    return 'Pending: $count/$max';
+  }
+
+  @override
+  String get feedbackPlaceholder =>
+      'Share a bug report, feature suggestion, or experience...';
+
+  @override
+  String get feedbackSubmit => 'Send Feedback';
+
+  @override
+  String feedbackLimitReached(int max) {
+    return 'Max $max pending feedback items reached. Wait for admin review or delete an older one.';
+  }
+
+  @override
+  String get feedbackStatusPending => 'Pending';
+
+  @override
+  String get feedbackStatusApproved => 'Approved';
+
+  @override
+  String get feedbackStatusRejected => 'Rejected';
+
+  @override
+  String get feedbackEditAction => 'Edit';
+
+  @override
+  String get feedbackEditDialogTitle => 'Edit Feedback';
+
+  @override
+  String feedbackEditWindow(String time) {
+    return 'Editable ($time)';
+  }
+
+  @override
+  String get feedbackEditLocked => 'Edit locked (>6h)';
+
+  @override
+  String get feedbackDeleteAction => 'Delete';
+
+  @override
+  String get feedbackDeleteConfirmTitle => 'Delete Feedback?';
+
+  @override
+  String get feedbackDeleteConfirmBody =>
+      'This feedback item will be removed permanently.';
+
+  @override
+  String get feedbackAdminReplyLabel => 'Admin Reply';
+
+  @override
+  String feedbackAutoDeleteNotice(String time) {
+    return 'Deletes in $time';
+  }
+
+  @override
+  String get feedbackReviewActionApprove => 'Approve';
+
+  @override
+  String get feedbackReviewActionReject => 'Reject';
+
+  @override
+  String get feedbackReviewDialogTitle => 'Review & Reply (1× Only)';
+
+  @override
+  String get feedbackReviewReplyHint => 'Optional reply message for player...';
+
+  @override
+  String get feedbackEmptyMine => 'No feedback sent yet.';
+
+  @override
+  String get feedbackEmptyInbox => 'No player feedback yet.';
+
+  @override
+  String get feedbackLoadMore => 'Load More (20)';
+
+  @override
+  String get profileFeedbackButton => 'Feedback';
+
+  @override
+  String get profileRoleAdminBadge => 'ADMIN';
 }
