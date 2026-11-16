@@ -27,16 +27,75 @@ Konfigurasi pembacaan kredensial ada di `lib/core/constants/supabase_schema.dart
 -- Run in Supabase SQL Editor (Zetzy Schema + Anti-Cheat + Recovery RPC)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. User Profiles
+-- 1. User Profiles (aman dijalankan ulang / non-destruktif untuk DB lama)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   username TEXT UNIQUE NOT NULL CHECK (username ~ '^[a-z0-9_]{3,16}$'),
   avatar_url TEXT,
   chess_elo INT NOT NULL DEFAULT 1000,
   recovery_hash TEXT DEFAULT NULL,
+  role TEXT NOT NULL DEFAULT 'player' CHECK (role IN ('player', 'admin')),
   unlocked_levels JSONB NOT NULL DEFAULT '{"sudoku": 5, "chess": 5, "minesweeper": 5, "snake": 5}'::jsonb,
+  account_data JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migrasi aman jika tabel profiles sudah ada sebelumnya (tanpa menghapus data)
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'player',
+  ADD COLUMN IF NOT EXISTS account_data JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_role_check CHECK (role IN ('player', 'admin'));
+
+-- Cegah user mengubah role sendiri menjadi admin lewat REST API client
+-- Perubahan role hanya diizinkan lewat Supabase Table Editor / SQL Editor / service_role
+CREATE OR REPLACE FUNCTION public.protect_profile_role_column()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF auth.uid() IS NOT NULL AND current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+      NEW.role := 'player';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' AND NEW.role IS DISTINCT FROM OLD.role THEN
+    IF auth.uid() IS NOT NULL AND current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+      RAISE EXCEPTION 'Changing profile role from client API is forbidden';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_role ON public.profiles;
+CREATE TRIGGER trg_protect_profile_role
+  BEFORE INSERT OR UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_role_column();
+
+REVOKE ALL ON FUNCTION public.protect_profile_role_column() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = (SELECT auth.uid()) AND role = 'admin'
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
 -- 2. Game Records & Leaderboard
 CREATE TABLE IF NOT EXISTS public.game_records (
@@ -59,9 +118,12 @@ CREATE INDEX IF NOT EXISTS idx_leaderboard
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_records ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public profiles readable" ON public.profiles;
 CREATE POLICY "Public profiles readable" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users manage own profile" ON public.profiles;
 CREATE POLICY "Users manage own profile" ON public.profiles FOR ALL USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Public leaderboard readable" ON public.game_records;
 CREATE POLICY "Public leaderboard readable" ON public.game_records FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Insert own valid records" ON public.game_records;
 CREATE POLICY "Insert own valid records" ON public.game_records FOR INSERT WITH CHECK (
@@ -74,6 +136,7 @@ CREATE POLICY "Insert own valid records" ON public.game_records FOR INSERT WITH 
     )
   )
 );
+DROP POLICY IF EXISTS "Delete own records" ON public.game_records;
 CREATE POLICY "Delete own records" ON public.game_records FOR DELETE USING (auth.uid() = user_id);
 
 -- 4. Storage Bucket & Policies for Avatars (256x256 PNG)
@@ -491,10 +554,190 @@ $$;
 GRANT EXECUTE ON FUNCTION public.matchmake_chess(TEXT, INTEGER, INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_chess_matchmaking() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.finish_ranked_chess_match(UUID, INTEGER, BOOLEAN, INTEGER, TEXT) TO authenticated;
+
+-- ============================================================
+-- 7. Feedback System (Player Private + Admin Moderation Inbox)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.feedbacks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL CONSTRAINT feedbacks_user_id_fkey REFERENCES public.profiles(id) ON DELETE CASCADE,
+  message TEXT NOT NULL CHECK (char_length(trim(message)) BETWEEN 3 AND 1000),
+  app_version TEXT NOT NULL DEFAULT '0.0.0',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  admin_reply TEXT CHECK (admin_reply IS NULL OR char_length(trim(admin_reply)) <= 500),
+  reviewed_by UUID CONSTRAINT feedbacks_reviewed_by_fkey REFERENCES public.profiles(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedbacks_created
+  ON public.feedbacks (created_at DESC, id ASC);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_user_status
+  ON public.feedbacks (user_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_reviewed_by
+  ON public.feedbacks (reviewed_by);
+
+CREATE OR REPLACE FUNCTION public.enforce_feedback_insert_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_pending_count INTEGER;
+BEGIN
+  -- Kunci baris profile user agar tidak bisa bypass batas 5 dengan request paralel
+  PERFORM 1 FROM public.profiles WHERE id = NEW.user_id FOR UPDATE;
+
+  SELECT COUNT(*) INTO v_pending_count
+  FROM public.feedbacks
+  WHERE user_id = NEW.user_id
+    AND status = 'pending';
+
+  IF v_pending_count >= 5 THEN
+    RAISE EXCEPTION 'Maximum 5 pending feedback items per user';
+  END IF;
+
+  NEW.status := 'pending';
+  NEW.admin_reply := NULL;
+  NEW.reviewed_by := NULL;
+  NEW.reviewed_at := NULL;
+  NEW.created_at := NOW();
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_feedback_insert_limit ON public.feedbacks;
+CREATE TRIGGER trg_feedback_insert_limit
+  BEFORE INSERT ON public.feedbacks
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_feedback_insert_limit();
+
+CREATE OR REPLACE FUNCTION public.protect_feedback_update_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.id IS DISTINCT FROM OLD.id OR
+     NEW.user_id IS DISTINCT FROM OLD.user_id OR
+     NEW.app_version IS DISTINCT FROM OLD.app_version OR
+     NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Immutable feedback metadata cannot be changed';
+  END IF;
+
+  -- Admin review (1x saat pending -> approved/rejected + opsional 1 pesan)
+  IF public.is_admin() AND auth.uid() <> OLD.user_id OR
+     (public.is_admin() AND NEW.status IN ('approved', 'rejected') AND OLD.status = 'pending') THEN
+    IF OLD.status <> 'pending' THEN
+      RAISE EXCEPTION 'Feedback has already been reviewed';
+    END IF;
+    IF NEW.status NOT IN ('approved', 'rejected') THEN
+      RAISE EXCEPTION 'Admin decision must be approved or rejected';
+    END IF;
+    NEW.message := OLD.message;
+    NEW.reviewed_by := auth.uid();
+    NEW.reviewed_at := NOW();
+    NEW.updated_at := NOW();
+    RETURN NEW;
+  END IF;
+
+  -- Player edit sendiri (< 6 jam & belum ditinjau admin)
+  IF auth.uid() = OLD.user_id THEN
+    IF OLD.status <> 'pending' THEN
+      RAISE EXCEPTION 'Reviewed feedback cannot be edited';
+    END IF;
+    IF NOW() - OLD.created_at >= interval '6 hours' THEN
+      RAISE EXCEPTION 'Edit window (6 hours) has expired';
+    END IF;
+    NEW.status := OLD.status;
+    NEW.admin_reply := OLD.admin_reply;
+    NEW.reviewed_by := OLD.reviewed_by;
+    NEW.reviewed_at := OLD.reviewed_at;
+    NEW.updated_at := NOW();
+    RETURN NEW;
+  END IF;
+
+  RAISE EXCEPTION 'Unauthorized feedback update';
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_feedback_update_guard ON public.feedbacks;
+CREATE TRIGGER trg_feedback_update_guard
+  BEFORE UPDATE ON public.feedbacks
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_feedback_update_fields();
+
+REVOKE ALL ON FUNCTION public.enforce_feedback_insert_limit() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.protect_feedback_update_fields() FROM PUBLIC, anon, authenticated;
+
+ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.feedbacks FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.feedbacks TO authenticated;
+
+DROP POLICY IF EXISTS "Read own or admin feedbacks" ON public.feedbacks;
+CREATE POLICY "Read own or admin feedbacks" ON public.feedbacks
+  FOR SELECT TO authenticated
+  USING (
+    (((SELECT auth.uid()) = user_id) OR public.is_admin()) AND
+    (reviewed_at IS NULL OR reviewed_at > NOW() - interval '3 days')
+  );
+
+DROP POLICY IF EXISTS "Insert own feedback" ON public.feedbacks;
+CREATE POLICY "Insert own feedback" ON public.feedbacks
+  FOR INSERT TO authenticated
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS "Update own within 6h or admin review" ON public.feedbacks;
+CREATE POLICY "Update own within 6h or admin review" ON public.feedbacks
+  FOR UPDATE TO authenticated
+  USING (
+    ((SELECT auth.uid()) = user_id AND status = 'pending' AND NOW() - created_at < interval '6 hours') OR
+    (public.is_admin() AND status = 'pending')
+  )
+  WITH CHECK (
+    ((SELECT auth.uid()) = user_id AND status = 'pending') OR
+    (public.is_admin() AND status IN ('approved', 'rejected'))
+  );
+
+DROP POLICY IF EXISTS "Delete own feedback anytime" ON public.feedbacks;
+CREATE POLICY "Delete own feedback anytime" ON public.feedbacks
+  FOR DELETE TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
+
+-- Hapus fisik feedback yang sudah dicentang / ditolak > 3 hari (berjalan di semua paket Supabase, termasuk Free)
+CREATE OR REPLACE FUNCTION public.cleanup_expired_feedbacks()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_deleted INTEGER;
+BEGIN
+  IF auth.uid() IS NULL AND current_user NOT IN ('postgres', 'supabase_admin', 'service_role') THEN
+    RETURN 0;
+  END IF;
+  DELETE FROM public.feedbacks
+  WHERE reviewed_at IS NOT NULL
+    AND reviewed_at <= NOW() - interval '3 days';
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  RETURN v_deleted;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.cleanup_expired_feedbacks() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cleanup_expired_feedbacks() TO authenticated;
+
+-- Opsional jika pg_cron diaktifkan di Dashboard -> Database -> Extensions:
+-- SELECT cron.schedule('cleanup-expired-feedbacks', '0 * * * *', $$SELECT public.cleanup_expired_feedbacks();$$);
 ```
 
-3. Klik **Run** (atau `Cmd/Ctrl + Enter`). Pastikan muncul pesan sukses (`Success. No rows returned` atau query berhasil tanpa error).
-4. Cek hasil di sidebar **Table Editor**: tabel `profiles`, `game_records`, `chess_matchmaking_queue`, dan `chess_matches` sudah muncul. Cek di **Storage**: bucket `avatars` berstatus **Public**.
+3. Klik **Run** (atau `Cmd/Ctrl + Enter`). Pastikan muncul pesan sukses (`Success. No rows returned` atau query berhasil tanpa error). Karena memakai `IF NOT EXISTS` dan `DROP POLICY IF EXISTS`, SQL ini **aman dijalankan langsung pada project Supabase yang sudah berjalan tanpa menghapus tabel lama**.
+4. Cek hasil di sidebar **Table Editor**: tabel `profiles` (termasuk kolom `role` dan `account_data`), `game_records`, `feedbacks`, `chess_matchmaking_queue`, dan `chess_matches` sudah muncul. Cek di **Storage**: bucket `avatars` berstatus **Public**.
 
 ---
 
@@ -508,6 +751,13 @@ Zetzy memakai sistem akun **username-only tanpa verifikasi email** (secara inter
 4. Klik **Save**.
 
 > **Catatan keamanan:** Zetzy menerapkan Single Active Session (`signOut(scope: SignOutScope.others)`) setiap kali login/register, sesuai PRD. Password reset tanpa email menggunakan RPC `reset_password_with_recovery` dengan recovery phrase yang di-hash SHA-256.
+
+> **Cara Mengubah Role User (`player` ↔ `admin`) lewat Supabase Table Editor:**
+> Untuk keamanan, aplikasi tidak menyediakan tombol ubah role di sisi client (kolom `role` dilindungi trigger database dari request API client). Untuk menjadikan sebuah akun sebagai **Admin**:
+> 1. Buka Supabase Dashboard → **Table Editor** → pilih tabel **`profiles`**.
+> 2. Cari baris user yang diinginkan (berdasarkan `username`).
+> 3. Klik dua kali sel pada kolom **`role`**, ganti nilainya dari `player` menjadi **`admin`** (huruf kecil), lalu klik **Save**.
+> 4. Buka ulang / refresh aplikasi Zetzy dengan akun tersebut — badge **ADMIN** akan muncul di Profile dan halaman **Feedback** akan menampilkan tab **Admin Inbox**.
 
 ---
 

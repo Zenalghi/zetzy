@@ -6,7 +6,7 @@ import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
-import 'package:zetzy/data/models/game_record.dart';
+import 'package:zetzy/data/models/stats_summary.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
@@ -17,30 +17,16 @@ class StatisticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
-    final recordsAsync = ref.watch(localRecordsProvider);
+    final summaryAsync = ref.watch(statsSummaryProvider);
 
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 960),
-          child: recordsAsync.when(
+          child: summaryAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('$e')),
-            data: (records) {
-              final totalPlayed = records.length;
-              final wins = records.where((r) => r.isWon).length;
-              final winRate = totalPlayed == 0 ? 0.0 : (wins / totalPlayed) * 100;
-              final totalDurationMs = records.fold<int>(
-                0,
-                (sum, r) => sum + r.durationMs,
-              );
-              final avgMs =
-                  totalPlayed == 0 ? 0 : totalDurationMs ~/ totalPlayed;
-              final bestStreak = _computeBestStreak(records);
-              final totalXp = _computeTotalXp(records);
-              final playerLevel = 1 + (totalXp ~/ 250);
-              final levelProgress = (totalXp % 250) / 250.0;
-
+            data: (summary) {
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
@@ -60,12 +46,12 @@ class StatisticsScreen extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              l10n.statsPlayerLevel(playerLevel),
+                              l10n.statsPlayerLevel(summary.playerLevel),
                               style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                             Text(
-                              l10n.statsXp(totalXp),
+                              l10n.statsXp(summary.totalXp),
                               style: ZetzyThemes.monoStyle(
                                 fontSize: 15,
                                 color: p.accent,
@@ -77,7 +63,7 @@ class StatisticsScreen extends ConsumerWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: LinearProgressIndicator(
-                            value: levelProgress,
+                            value: summary.levelProgress,
                             minHeight: 10,
                             backgroundColor: p.surfaceElevated,
                             color: p.accent,
@@ -98,34 +84,34 @@ class StatisticsScreen extends ConsumerWidget {
                     children: [
                       _MetricTile(
                         label: l10n.statsTotalGames,
-                        value: '$totalPlayed',
+                        value: '${summary.totalPlayed}',
                         color: p.textPrimary,
                       ),
                       _MetricTile(
                         label: l10n.statsTotalWins,
-                        value: '$wins',
+                        value: '${summary.wins}',
                         color: p.success,
                       ),
                       _MetricTile(
                         label: l10n.statsWinRate,
-                        value: '${winRate.toStringAsFixed(1)}%',
+                        value: '${summary.winRate.toStringAsFixed(1)}%',
                         color: p.accent,
                       ),
                       _MetricTile(
                         label: l10n.statsBestStreak,
-                        value: '$bestStreak',
+                        value: '${summary.bestStreak}',
                         color: p.warning,
                       ),
                       _MetricTile(
                         label: l10n.statsTotalTime,
                         value: TimeFormatter.formatTotalDuration(
-                          totalDurationMs,
+                          summary.totalDurationMs,
                         ),
                         color: p.accentSecondary,
                       ),
                       _MetricTile(
                         label: l10n.statsAvgTime,
-                        value: TimeFormatter.formatMs(avgMs),
+                        value: TimeFormatter.formatMs(summary.avgMs),
                         color: p.textPrimary,
                       ),
                     ],
@@ -145,7 +131,7 @@ class StatisticsScreen extends ConsumerWidget {
                           width: double.infinity,
                           child: CustomPaint(
                             painter: _StatsBarChartPainter(
-                              records: records.take(20).toList().reversed.toList(),
+                              records: summary.recentMatches,
                               palette: p,
                             ),
                           ),
@@ -159,9 +145,7 @@ class StatisticsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _GameBreakdownCard(
                         game: game,
-                        records: records
-                            .where((r) => r.gameType == game)
-                            .toList(),
+                        breakdown: summary.breakdownFor(game),
                       ),
                     ),
                 ],
@@ -171,34 +155,6 @@ class StatisticsScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  int _computeBestStreak(List<GameRecord> records) {
-    final sorted = List<GameRecord>.from(records)
-      ..sort((a, b) => a.playedAt.compareTo(b.playedAt));
-    var best = 0;
-    var current = 0;
-    for (final r in sorted) {
-      if (r.isWon) {
-        current++;
-        best = max(best, current);
-      } else {
-        current = 0;
-      }
-    }
-    return best;
-  }
-
-  int _computeTotalXp(List<GameRecord> records) {
-    var xp = 0;
-    for (final r in records) {
-      if (r.isWon) {
-        xp += DifficultyLevel.fromLevel(r.difficulty).xpReward;
-      } else {
-        xp += 5;
-      }
-    }
-    return xp;
   }
 }
 
@@ -240,17 +196,14 @@ class _MetricTile extends StatelessWidget {
 }
 
 class _GameBreakdownCard extends StatelessWidget {
-  const _GameBreakdownCard({required this.game, required this.records});
+  const _GameBreakdownCard({required this.game, required this.breakdown});
   final GameType game;
-  final List<GameRecord> records;
+  final GameStatsBreakdown breakdown;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final l10n = AppLocalizations.of(context)!;
-    final total = records.length;
-    final won = records.where((r) => r.isWon).length;
-    final totalMs = records.fold<int>(0, (s, r) => s + r.durationMs);
 
     return TactileCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -267,14 +220,14 @@ class _GameBreakdownCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  '${l10n.statsTotalGames}: $total • ${l10n.statsTotalWins}: $won',
+                  '${l10n.statsTotalGames}: ${breakdown.totalPlayed} • ${l10n.statsTotalWins}: ${breakdown.wins}',
                   style: TextStyle(fontSize: 12, color: p.textSecondary),
                 ),
               ],
             ),
           ),
           Text(
-            TimeFormatter.formatTotalDuration(totalMs),
+            TimeFormatter.formatTotalDuration(breakdown.totalDurationMs),
             style: ZetzyThemes.monoStyle(fontSize: 13, color: p.textPrimary),
           ),
         ],
@@ -285,7 +238,7 @@ class _GameBreakdownCard extends StatelessWidget {
 
 class _StatsBarChartPainter extends CustomPainter {
   _StatsBarChartPainter({required this.records, required this.palette});
-  final List<GameRecord> records;
+  final List<RecentMatchStat> records;
   final ZetzyPalette palette;
 
   @override

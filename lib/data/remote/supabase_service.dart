@@ -7,7 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/constants/supabase_schema.dart';
 import 'package:zetzy/core/utils/avatar_compressor.dart';
+import 'package:zetzy/data/models/feedback_entry.dart';
 import 'package:zetzy/data/models/game_record.dart';
+import 'package:zetzy/data/models/stats_summary.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_config_loader_stub.dart'
     if (dart.library.io) 'package:zetzy/data/remote/supabase_config_loader_io.dart';
@@ -327,6 +329,18 @@ class SupabaseService {
     final uid = client?.auth.currentUser?.id;
     if (client == null || uid == null) return;
     await client.from('game_records').delete().eq('user_id', uid);
+    Map<String, dynamic> currentData = {};
+    try {
+      final existing = await client
+          .from('profiles')
+          .select('account_data')
+          .eq('id', uid)
+          .maybeSingle();
+      if (existing != null && existing['account_data'] is Map) {
+        currentData = Map<String, dynamic>.from(existing['account_data'] as Map);
+      }
+    } catch (_) {}
+    currentData['stats'] = StatsSummary.empty.toJson();
     await client
         .from('profiles')
         .update({
@@ -335,8 +349,175 @@ class SupabaseService {
             for (final g in GameType.values)
               g.id: DifficultyLevel.defaultUnlockedLevel,
           },
+          'account_data': currentData,
+          'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', uid);
+  }
+
+  /// Syncs profile settings &/or statistics summary inside `profiles.account_data`.
+  Future<Map<String, dynamic>?> updateAccountData({
+    Map<String, dynamic>? settingsJson,
+    StatsSummary? statsSummary,
+    Map<String, dynamic>? baseAccountData,
+  }) async {
+    final client = _client;
+    final uid = client?.auth.currentUser?.id;
+    if (client == null || uid == null) return null;
+
+    final nextData = Map<String, dynamic>.from(baseAccountData ?? const {});
+    if (nextData.isEmpty) {
+      try {
+        final existing = await client
+            .from('profiles')
+            .select('account_data')
+            .eq('id', uid)
+            .maybeSingle();
+        if (existing != null && existing['account_data'] is Map) {
+          nextData.addAll(
+            Map<String, dynamic>.from(existing['account_data'] as Map),
+          );
+        }
+      } catch (_) {}
+    }
+
+    if (settingsJson != null) {
+      nextData['settings'] = settingsJson;
+    }
+    if (statsSummary != null) {
+      nextData['stats'] = statsSummary.toJson();
+    }
+
+    await client
+        .from('profiles')
+        .update({
+          'account_data': nextData,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', uid);
+    return nextData;
+  }
+
+  Future<void> _cleanupExpiredFeedbacks() async {
+    final client = _client;
+    if (client == null) return;
+    try {
+      await client.rpc('cleanup_expired_feedbacks');
+    } catch (_) {}
+  }
+
+  /// Fetches the authenticated player's own feedback items (newest first).
+  Future<List<FeedbackEntry>> fetchMyFeedbacks() async {
+    final client = _client;
+    final uid = client?.auth.currentUser?.id;
+    if (client == null || uid == null) return const [];
+
+    await _cleanupExpiredFeedbacks();
+    final rows = await client
+        .from('feedbacks')
+        .select('*, profiles!feedbacks_user_id_fkey(username, avatar_url)')
+        .eq('user_id', uid)
+        .order('created_at', ascending: false);
+
+    return (rows as List)
+        .map((e) => FeedbackEntry.fromJson(Map<String, dynamic>.from(e as Map)))
+        .where((entry) => !entry.isExpired())
+        .toList();
+  }
+
+  /// Admin-only paginated feedback inbox (20 items per page, newest first).
+  Future<List<FeedbackEntry>> fetchAllFeedbacks({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final client = _client;
+    if (client == null || client.auth.currentUser == null || limit <= 0) {
+      return const [];
+    }
+
+    await _cleanupExpiredFeedbacks();
+    final rows = await client
+        .from('feedbacks')
+        .select('*, profiles!feedbacks_user_id_fkey(username, avatar_url)')
+        .order('created_at', ascending: false)
+        .order('id', ascending: true)
+        .range(offset, offset + limit - 1);
+
+    return (rows as List)
+        .map((e) => FeedbackEntry.fromJson(Map<String, dynamic>.from(e as Map)))
+        .where((entry) => !entry.isExpired())
+        .toList();
+  }
+
+  Future<FeedbackEntry> createFeedback({
+    required String message,
+    required String appVersion,
+  }) async {
+    final client = _requireClient();
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) throw StateError('Not authenticated.');
+
+    final inserted = await client
+        .from('feedbacks')
+        .insert({
+          'user_id': uid,
+          'message': message.trim(),
+          'app_version': appVersion.trim().isEmpty ? '0.0.0' : appVersion.trim(),
+        })
+        .select('*, profiles!feedbacks_user_id_fkey(username, avatar_url)')
+        .single();
+    return FeedbackEntry.fromJson(Map<String, dynamic>.from(inserted));
+  }
+
+  Future<FeedbackEntry> updateFeedbackMessage({
+    required String feedbackId,
+    required String message,
+  }) async {
+    final client = _requireClient();
+    final updated = await client
+        .from('feedbacks')
+        .update({
+          'message': message.trim(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', feedbackId)
+        .select('*, profiles!feedbacks_user_id_fkey(username, avatar_url)')
+        .single();
+    return FeedbackEntry.fromJson(Map<String, dynamic>.from(updated));
+  }
+
+  Future<void> deleteFeedback(String feedbackId) async {
+    final client = _requireClient();
+    await client.from('feedbacks').delete().eq('id', feedbackId);
+  }
+
+  /// Admin one-time review (`approved` / `rejected`) with optional single reply.
+  Future<FeedbackEntry> reviewFeedback({
+    required String feedbackId,
+    required FeedbackStatus decision,
+    String? adminReply,
+  }) async {
+    assert(decision.isResolved, 'Admin decision must be approved or rejected');
+    final client = _requireClient();
+    final uid = client.auth.currentUser?.id;
+    if (uid == null) throw StateError('Not authenticated.');
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    final trimmedReply = adminReply?.trim();
+
+    final updated = await client
+        .from('feedbacks')
+        .update({
+          'status': decision.id,
+          'admin_reply':
+              (trimmedReply == null || trimmedReply.isEmpty) ? null : trimmedReply,
+          'reviewed_by': uid,
+          'reviewed_at': nowIso,
+          'updated_at': nowIso,
+        })
+        .eq('id', feedbackId)
+        .select('*, profiles!feedbacks_user_id_fkey(username, avatar_url)')
+        .single();
+    return FeedbackEntry.fromJson(Map<String, dynamic>.from(updated));
   }
 
   Future<void> deleteAccount() async {

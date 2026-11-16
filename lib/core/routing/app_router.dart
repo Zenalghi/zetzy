@@ -9,6 +9,7 @@ import 'package:zetzy/features/games/snake/snake_screen.dart'
     deferred as snake_lib;
 import 'package:zetzy/features/games/sudoku/sudoku_screen.dart'
     deferred as sudoku_lib;
+import 'package:zetzy/features/feedback/feedback_screen.dart';
 import 'package:zetzy/features/shell/main_shell.dart';
 
 /// Arguments passed when navigating to one of the 4 game routes.
@@ -36,6 +37,7 @@ abstract final class AppRouter {
   static const String leaderboard = '/leaderboard';
   static const String stats = '/stats';
   static const String profile = '/profile';
+  static const String feedback = '/feedback';
 
   static const String sudoku = '/sudoku';
   static const String chess = '/chess';
@@ -83,6 +85,11 @@ abstract final class AppRouter {
         return MaterialPageRoute<void>(
           settings: settings,
           builder: (_) => const MainShell(initialTab: 3),
+        );
+      case feedback:
+        return MaterialPageRoute<void>(
+          settings: settings,
+          builder: (_) => const FeedbackScreen(),
         );
       case sudoku:
         final args = _resolveGameArgs(settings.arguments, uri);

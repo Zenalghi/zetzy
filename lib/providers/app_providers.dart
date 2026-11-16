@@ -17,6 +17,7 @@ import 'package:zetzy/data/local/local_storage_service.dart';
 import 'package:zetzy/data/local/settings_repository.dart';
 import 'package:zetzy/data/models/auto_save_slot.dart';
 import 'package:zetzy/data/models/game_record.dart';
+import 'package:zetzy/data/models/stats_summary.dart';
 import 'package:zetzy/data/models/user_profile.dart';
 import 'package:zetzy/data/remote/supabase_service.dart';
 
@@ -83,6 +84,34 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = next;
     _syncServices(next, fromUserAction: true);
     await ref.read(settingsRepoProvider).save(next);
+    unawaited(_syncSettingsToCloud(next));
+  }
+
+  /// Applies cloud-saved profile settings when signing in on a device without
+  /// triggering an infinite re-upload loop.
+  Future<void> applyCloudSettings(Map<String, dynamic>? rawSettings) async {
+    if (rawSettings == null || rawSettings.isEmpty) return;
+    final merged = state.mergeCloudJson(rawSettings);
+    state = merged;
+    _syncServices(merged, fromUserAction: false);
+    await ref.read(settingsRepoProvider).save(merged);
+  }
+
+  Future<void> _syncSettingsToCloud(AppSettings next) async {
+    final supa = ref.read(supabaseServiceProvider);
+    final auth = ref.read(authProvider);
+    if (!supa.isAvailable || auth.isGuest) return;
+    try {
+      final updatedData = await supa.updateAccountData(
+        settingsJson: next.toCloudJson(),
+        baseAccountData: auth.accountData,
+      );
+      if (updatedData != null && ref.mounted) {
+        ref.read(authProvider.notifier).setAccountDataSnapshot(updatedData);
+      }
+    } catch (e) {
+      debugPrint('Settings cloud sync deferred: $e');
+    }
   }
 
   Future<void> setTheme(ZetzyThemeMode mode) {
@@ -237,6 +266,7 @@ class AuthNotifier extends Notifier<UserProfile> {
       final profile = await supa.fetchCurrentProfile();
       if (profile != null) {
         state = profile;
+        await _applyRemoteAccountData(profile);
         await ref.read(scoreSyncControllerProvider).flushQueue();
       }
     } catch (e) {
@@ -248,6 +278,7 @@ class AuthNotifier extends Notifier<UserProfile> {
     final supa = ref.read(supabaseServiceProvider);
     final profile = await supa.signIn(username: username, password: password);
     state = profile;
+    await _applyRemoteAccountData(profile);
     await ref.read(scoreSyncControllerProvider).flushQueue();
   }
 
@@ -263,7 +294,47 @@ class AuthNotifier extends Notifier<UserProfile> {
       recoveryPhrase: recoveryPhrase,
     );
     state = profile;
+    await syncAccountSnapshotToCloud();
     await ref.read(scoreSyncControllerProvider).flushQueue();
+  }
+
+  Future<void> _applyRemoteAccountData(UserProfile profile) async {
+    final cloudSettings = profile.syncedSettingsJson;
+    if (cloudSettings != null && cloudSettings.isNotEmpty) {
+      await ref.read(settingsProvider.notifier).applyCloudSettings(cloudSettings);
+    } else {
+      await syncAccountSnapshotToCloud();
+    }
+  }
+
+  void setAccountDataSnapshot(Map<String, dynamic> accountData) {
+    if (state.isGuest) return;
+    state = state.copyWith(accountData: accountData);
+  }
+
+  /// Syncs full local settings + computed Stats snapshot to `profiles.account_data`.
+  Future<void> syncAccountSnapshotToCloud() async {
+    final supa = ref.read(supabaseServiceProvider);
+    if (!supa.isAvailable || state.isGuest) return;
+    try {
+      final localRecords = await ref.read(localStorageProvider).fetchLocalRecords();
+      final localSummary = StatsSummary.fromRecords(localRecords);
+      final remoteSummary = state.syncedStats;
+      final summaryToPush = (remoteSummary != null &&
+              remoteSummary.totalPlayed > localSummary.totalPlayed)
+          ? remoteSummary
+          : localSummary;
+      final updated = await supa.updateAccountData(
+        settingsJson: ref.read(settingsProvider).toCloudJson(),
+        statsSummary: summaryToPush,
+        baseAccountData: state.accountData,
+      );
+      if (updated != null && ref.mounted) {
+        state = state.copyWith(accountData: updated);
+      }
+    } catch (e) {
+      debugPrint('Account data snapshot sync deferred: $e');
+    }
   }
 
   Future<void> signOut() async {
@@ -343,7 +414,13 @@ class AuthNotifier extends Notifier<UserProfile> {
     final defaultLevels = {
       for (final g in GameType.values) g: DifficultyLevel.defaultUnlockedLevel,
     };
-    state = state.copyWith(chessElo: 1000, unlockedLevels: defaultLevels);
+    final nextData = Map<String, dynamic>.from(state.accountData)
+      ..['stats'] = StatsSummary.empty.toJson();
+    state = state.copyWith(
+      chessElo: 1000,
+      unlockedLevels: defaultLevels,
+      accountData: nextData,
+    );
     await ref
         .read(settingsProvider.notifier)
         .updateGuestProgression(unlockedLevels: defaultLevels, chessElo: 1000);
@@ -489,6 +566,7 @@ class ScoreSyncController {
       _ref.invalidate(pendingQueueCountProvider);
     }
     _ref.invalidate(localRecordsProvider);
+    await _ref.read(authProvider.notifier).syncAccountSnapshotToCloud();
 
     if (syncRemote) {
       await flushQueue();
@@ -547,6 +625,20 @@ final scoreSyncControllerProvider = Provider<ScoreSyncController>((ref) {
 
 final localRecordsProvider = FutureProvider<List<GameRecord>>((ref) async {
   return ref.watch(localStorageProvider).fetchLocalRecords();
+});
+
+/// Combines local match records with synced cloud [UserProfile.syncedStats] so
+/// signing in on a new device immediately restores Statistics page widgets.
+final statsSummaryProvider = FutureProvider<StatsSummary>((ref) async {
+  final records = await ref.watch(localRecordsProvider.future);
+  final localSummary = StatsSummary.fromRecords(records);
+  final user = ref.watch(authProvider);
+  final remoteSummary = user.isGuest ? null : user.syncedStats;
+  if (remoteSummary != null &&
+      remoteSummary.totalPlayed > localSummary.totalPlayed) {
+    return remoteSummary;
+  }
+  return localSummary;
 });
 
 final pendingQueueCountProvider = FutureProvider<int>((ref) async {

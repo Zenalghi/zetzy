@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
+import 'package:zetzy/core/routing/app_router.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/widgets/difficulty_badge.dart';
@@ -443,12 +444,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                user.isGuest
-                                    ? l10n.profileGuest
-                                    : '@${user.username}',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      user.isGuest
+                                          ? l10n.profileGuest
+                                          : '@${user.username}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(fontWeight: FontWeight.w800),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (user.isAdmin) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: p.accent.withValues(alpha: 0.16),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: p.accent.withValues(
+                                            alpha: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        l10n.profileRoleAdminBadge,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: p.accent,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
                                 'Chess ELO: ${user.chessElo}',
@@ -530,17 +566,47 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                       ],
-                    ] else
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () => _showConfigureAccountDialog(l10n),
-                          icon: const Icon(
-                            Icons.manage_accounts_rounded,
-                            size: 18,
-                          ),
-                          label: Text(l10n.profileConfigureAccount),
+                          onPressed: () =>
+                              Navigator.of(context).pushNamed(AppRouter.feedback),
+                          icon: const Icon(Icons.feedback_outlined, size: 18),
+                          label: Text(l10n.profileFeedbackButton),
                         ),
+                      ),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _showConfigureAccountDialog(l10n),
+                              icon: const Icon(
+                                Icons.manage_accounts_rounded,
+                                size: 18,
+                              ),
+                              label: GameSettingsControls.segmentLabel(
+                                l10n.profileConfigureAccount,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => Navigator.of(
+                                context,
+                              ).pushNamed(AppRouter.feedback),
+                              icon: const Icon(
+                                Icons.feedback_outlined,
+                                size: 18,
+                              ),
+                              label: GameSettingsControls.segmentLabel(
+                                l10n.profileFeedbackButton,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     if (!user.isGuest) ...[
                       const Divider(height: 22),

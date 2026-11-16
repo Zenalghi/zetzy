@@ -19,7 +19,7 @@ class AppSettings {
     this.snakeControlMode = SnakeControlMode.swipe,
     this.snakeShowGridLines = true,
     this.snakeAssistOverlay = true,
-    this.chessPieceSet = ChessPieceSet.cburnett,
+    this.chessPieceSet = ChessPieceSet.cburnettV2,
     this.chessAutoQueen = true,
     this.chessShowLegalMoves = true,
     this.chessShowCoordinates = true,
@@ -159,6 +159,100 @@ class AppSettings {
       guestUnlockedLevels: guestUnlockedLevels ?? this.guestUnlockedLevels,
     );
   }
+
+  /// Serializes all Profile & Gameplay settings for `profiles.account_data['settings']`.
+  Map<String, dynamic> toCloudJson() => {
+    'theme_mode': themeMode.id,
+    'abyssal_alter_ego': abyssalCyanAlterEgo,
+    'locale_code': localeCode,
+    'sfx_enabled': sfxEnabled,
+    'bgm_mode': bgmMode.name,
+    'bgm_track': bgmTrack,
+    'favorite_bgm_track': favoriteBgmTrack,
+    'haptics_enabled': hapticsEnabled,
+    'haptic_intensity': hapticIntensity.name,
+    'wakelock_enabled': wakelockEnabled,
+    'snake_control_mode': snakeControlMode.name,
+    'snake_show_grid_lines': snakeShowGridLines,
+    'snake_assist_overlay': snakeAssistOverlay,
+    'chess_piece_set': chessPieceSet.folder,
+    'chess_auto_queen': chessAutoQueen,
+    'chess_show_legal_moves': chessShowLegalMoves,
+    'chess_show_coordinates': chessShowCoordinates,
+    'chess_move_confirm_mode': chessMoveConfirmMode.name,
+    'chess_auto_flip_pass_play': chessAutoFlipPassPlay,
+    'sudoku_auto_finish': sudokuAutoFinish,
+    'sudoku_auto_finish_threshold': sudokuAutoFinishThreshold,
+    'sudoku_highlight_same_digits': sudokuHighlightSameDigits,
+    'sudoku_auto_clear_notes': sudokuAutoClearNotes,
+    'sudoku_show_streak_stats': sudokuShowStreakStats,
+    'sudoku_smart_candidate_notes': sudokuSmartCandidateNotes,
+    'minesweeper_quick_chord': minesweeperQuickChord,
+    'minesweeper_swap_tap_flag': minesweeperSwapTapFlag,
+    'practice_rewind_on_loss': practiceRewindOnLoss,
+    'practice_rewind_steps': practiceRewindSteps,
+  };
+
+  /// Merges a synced cloud settings JSON object onto this local [AppSettings].
+  AppSettings mergeCloudJson(Map<String, dynamic> json) {
+    T enumByName<T extends Enum>(List<T> values, String key, T fallback) {
+      final raw = json[key]?.toString();
+      if (raw == null) return fallback;
+      return values.firstWhere((e) => e.name == raw, orElse: () => fallback);
+    }
+
+    return copyWith(
+      themeMode: json['theme_mode'] != null
+          ? ZetzyThemeMode.fromId(json['theme_mode'].toString())
+          : null,
+      abyssalCyanAlterEgo: json['abyssal_alter_ego'] as bool?,
+      localeCode: json['locale_code']?.toString(),
+      sfxEnabled: json['sfx_enabled'] as bool?,
+      bgmMode: enumByName(BgmMode.values, 'bgm_mode', bgmMode),
+      bgmTrack: json['bgm_track']?.toString(),
+      favoriteBgmTrack: json['favorite_bgm_track']?.toString(),
+      hapticsEnabled: json['haptics_enabled'] as bool?,
+      hapticIntensity: enumByName(
+        HapticIntensity.values,
+        'haptic_intensity',
+        hapticIntensity,
+      ),
+      wakelockEnabled: json['wakelock_enabled'] as bool?,
+      snakeControlMode: enumByName(
+        SnakeControlMode.values,
+        'snake_control_mode',
+        snakeControlMode,
+      ),
+      snakeShowGridLines: json['snake_show_grid_lines'] as bool?,
+      snakeAssistOverlay: json['snake_assist_overlay'] as bool?,
+      chessPieceSet: json['chess_piece_set'] != null
+          ? ChessPieceSet.values.firstWhere(
+              (s) => s.folder == json['chess_piece_set'].toString(),
+              orElse: () => chessPieceSet,
+            )
+          : null,
+      chessAutoQueen: json['chess_auto_queen'] as bool?,
+      chessShowLegalMoves: json['chess_show_legal_moves'] as bool?,
+      chessShowCoordinates: json['chess_show_coordinates'] as bool?,
+      chessMoveConfirmMode: enumByName(
+        ChessMoveConfirmMode.values,
+        'chess_move_confirm_mode',
+        chessMoveConfirmMode,
+      ),
+      chessAutoFlipPassPlay: json['chess_auto_flip_pass_play'] as bool?,
+      sudokuAutoFinish: json['sudoku_auto_finish'] as bool?,
+      sudokuAutoFinishThreshold:
+          (json['sudoku_auto_finish_threshold'] as num?)?.toInt(),
+      sudokuHighlightSameDigits: json['sudoku_highlight_same_digits'] as bool?,
+      sudokuAutoClearNotes: json['sudoku_auto_clear_notes'] as bool?,
+      sudokuShowStreakStats: json['sudoku_show_streak_stats'] as bool?,
+      sudokuSmartCandidateNotes: json['sudoku_smart_candidate_notes'] as bool?,
+      minesweeperQuickChord: json['minesweeper_quick_chord'] as bool?,
+      minesweeperSwapTapFlag: json['minesweeper_swap_tap_flag'] as bool?,
+      practiceRewindOnLoss: json['practice_rewind_on_loss'] as bool?,
+      practiceRewindSteps: (json['practice_rewind_steps'] as num?)?.toInt(),
+    );
+  }
 }
 
 class SettingsRepository {
@@ -244,7 +338,7 @@ class SettingsRepository {
       snakeAssistOverlay: _prefs.getBool(_kSnakeAssistOverlay) ?? true,
       chessPieceSet: ChessPieceSet.values.firstWhere(
         (s) => s.folder == _prefs.getString(_kChessPieces),
-        orElse: () => ChessPieceSet.cburnett,
+        orElse: () => ChessPieceSet.cburnettV2,
       ),
       chessAutoQueen: _prefs.getBool(_kChessAutoQueen) ?? true,
       chessShowLegalMoves: _prefs.getBool(_kChessLegalMoves) ?? true,
