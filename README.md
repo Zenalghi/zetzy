@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/images/ico.jpeg" alt="Zetzy Logo" width="108" style="border-radius: 24px;" />
+  <img src="assets/images/icons/warm_parchment.jpeg" alt="Zetzy Logo" width="108" style="border-radius: 24px;" />
   <h1>Zetzy</h1>
   <p><strong>Tactile Minimalist Cross-Platform Arcade &amp; Strategy Suite</strong></p>
 
@@ -15,18 +15,18 @@
 
 ---
 
-**Zetzy** is a cross-platform Flutter game suite combining **Sudoku**, **Chess**, **Minesweeper**, and **Snake** inside a single *Tactile Modern Minimalist* interface. Designed **offline-first** with local SQLite persistence (`Drift`) and optional **Supabase** cloud integration for authentication, global leaderboards, avatar storage, and Realtime online chess rooms.
+**Zetzy** (`v0.0.7+1`) is a cross-platform Flutter game suite combining **Sudoku**, **Chess**, **Minesweeper**, and **Snake** inside a single *Tactile Modern Minimalist* interface. Designed **offline-first** with local SQLite persistence (`Drift`) and optional **Supabase** cloud integration for authentication, cross-device settings/stats/My Best sync, global leaderboards, Feedback Inbox (Player & Admin), and Realtime online chess.
 
 ## Highlights
 
-- **4 Classic Strategy & Arcade Games** — Purpose-built pure-Dart engines and isolate-backed computation so heavy work never blocks the UI thread.
-- **7-Tier Progressive Difficulty + Practice Mode** — Levels 1–5 open by default (`Chill` → `PRO`); winning Level 5 unlocks `Nightmare`, and winning Level 6 unlocks `Are U a God?`. Toggle **Practice Mode** anytime to play without affecting leaderboard stats or ELO.
-- **Offline-First Persistence** — 4 independent auto-save slots (one per game) + offline score queue backed by **Drift (SQLite)** on native targets and **SharedPreferences JSON fallback** on Web.
-- **Optional Supabase Cloud Sync** — Username-only Auth, SHA-256 recovery phrase password reset RPC, compressed `256×256` PNG avatars, global leaderboards with platform badges, anti-cheat RLS rules, and Realtime online chess.
-- **Anti-Cheat Pause Blur** — Automatically blurs active boards and pauses timers when the application moves to the background.
-- **4 Curated Visual Skins** — *OLED Midnight*, *Classic Wood & Slate*, *Nordic Frost*, and *Dracula Neon*, paired with `PlusJakartaSans` UI typography and `JetBrainsMono` tabular metrics.
-- **Bilingual Localization** — Instant switching between **English (`en`)** and **Bahasa Indonesia (`id`)**.
-- **Adaptive Cross-Platform Layout** — Bottom navigation on compact screens and navigation rail on tablet/desktop viewports across Android, iOS, Web, Windows, Linux, and macOS.
+- **4 Classic Strategy & Arcade Games** — Pure-Dart engines with Isolate-backed puzzle generation and AI computation so heavy work never blocks the UI thread.
+- **Visual Guide & Interactive Pause-to-Explain Tutorial** — Every Home game card offers a slideable illustrated guide and a full-screen, in-game-layout interactive tutorial (*Pause → Coach Tip → Blinking Target Practice*).
+- **7-Tier Progressive Difficulty + Practice Mode** — Levels 1–5 open by default (`Chill` → `PRO`); winning Level 5 unlocks `Nightmare`, and winning Level 6 unlocks `Are U a God?`. Toggle **Practice Mode** anytime for unrated play with Undo & Rewind on Loss.
+- **Offline-First & Cross-Device Cloud Sync** — 4 independent auto-save slots + offline score queue backed by **Drift (SQLite)** on native targets and **SharedPreferences JSON fallback** on Web. Signed-in accounts sync settings & stats via `profiles.account_data` and personal records (**My Best**) via `public.game_records`.
+- **Optional Supabase Cloud & Admin Feedback** — Username-only Auth, SHA-256 recovery phrase password reset RPC, compressed `256×256` PNG avatars, global leaderboards, Realtime online chess + ELO matchmaking, and a dedicated **Feedback** page (max 5 pending per player, 6-hour edit lock, 1× Admin reply/decision with 3-day auto-expiry).
+- **6 Curated Visual Skins + Dynamic Icon Easter Egg** — *OLED Midnight*, *Classic Wood & Slate*, *Nordic Frost*, *Dracula Neon*, *Abyssal Cyan* (with double-tap **Alter Ego** skin), and *Warm Parchment*. On Android & iOS, the launcher icon silently shifts to `abyssal_cyan0` between `23:00–05:30` local time and mirrors the active theme by day.
+- **Audio & Tactile Feedback** — `9` BGM tracks (`Off / Auto` with customizable 3× favorite weight / `Manual`) and multi-variation SFX auto-discovered at runtime via `AssetManifest`.
+- **Bilingual Localization (`en` & `id`)** — Full ARB localization across all screens, guides, and interactive tutorials.
 
 ---
 
@@ -169,9 +169,14 @@ Test coverage includes:
 
 ## Documentation
 
-- [Product Requirements Document (`docs/prd.md`)](docs/prd.md)
-- [Customization Specification (`docs/list-kustomisasi.md`)](docs/list-kustomisasi.md)
-- [Supabase Setup Guide (`docs/supabase-setup.md`)](docs/supabase-setup.md)
+- [Game Design Document (`docs/GDD.md`)](docs/GDD.md) — Gameplay loops, controls, scoring, progression, and tutorial design
+- [Technical Architecture (`docs/ARCHITECTURE.md`)](docs/ARCHITECTURE.md) — Folder structure, Riverpod state management, routing, and services
+- [Data & Storage Schema (`docs/DATA_SCHEMA.md`)](docs/DATA_SCHEMA.md) — Drift SQLite, SharedPreferences keys, Supabase SQL tables, and cloud sync
+- [Assets & Audio Guide (`docs/ASSETS.md`)](docs/ASSETS.md) — Sprites, SVG chess sets, theme/launcher icons, fonts, and SFX/BGM manifest rules
+- [Development Roadmap (`docs/ROADMAP.md`)](docs/ROADMAP.md) — Phased MVP-to-production milestones and upcoming tasks
+- [Product Requirements Document (`docs/prd.md`)](docs/prd.md) — Master PRD & design decisions
+- [Supabase Setup Guide (`docs/supabase-setup.md`)](docs/supabase-setup.md) — Complete Supabase backend & Admin setup
+- [Docker Web Deployment (`docs/docker.md`)](docs/docker.md) — GHCR container deployment for the Web build
 
 ## Optional Audio Assets
 

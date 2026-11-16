@@ -1,11 +1,13 @@
 # MASTER PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
 **Project Name:** Zetzy
-**Current Version:** Follow `pubspec.yaml` (`0.0.2+1`, ditampilkan di Profil sebagai `Zetzy v0.0.2`)
-**Target Platforms:** Android, Web, Desktop (Windows & Linux), serta siap ekspansi iOS & macOS
+**Current Version:** Follow `pubspec.yaml` (`0.0.7+1`, ditampilkan di Profil sebagai `Zetzy v0.0.7`)
+**Target Platforms:** Android, iOS, Web, Desktop (Windows, macOS, & Linux)
 **Framework & Stack:** Flutter (Riverpod) + Drift (SQLite Local) + Supabase (Cloud Backend, Auth, Storage, RPC & Realtime)
 
-Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.md](file:///Users/umardani/Documents/workspace/zetzy/docs/list-kustomisasi.md)) yang telah diperbarui agar selaras penuh dengan **fitur gameplay lanjutan, efek visual, pengaturan mid-game, sistem matchmaking/anti-cheat, serta daftar lengkap asset & SFX `.wav`** dalam implementasi **Zetzy** saat ini.
+Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.md](file:///Users/umardani/Documents/workspace/zetzy/docs/list-kustomisasi.md)) yang telah diperbarui agar selaras penuh dengan **fitur gameplay lanjutan, efek visual, pengaturan mid-game, sistem matchmaking/anti-cheat, Panduan Visual & Tutorial Interaktif, Feedback & Role Admin, Easter Egg Icon Dinamis Android/iOS, serta daftar lengkap asset & SFX `.mp3`** dalam implementasi **Zetzy** saat ini.
+
+> Lihat pula dokumentasi pendamping di `docs/`: [GDD.md](file:///Users/umardani/Documents/workspace/zetzy/docs/GDD.md), [ARCHITECTURE.md](file:///Users/umardani/Documents/workspace/zetzy/docs/ARCHITECTURE.md), [DATA_SCHEMA.md](file:///Users/umardani/Documents/workspace/zetzy/docs/DATA_SCHEMA.md), [ASSETS.md](file:///Users/umardani/Documents/workspace/zetzy/docs/ASSETS.md), dan [ROADMAP.md](file:///Users/umardani/Documents/workspace/zetzy/docs/ROADMAP.md).
 
 ---
 
