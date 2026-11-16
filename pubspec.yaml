@@ -1,7 +1,7 @@
 name: zetzy
 description: "Zetzy — Tactile Minimalist Cross-Platform Arcade & Strategy Suite."
 publish_to: 'none'
-version: 0.0.2+1
+version: 0.0.3+1
 
 environment:
   sdk: ^3.13.7
@@ -76,6 +76,8 @@ flutter:
     - assets/icons/chess/cburnett/
     - assets/icons/chess/cburnett-v2/
     - assets/icons/chess/tatiana/
+    - assets/audio/mp3/
+    - assets/audio/mp3/bgm/
 
   fonts:
     - family: JetBrainsMono

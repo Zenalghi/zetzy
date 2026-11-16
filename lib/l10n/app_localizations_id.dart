@@ -878,4 +878,61 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get hapticStrong => 'Kuat';
+
+  @override
+  String get bgmModeOff => 'Mati';
+
+  @override
+  String get bgmModeAuto => 'Otomatis';
+
+  @override
+  String get bgmModeManual => 'Manual';
+
+  @override
+  String get bgmAutoDesc =>
+      'Acak otomatis semua trek (Trek 5 muncul lebih sering).';
+
+  @override
+  String bgmTrackLabel(int number) {
+    return 'Trek $number';
+  }
+
+  @override
+  String bgmNowPlaying(int number) {
+    return 'Diputar: Trek $number';
+  }
+
+  @override
+  String get bgmNextTrack => 'Trek Berikutnya';
+
+  @override
+  String get badgesTitle => 'Koleksi Badge';
+
+  @override
+  String get badgesSubtitle => 'Ketuk badge untuk perbesar & lihat detail';
+
+  @override
+  String badgesConqueredCount(int count, int total) {
+    return '$count/$total Ditaklukkan';
+  }
+
+  @override
+  String badgeWonCount(int count) {
+    return '$count× Menang';
+  }
+
+  @override
+  String get badgeStatusOpen => 'Terbuka';
+
+  @override
+  String get badgeStatusLocked => 'Terkunci';
+
+  @override
+  String get badgeAvailableAllGames => 'Terbuka sejak awal di semua 4 game';
+
+  @override
+  String get badgeUnlockedChallenge => 'Tier terbuka — Tantangan tingkat ahli';
+
+  @override
+  String get badgeSelectedPreview => 'Tier Dipilih';
 }

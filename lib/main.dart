@@ -22,7 +22,8 @@ Future<void> main() async {
   final audioService = AudioService();
   await audioService.init(
     sfxEnabled: initialSettings.sfxEnabled,
-    bgmEnabled: initialSettings.bgmEnabled,
+    bgmMode: initialSettings.bgmMode,
+    manualBgmTrack: initialSettings.bgmTrack,
   );
 
   runApp(

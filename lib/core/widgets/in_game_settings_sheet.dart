@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
+import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/data/local/settings_repository.dart';
@@ -17,76 +18,235 @@ abstract final class GameSettingsControls {
     ZetzyPalette p,
     AppLocalizations l10n, {
     required bool hasAudio,
+    AudioService? audioService,
     bool includeBgm = true,
-  }) => [
-    SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      value: settings.sfxEnabled,
-      onChanged: ctrl.setSfx,
-      title: Text(l10n.settingsAudioSfx),
-      subtitle: hasAudio
-          ? null
-          : Text(
-              l10n.settingsAudioPending,
-              style: TextStyle(fontSize: 11, color: p.textSecondary),
-            ),
-    ),
-    if (includeBgm)
+  }) {
+    final trackFilenames = (audioService != null &&
+            audioService.bgmTracks.isNotEmpty)
+        ? audioService.bgmTracks
+            .map((path) => path.split('/').last)
+            .toList(growable: false)
+        : const <String>[
+            '1.mp3',
+            '2.mp3',
+            '3.mp3',
+            '4.mp3',
+            '5.mp3',
+            '6.mp3',
+            '7.mp3',
+            '8.mp3',
+          ];
+
+    return [
       SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
-        value: settings.bgmEnabled,
-        onChanged: ctrl.setBgm,
-        title: Text(l10n.settingsAudioBgm),
+        value: settings.sfxEnabled,
+        onChanged: ctrl.setSfx,
+        title: Text(l10n.settingsAudioSfx),
+        subtitle: hasAudio
+            ? null
+            : Text(
+                l10n.settingsAudioPending,
+                style: TextStyle(fontSize: 11, color: p.textSecondary),
+              ),
       ),
-    SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      value: settings.hapticsEnabled,
-      onChanged: ctrl.setHaptics,
-      title: Text(l10n.settingsHaptics),
-    ),
-    if (settings.hapticsEnabled) ...[
-      const SizedBox(height: 2),
-      Text(
-        l10n.settingsHapticIntensity,
-        style: TextStyle(fontSize: 12, color: p.textSecondary),
-      ),
-      const SizedBox(height: 8),
-      SegmentedButton<HapticIntensity>(
-        selected: {settings.hapticIntensity},
-        onSelectionChanged: (sel) => ctrl.setHapticIntensity(sel.first),
-        segments: [
-          ButtonSegment(
-            value: HapticIntensity.light,
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(l10n.hapticLight, softWrap: false, maxLines: 1),
+      if (includeBgm) ...[
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Icon(
+              Icons.music_note_rounded,
+              size: 18,
+              color: settings.bgmMode == BgmMode.off
+                  ? p.textSecondary
+                  : p.accent,
             ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.settingsAudioBgm,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (settings.bgmMode != BgmMode.off)
+              _buildActiveBgmPill(settings, audioService, p, l10n),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<BgmMode>(
+          selected: {settings.bgmMode},
+          onSelectionChanged: (sel) => ctrl.setBgmMode(sel.first),
+          segments: [
+            ButtonSegment(
+              value: BgmMode.off,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.bgmModeOff, softWrap: false, maxLines: 1),
+              ),
+            ),
+            ButtonSegment(
+              value: BgmMode.auto,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.bgmModeAuto, softWrap: false, maxLines: 1),
+              ),
+            ),
+            ButtonSegment(
+              value: BgmMode.manual,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.bgmModeManual, softWrap: false, maxLines: 1),
+              ),
+            ),
+          ],
+        ),
+        if (settings.bgmMode == BgmMode.auto) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.bgmAutoDesc,
+                  style: TextStyle(fontSize: 12, color: p.textSecondary),
+                ),
+              ),
+              if (audioService != null && audioService.bgmTracks.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: l10n.bgmNextTrack,
+                  onPressed: ctrl.skipNextBgm,
+                  icon: const Icon(Icons.skip_next_rounded, size: 18),
+                ),
+              ],
+            ],
           ),
-          ButtonSegment(
-            value: HapticIntensity.medium,
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(l10n.hapticMedium, softWrap: false, maxLines: 1),
-            ),
-          ),
-          ButtonSegment(
-            value: HapticIntensity.strong,
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(l10n.hapticStrong, softWrap: false, maxLines: 1),
-            ),
+        ] else if (settings.bgmMode == BgmMode.manual) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              for (final fileName in trackFilenames)
+                ChoiceChip(
+                  selected:
+                      settings.bgmTrack == fileName ||
+                      AudioService.trackDisplayNumber(settings.bgmTrack) ==
+                          AudioService.trackDisplayNumber(fileName),
+                  onSelected: (_) => ctrl.setBgmTrack(fileName),
+                  avatar: AudioService.isFavoriteBgm(fileName)
+                      ? Icon(
+                          Icons.star_rounded,
+                          size: 15,
+                          color: p.accent,
+                        )
+                      : null,
+                  label: Text(
+                    l10n.bgmTrackLabel(
+                      int.tryParse(
+                            AudioService.trackDisplayNumber(fileName),
+                          ) ??
+                          1,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
+        const SizedBox(height: 8),
+      ],
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        value: settings.hapticsEnabled,
+        onChanged: ctrl.setHaptics,
+        title: Text(l10n.settingsHaptics),
       ),
-      const SizedBox(height: 8),
-    ],
-    SwitchListTile.adaptive(
-      contentPadding: EdgeInsets.zero,
-      value: settings.wakelockEnabled,
-      onChanged: ctrl.setWakelock,
-      title: Text(l10n.settingsWakelock),
-    ),
-  ];
+      if (settings.hapticsEnabled) ...[
+        const SizedBox(height: 2),
+        Text(
+          l10n.settingsHapticIntensity,
+          style: TextStyle(fontSize: 12, color: p.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<HapticIntensity>(
+          selected: {settings.hapticIntensity},
+          onSelectionChanged: (sel) => ctrl.setHapticIntensity(sel.first),
+          segments: [
+            ButtonSegment(
+              value: HapticIntensity.light,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.hapticLight, softWrap: false, maxLines: 1),
+              ),
+            ),
+            ButtonSegment(
+              value: HapticIntensity.medium,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.hapticMedium, softWrap: false, maxLines: 1),
+              ),
+            ),
+            ButtonSegment(
+              value: HapticIntensity.strong,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(l10n.hapticStrong, softWrap: false, maxLines: 1),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        value: settings.wakelockEnabled,
+        onChanged: ctrl.setWakelock,
+        title: Text(l10n.settingsWakelock),
+      ),
+    ];
+  }
+
+  static Widget _buildActiveBgmPill(
+    AppSettings settings,
+    AudioService? audioService,
+    ZetzyPalette p,
+    AppLocalizations l10n,
+  ) {
+    Widget badgeFor(String? assetPath) {
+      final raw = assetPath ??
+          (settings.bgmMode == BgmMode.manual ? settings.bgmTrack : null);
+      if (raw == null) return const SizedBox.shrink();
+      final numVal = int.tryParse(AudioService.trackDisplayNumber(raw));
+      if (numVal == null) return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: p.accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: p.accent.withValues(alpha: 0.35)),
+        ),
+        child: Text(
+          l10n.bgmNowPlaying(numVal),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: p.accent,
+          ),
+        ),
+      );
+    }
+
+    if (audioService == null) {
+      return badgeFor(null);
+    }
+    return ValueListenableBuilder<String?>(
+      valueListenable: audioService.currentBgmNotifier,
+      builder: (context, activePath, _) => badgeFor(activePath),
+    );
+  }
 
   /// Builds live-safe Sudoku controls (Auto-Finish, threshold, highlight, notes).
   static List<Widget> sudoku(
@@ -492,7 +652,7 @@ class _InGameSettingsSheet extends ConsumerWidget {
                         p,
                         l10n,
                         hasAudio: hasAudio,
-                        includeBgm: false,
+                        audioService: ref.watch(audioServiceProvider),
                       ),
                     ],
                   ),

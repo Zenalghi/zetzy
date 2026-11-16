@@ -1676,6 +1676,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Strong'**
   String get hapticStrong;
+
+  /// No description provided for @bgmModeOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get bgmModeOff;
+
+  /// No description provided for @bgmModeAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get bgmModeAuto;
+
+  /// No description provided for @bgmModeManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get bgmModeManual;
+
+  /// No description provided for @bgmAutoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart shuffle across all tracks (Track 5 appears more often).'**
+  String get bgmAutoDesc;
+
+  /// No description provided for @bgmTrackLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Track {number}'**
+  String bgmTrackLabel(int number);
+
+  /// No description provided for @bgmNowPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing: Track {number}'**
+  String bgmNowPlaying(int number);
+
+  /// No description provided for @bgmNextTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Track'**
+  String get bgmNextTrack;
+
+  /// No description provided for @badgesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank Badges'**
+  String get badgesTitle;
+
+  /// No description provided for @badgesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap any crest to enlarge & inspect'**
+  String get badgesSubtitle;
+
+  /// No description provided for @badgesConqueredCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}/{total} Conquered'**
+  String badgesConqueredCount(int count, int total);
+
+  /// No description provided for @badgeWonCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}× Won'**
+  String badgeWonCount(int count);
+
+  /// No description provided for @badgeStatusOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get badgeStatusOpen;
+
+  /// No description provided for @badgeStatusLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get badgeStatusLocked;
+
+  /// No description provided for @badgeAvailableAllGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Open from start across all 4 games'**
+  String get badgeAvailableAllGames;
+
+  /// No description provided for @badgeUnlockedChallenge.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked tier — Master-level challenge'**
+  String get badgeUnlockedChallenge;
+
+  /// No description provided for @badgeSelectedPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected Tier'**
+  String get badgeSelectedPreview;
 }
 
 class _AppLocalizationsDelegate

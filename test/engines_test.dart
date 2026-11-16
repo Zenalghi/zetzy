@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:bishop/bishop.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
@@ -1500,7 +1502,7 @@ void main() {
         onFinished: (_) {},
         onAutoSave: (_) {},
       );
-      ctrl.startNew(difficulty: DifficultyLevel.god, isPractice: false);
+      ctrl.startNew(difficulty: DifficultyLevel.easy, isPractice: false);
 
       ctrl.queueDirection(SnakeDirection.up);
       ctrl.queueDirection(SnakeDirection.left);
@@ -1522,47 +1524,90 @@ void main() {
       ctrl.dispose();
     });
 
-    test('AudioService defines 20 unique .wav SFX assets and resolves primary/fallback cleanly', () {
+    test('AudioService indexes numbered .mp3 SFX variations without back-to-back repeats and favors 5.mp3 in Auto BGM', () async {
       expect(ZetzySfx.values.length, equals(20));
-      final paths = ZetzySfx.values.map((s) => s.assetPath).toSet();
-      expect(paths.length, equals(20));
-      for (final p in paths) {
-        expect(p, startsWith('audio/sfx_'));
-        expect(p, endsWith('.wav'));
+      final prefixes = ZetzySfx.values.map((s) => s.prefix).toSet();
+      expect(prefixes.length, equals(20));
+      for (final prefix in prefixes) {
+        expect(prefix, startsWith('sfx_'));
       }
 
-      final audio = AudioService();
-      // Without loaded audio assets, resolution gracefully returns null
+      final audio = AudioService(random: Random(7));
+      // Without loaded audio assets, lookup gracefully returns null
       expect(
-        audio.resolveSfx(
+        audio.pickSfxAsset(
           ZetzySfx.sudokuLineComplete,
           fallback: ZetzySfx.sudokuTap,
         ),
         isNull,
       );
 
-      // With only core SFX bundled, effect falls back cleanly
-      audio.setAvailableAssetsForTest({'assets/audio/sfx_sudoku_tap.wav'});
-      expect(
-        audio.resolveSfx(
+      // Bundled core SFX falls back cleanly across numbered .mp3 variations
+      audio.setAvailableAssetsForTest({
+        'assets/audio/mp3/sfx_sudoku_tap1.mp3',
+        'assets/audio/mp3/sfx_sudoku_tap2.mp3',
+        'assets/audio/mp3/sfx_sudoku_tap3.mp3',
+        'assets/audio/mp3/sfx_sudoku_tap4.mp3',
+      });
+      String? prev;
+      for (var i = 0; i < 20; i++) {
+        final chosen = audio.pickSfxAsset(
           ZetzySfx.sudokuLineComplete,
           fallback: ZetzySfx.sudokuTap,
-        ),
-        equals(ZetzySfx.sudokuTap),
+        );
+        expect(chosen, startsWith('audio/mp3/sfx_sudoku_tap'));
+        expect(chosen, isNot(equals(prev)));
+        prev = chosen;
+      }
+
+      // Dedicated effect variation takes priority over fallback and weights 5.mp3 higher in Auto BGM
+      audio.setAvailableAssetsForTest({
+        'assets/audio/mp3/sfx_sudoku_tap1.mp3',
+        'assets/audio/mp3/sfx_sudoku_line1.mp3',
+        'assets/audio/mp3/sfx_sudoku_line2.mp3',
+        for (var i = 1; i <= 8; i++) 'assets/audio/mp3/bgm/$i.mp3',
+      });
+      final lineAsset = audio.pickSfxAsset(
+        ZetzySfx.sudokuLineComplete,
+        fallback: ZetzySfx.sudokuTap,
+      );
+      expect(lineAsset, startsWith('audio/mp3/sfx_sudoku_line'));
+      expect(audio.bgmTracks.length, equals(8));
+      expect(
+        audio.resolveManualBgmTrack('5.mp3'),
+        equals('audio/mp3/bgm/5.mp3'),
       );
 
-      // Once dedicated effect .wav is present, primary SFX takes priority
-      audio.setAvailableAssetsForTest({
-        'assets/audio/sfx_sudoku_tap.wav',
-        'assets/audio/sfx_sudoku_line.wav',
-      });
-      expect(
-        audio.resolveSfx(
-          ZetzySfx.sudokuLineComplete,
-          fallback: ZetzySfx.sudokuTap,
-        ),
-        equals(ZetzySfx.sudokuLineComplete),
+      final counts = <String, int>{};
+      for (var i = 0; i < 600; i++) {
+        final track = audio.pickAutoBgmTrack(excludeCurrent: '');
+        expect(track, isNotNull);
+        counts[track!] = (counts[track] ?? 0) + 1;
+      }
+      final favCount = counts['audio/mp3/bgm/5.mp3'] ?? 0;
+      for (final entry in counts.entries) {
+        if (entry.key != 'audio/mp3/bgm/5.mp3') {
+          expect(favCount, greaterThan(entry.value));
+        }
+      }
+
+      // BgmMode & selected track persistence
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+      expect(repo.load().bgmMode, equals(BgmMode.auto));
+      expect(repo.load().bgmEnabled, isTrue);
+      expect(repo.load().bgmTrack, equals('5.mp3'));
+
+      await repo.save(
+        repo.load().copyWith(bgmMode: BgmMode.manual, bgmTrack: '3.mp3'),
       );
+      expect(repo.load().bgmMode, equals(BgmMode.manual));
+      expect(repo.load().bgmTrack, equals('3.mp3'));
+
+      await repo.save(repo.load().copyWith(bgmMode: BgmMode.off));
+      expect(repo.load().bgmMode, equals(BgmMode.off));
+      expect(repo.load().bgmEnabled, isFalse);
     });
 
     test('SettingsRepository persists hapticIntensity and HapticService scales Android pulses', () async {

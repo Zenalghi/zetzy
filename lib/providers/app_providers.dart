@@ -68,7 +68,8 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void _syncServices(AppSettings s) {
     ref.read(audioServiceProvider).updatePreferences(
       sfxEnabled: s.sfxEnabled,
-      bgmEnabled: s.bgmEnabled,
+      bgmMode: s.bgmMode,
+      manualBgmTrack: s.bgmTrack,
     );
     ref.read(hapticServiceProvider)
       ..enabled = s.hapticsEnabled
@@ -92,7 +93,20 @@ class SettingsNotifier extends Notifier<AppSettings> {
       _commit(state.copyWith(sfxEnabled: enabled));
 
   Future<void> setBgm(bool enabled) =>
-      _commit(state.copyWith(bgmEnabled: enabled));
+      setBgmMode(enabled ? BgmMode.auto : BgmMode.off);
+
+  Future<void> setBgmMode(BgmMode mode) =>
+      _commit(state.copyWith(bgmMode: mode));
+
+  Future<void> setBgmTrack(String track) => _commit(
+    state.copyWith(
+      bgmMode: BgmMode.manual,
+      bgmTrack: track,
+    ),
+  );
+
+  Future<void> skipNextBgm() =>
+      ref.read(audioServiceProvider).skipToNextAutoBgm();
 
   Future<void> setHaptics(bool enabled) async {
     await _commit(state.copyWith(hapticsEnabled: enabled));

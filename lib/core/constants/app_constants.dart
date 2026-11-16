@@ -85,6 +85,9 @@ enum ChessMoveConfirmMode { off, fastOnly, always }
 /// Controls vibration duration and amplitude for in-game haptic feedback.
 enum HapticIntensity { light, medium, strong }
 
+/// Controls background music playback mode (off, weighted random auto, or manual loop).
+enum BgmMode { off, auto, manual }
+
 /// Available SVG chess piece themes bundled in assets/icons/chess/.
 enum ChessPieceSet {
   cburnett('cburnett', 'Cburnett'),

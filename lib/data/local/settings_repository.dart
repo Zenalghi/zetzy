@@ -9,7 +9,8 @@ class AppSettings {
     this.themeMode = ZetzyThemeMode.oledMidnight,
     this.localeCode = 'en',
     this.sfxEnabled = true,
-    this.bgmEnabled = false,
+    this.bgmMode = BgmMode.auto,
+    this.bgmTrack = '5.mp3',
     this.hapticsEnabled = true,
     this.hapticIntensity = HapticIntensity.medium,
     this.wakelockEnabled = true,
@@ -44,9 +45,12 @@ class AppSettings {
   final ZetzyThemeMode themeMode;
   final String localeCode;
   final bool sfxEnabled;
-  final bool bgmEnabled;
+  final BgmMode bgmMode;
+  final String bgmTrack;
   final bool hapticsEnabled;
   final HapticIntensity hapticIntensity;
+
+  bool get bgmEnabled => bgmMode != BgmMode.off;
   final bool wakelockEnabled;
   final SnakeControlMode snakeControlMode;
   final bool snakeShowGridLines;
@@ -74,6 +78,8 @@ class AppSettings {
     ZetzyThemeMode? themeMode,
     String? localeCode,
     bool? sfxEnabled,
+    BgmMode? bgmMode,
+    String? bgmTrack,
     bool? bgmEnabled,
     bool? hapticsEnabled,
     HapticIntensity? hapticIntensity,
@@ -106,7 +112,12 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       localeCode: localeCode ?? this.localeCode,
       sfxEnabled: sfxEnabled ?? this.sfxEnabled,
-      bgmEnabled: bgmEnabled ?? this.bgmEnabled,
+      bgmMode:
+          bgmMode ??
+          (bgmEnabled == null
+              ? this.bgmMode
+              : (bgmEnabled ? BgmMode.auto : BgmMode.off)),
+      bgmTrack: bgmTrack ?? this.bgmTrack,
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
       hapticIntensity: hapticIntensity ?? this.hapticIntensity,
       wakelockEnabled: wakelockEnabled ?? this.wakelockEnabled,
@@ -150,6 +161,8 @@ class SettingsRepository {
   static const _kLocale = 'zetzy_locale';
   static const _kSfx = 'zetzy_sfx';
   static const _kBgm = 'zetzy_bgm';
+  static const _kBgmMode = 'zetzy_bgm_mode';
+  static const _kBgmTrack = 'zetzy_bgm_track';
   static const _kHaptics = 'zetzy_haptics';
   static const _kHapticIntensity = 'zetzy_haptic_intensity';
   static const _kWakelock = 'zetzy_wakelock';
@@ -200,7 +213,11 @@ class SettingsRepository {
       ),
       localeCode: _prefs.getString(_kLocale) ?? 'en',
       sfxEnabled: _prefs.getBool(_kSfx) ?? true,
-      bgmEnabled: _prefs.getBool(_kBgm) ?? false,
+      bgmMode: BgmMode.values.firstWhere(
+        (m) => m.name == _prefs.getString(_kBgmMode),
+        orElse: () => BgmMode.auto,
+      ),
+      bgmTrack: _prefs.getString(_kBgmTrack) ?? '5.mp3',
       hapticsEnabled: _prefs.getBool(_kHaptics) ?? true,
       hapticIntensity: HapticIntensity.values.firstWhere(
         (m) => m.name == _prefs.getString(_kHapticIntensity),
@@ -252,6 +269,8 @@ class SettingsRepository {
       _prefs.setString(_kLocale, s.localeCode),
       _prefs.setBool(_kSfx, s.sfxEnabled),
       _prefs.setBool(_kBgm, s.bgmEnabled),
+      _prefs.setString(_kBgmMode, s.bgmMode.name),
+      _prefs.setString(_kBgmTrack, s.bgmTrack),
       _prefs.setBool(_kHaptics, s.hapticsEnabled),
       _prefs.setString(_kHapticIntensity, s.hapticIntensity.name),
       _prefs.setBool(_kWakelock, s.wakelockEnabled),

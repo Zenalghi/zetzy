@@ -358,5 +358,44 @@
   "settingsHapticIntensity": "Kekuatan Getaran",
   "hapticLight": "Ringan",
   "hapticMedium": "Sedang",
-  "hapticStrong": "Kuat"
+  "hapticStrong": "Kuat",
+
+  "bgmModeOff": "Mati",
+  "bgmModeAuto": "Otomatis",
+  "bgmModeManual": "Manual",
+  "bgmAutoDesc": "Acak otomatis semua trek (Trek 5 muncul lebih sering).",
+  "bgmTrackLabel": "Trek {number}",
+  "@bgmTrackLabel": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "bgmNowPlaying": "Diputar: Trek {number}",
+  "@bgmNowPlaying": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "bgmNextTrack": "Trek Berikutnya",
+
+  "badgesTitle": "Koleksi Badge",
+  "badgesSubtitle": "Ketuk badge untuk perbesar & lihat detail",
+  "badgesConqueredCount": "{count}/{total} Ditaklukkan",
+  "@badgesConqueredCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "badgeWonCount": "{count}× Menang",
+  "@badgeWonCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "badgeStatusOpen": "Terbuka",
+  "badgeStatusLocked": "Terkunci",
+  "badgeAvailableAllGames": "Terbuka sejak awal di semua 4 game",
+  "badgeUnlockedChallenge": "Tier terbuka — Tantangan tingkat ahli",
+  "badgeSelectedPreview": "Tier Dipilih"
 }

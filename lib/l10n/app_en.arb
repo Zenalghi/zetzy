@@ -426,5 +426,44 @@
   "settingsHapticIntensity": "Vibration Strength",
   "hapticLight": "Light",
   "hapticMedium": "Medium",
-  "hapticStrong": "Strong"
+  "hapticStrong": "Strong",
+
+  "bgmModeOff": "Off",
+  "bgmModeAuto": "Auto",
+  "bgmModeManual": "Manual",
+  "bgmAutoDesc": "Smart shuffle across all tracks (Track 5 appears more often).",
+  "bgmTrackLabel": "Track {number}",
+  "@bgmTrackLabel": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "bgmNowPlaying": "Playing: Track {number}",
+  "@bgmNowPlaying": {
+    "placeholders": {
+      "number": { "type": "int" }
+    }
+  },
+  "bgmNextTrack": "Next Track",
+
+  "badgesTitle": "Rank Badges",
+  "badgesSubtitle": "Tap any crest to enlarge & inspect",
+  "badgesConqueredCount": "{count}/{total} Conquered",
+  "@badgesConqueredCount": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "badgeWonCount": "{count}× Won",
+  "@badgeWonCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "badgeStatusOpen": "Ready",
+  "badgeStatusLocked": "Locked",
+  "badgeAvailableAllGames": "Open from start across all 4 games",
+  "badgeUnlockedChallenge": "Unlocked tier — Master-level challenge",
+  "badgeSelectedPreview": "Selected Tier"
 }

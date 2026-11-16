@@ -8,11 +8,39 @@ import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
 
-class ZetzyApp extends ConsumerWidget {
+class ZetzyApp extends ConsumerStatefulWidget {
   const ZetzyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ZetzyApp> createState() => _ZetzyAppState();
+}
+
+class _ZetzyAppState extends ConsumerState<ZetzyApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final isForeground = state == AppLifecycleState.resumed;
+    if (isForeground ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      ref.read(audioServiceProvider).handleAppLifecycleState(isForeground);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     // Keep offline score sync listener alive across app lifetime
     ref.watch(scoreSyncControllerProvider);

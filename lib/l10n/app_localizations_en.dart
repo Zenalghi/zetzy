@@ -885,4 +885,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hapticStrong => 'Strong';
+
+  @override
+  String get bgmModeOff => 'Off';
+
+  @override
+  String get bgmModeAuto => 'Auto';
+
+  @override
+  String get bgmModeManual => 'Manual';
+
+  @override
+  String get bgmAutoDesc =>
+      'Smart shuffle across all tracks (Track 5 appears more often).';
+
+  @override
+  String bgmTrackLabel(int number) {
+    return 'Track $number';
+  }
+
+  @override
+  String bgmNowPlaying(int number) {
+    return 'Playing: Track $number';
+  }
+
+  @override
+  String get bgmNextTrack => 'Next Track';
+
+  @override
+  String get badgesTitle => 'Rank Badges';
+
+  @override
+  String get badgesSubtitle => 'Tap any crest to enlarge & inspect';
+
+  @override
+  String badgesConqueredCount(int count, int total) {
+    return '$count/$total Conquered';
+  }
+
+  @override
+  String badgeWonCount(int count) {
+    return '$count× Won';
+  }
+
+  @override
+  String get badgeStatusOpen => 'Ready';
+
+  @override
+  String get badgeStatusLocked => 'Locked';
+
+  @override
+  String get badgeAvailableAllGames => 'Open from start across all 4 games';
+
+  @override
+  String get badgeUnlockedChallenge => 'Unlocked tier — Master-level challenge';
+
+  @override
+  String get badgeSelectedPreview => 'Selected Tier';
 }
