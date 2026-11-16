@@ -39,7 +39,12 @@ enum ZetzySfx {
 
 /// Manages randomized multi-variant SFX and Auto/Manual BGM playback gracefully.
 class AudioService {
-  AudioService({Random? random}) : _rng = random ?? Random();
+  AudioService({
+    Random? random,
+    bool? waitForUserGestureBeforeBgm,
+    @visibleForTesting this.onPlayBgm,
+  }) : _rng = random ?? Random(),
+       _awaitingUserGesture = waitForUserGestureBeforeBgm ?? kIsWeb;
 
   static const String favoriteBgmFilename = '5.mp3';
   static const int favoriteBgmWeight = 3;
@@ -49,6 +54,9 @@ class AudioService {
   );
 
   final Random _rng;
+  @visibleForTesting
+  final Future<void> Function(String assetPath, {required bool loop})?
+  onPlayBgm;
   AudioPlayer? _sfxPlayer;
   AudioPlayer? _bgmPlayer;
   StreamSubscription<void>? _bgmCompleteSub;
@@ -65,6 +73,8 @@ class AudioService {
   String? _currentBgmAsset;
   bool _isBgmPlaying = false;
   bool _pausedByLifecycle = false;
+  bool _awaitingUserGesture;
+  int _bgmPlaySerial = 0;
 
   /// Reactive notifier emitting the currently selected/playing BGM relative asset path.
   final ValueNotifier<String?> currentBgmNotifier = ValueNotifier<String?>(
@@ -79,6 +89,12 @@ class AudioService {
   String? get currentBgmAsset => _currentBgmAsset;
   BgmMode get bgmMode => _bgmMode;
 
+  @visibleForTesting
+  bool get isAwaitingUserGesture => _awaitingUserGesture;
+
+  @visibleForTesting
+  bool get isBgmPlaying => _isBgmPlaying;
+
   Future<void> init({
     required bool sfxEnabled,
     required BgmMode bgmMode,
@@ -91,17 +107,22 @@ class AudioService {
     _initialized = true;
 
     try {
-      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final manifest = await AssetManifest.loadFromAssetBundle(
+        rootBundle,
+      ).timeout(const Duration(seconds: 3));
       _availableAssets = manifest.listAssets().toSet();
     } catch (_) {
       _availableAssets = const {};
     }
     _rebuildAudioIndex();
 
-    if (hasAudioAssets) {
-      _ensurePlayers();
-      if (_bgmMode != BgmMode.off) {
-        await startBgm();
+    if (hasAudioAssets && _bgmMode != BgmMode.off) {
+      _prepareBgmSelection();
+      // Never block runApp() or attempt suspended Web AudioContext playback
+      // before the first user interaction.
+      if (!_awaitingUserGesture) {
+        _ensurePlayers();
+        unawaited(startBgm());
       }
     }
   }
@@ -129,6 +150,7 @@ class AudioService {
     required bool sfxEnabled,
     required BgmMode bgmMode,
     required String manualBgmTrack,
+    bool fromUserAction = false,
   }) {
     _sfxEnabled = sfxEnabled;
     final prevMode = _bgmMode;
@@ -142,13 +164,37 @@ class AudioService {
       return;
     }
 
+    if (fromUserAction) {
+      _awaitingUserGesture = false;
+    }
+
     final modeChanged = prevMode != bgmMode;
     final manualTrackChanged =
         bgmMode == BgmMode.manual && prevTrack != manualBgmTrack;
 
+    if (_awaitingUserGesture) {
+      if (modeChanged || manualTrackChanged || _currentBgmAsset == null) {
+        _prepareBgmSelection(forceReselect: modeChanged || manualTrackChanged);
+      }
+      return;
+    }
+
     if (modeChanged || manualTrackChanged || !_isBgmPlaying) {
       _pausedByLifecycle = false;
       unawaited(startBgm(forceRestart: modeChanged || manualTrackChanged));
+    }
+  }
+
+  /// Unlocks deferred Web BGM playback on the first user gesture so browser
+  /// autoplay policies never stall app startup on an unresolved AudioContext.
+  void notifyUserInteraction() {
+    if (!_awaitingUserGesture) return;
+    _awaitingUserGesture = false;
+    if (_bgmMode != BgmMode.off &&
+        !_isBgmPlaying &&
+        !_pausedByLifecycle &&
+        _bgmTracks.isNotEmpty) {
+      unawaited(startBgm());
     }
   }
 
@@ -302,6 +348,7 @@ class AudioService {
   }
 
   Future<void> playSfx(ZetzySfx sfx, {ZetzySfx? fallback}) async {
+    _awaitingUserGesture = false;
     if (_bgmMode != BgmMode.off &&
         !_isBgmPlaying &&
         !_pausedByLifecycle &&
@@ -320,13 +367,30 @@ class AudioService {
     }
   }
 
+  String? _resolveBgmTarget({bool forceRestart = false}) {
+    if (_bgmMode == BgmMode.off || _bgmTracks.isEmpty) return null;
+    if (_bgmMode == BgmMode.manual) {
+      return resolveManualBgmTrack();
+    }
+    if (forceRestart || _currentBgmAsset == null) {
+      return pickAutoBgmTrack();
+    }
+    return _currentBgmAsset;
+  }
+
+  void _prepareBgmSelection({bool forceReselect = false}) {
+    final targetTrack = _resolveBgmTarget(forceRestart: forceReselect);
+    if (targetTrack == null) return;
+    _currentBgmAsset = targetTrack;
+    currentBgmNotifier.value = targetTrack;
+  }
+
   Future<void> startBgm({bool forceRestart = false}) async {
-    if (_bgmMode == BgmMode.off || _bgmTracks.isEmpty) return;
-    final targetTrack = _bgmMode == BgmMode.manual
-        ? resolveManualBgmTrack()
-        : (forceRestart || _currentBgmAsset == null
-              ? pickAutoBgmTrack()
-              : _currentBgmAsset);
+    if (_awaitingUserGesture) {
+      _prepareBgmSelection(forceReselect: forceRestart);
+      return;
+    }
+    final targetTrack = _resolveBgmTarget(forceRestart: forceRestart);
     if (targetTrack == null) return;
     await _playBgmTrack(
       targetTrack,
@@ -335,6 +399,7 @@ class AudioService {
   }
 
   Future<void> skipToNextAutoBgm() async {
+    _awaitingUserGesture = false;
     if (_bgmMode != BgmMode.auto || _bgmTracks.isEmpty) return;
     await _playNextAutoTrack();
   }
@@ -346,26 +411,60 @@ class AudioService {
   }
 
   Future<void> _playBgmTrack(String assetPath, {required bool loop}) async {
+    final token = ++_bgmPlaySerial;
     _currentBgmAsset = assetPath;
     currentBgmNotifier.value = assetPath;
+
+    if (onPlayBgm != null) {
+      try {
+        await onPlayBgm!(assetPath, loop: loop);
+        if (token == _bgmPlaySerial) {
+          _isBgmPlaying = true;
+        }
+      } catch (e) {
+        if (token == _bgmPlaySerial) {
+          _isBgmPlaying = false;
+        }
+        debugPrint('AudioService BGM skipped ($assetPath): $e');
+      }
+      return;
+    }
+
     try {
       _ensurePlayers();
-      await _bgmPlayer!.setReleaseMode(
-        loop ? ReleaseMode.loop : ReleaseMode.stop,
-      );
-      await _bgmPlayer!.setVolume(0.32);
-      await _bgmPlayer!.stop();
-      await _bgmPlayer!.play(AssetSource(assetPath));
-      _isBgmPlaying = true;
+      Future<void> runPlay() async {
+        await _bgmPlayer!.setReleaseMode(
+          loop ? ReleaseMode.loop : ReleaseMode.stop,
+        );
+        if (token != _bgmPlaySerial) return;
+        await _bgmPlayer!.setVolume(0.32);
+        if (token != _bgmPlaySerial) return;
+        await _bgmPlayer!.stop();
+        if (token != _bgmPlaySerial) return;
+        await _bgmPlayer!.play(AssetSource(assetPath));
+      }
+
+      if (kIsWeb) {
+        await runPlay().timeout(const Duration(seconds: 5));
+      } else {
+        await runPlay();
+      }
+      if (token == _bgmPlaySerial) {
+        _isBgmPlaying = true;
+      }
     } catch (e) {
-      _isBgmPlaying = false;
+      if (token == _bgmPlaySerial) {
+        _isBgmPlaying = false;
+      }
       debugPrint('AudioService BGM skipped ($assetPath): $e');
     }
   }
 
   Future<void> stopBgm() async {
+    _bgmPlaySerial++;
     _isBgmPlaying = false;
     try {
+      if (kIsWeb && _bgmPlayer == null) return;
       await _bgmPlayer?.stop();
     } catch (_) {}
   }

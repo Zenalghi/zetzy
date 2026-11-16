@@ -1668,5 +1668,51 @@ void main() {
             .setMockMethodCallHandler(channel, null);
       }
     });
+
+    test('AudioService defers BGM playback until user gesture when waitForUserGestureBeforeBgm is enabled', () async {
+      final played = <(String, bool)>[];
+      final audio = AudioService(
+        random: Random(3),
+        waitForUserGestureBeforeBgm: true,
+        onPlayBgm: (assetPath, {required bool loop}) async {
+          played.add((assetPath, loop));
+        },
+      );
+      audio.setAvailableAssetsForTest({
+        'assets/audio/mp3/bgm/5.mp3',
+        'assets/audio/mp3/bgm/6.mp3',
+      });
+
+      // Simulate startup sync before any user gesture (Web cold boot)
+      audio.updatePreferences(
+        sfxEnabled: true,
+        bgmMode: BgmMode.auto,
+        manualBgmTrack: '5.mp3',
+        fromUserAction: false,
+      );
+      await audio.startBgm();
+      expect(audio.isAwaitingUserGesture, isTrue);
+      expect(audio.isBgmPlaying, isFalse);
+      expect(audio.currentBgmAsset, isNotNull);
+      expect(played, isEmpty);
+
+      // First pointer/key user interaction unlocks and starts BGM
+      audio.notifyUserInteraction();
+      await Future<void>.delayed(Duration.zero);
+      expect(audio.isAwaitingUserGesture, isFalse);
+      expect(audio.isBgmPlaying, isTrue);
+      expect(played.length, equals(1));
+      expect(played.first.$2, isFalse);
+
+      // Manual mode switches to looping
+      audio.updatePreferences(
+        sfxEnabled: true,
+        bgmMode: BgmMode.manual,
+        manualBgmTrack: '6.mp3',
+        fromUserAction: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(played.last, equals(('audio/mp3/bgm/6.mp3', true)));
+    });
   });
 }

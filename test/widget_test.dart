@@ -1643,6 +1643,51 @@ void main() {
     );
     expect(find.text('Victory!'), findsOneWidget);
   });
+
+  testWidgets('ZetzyApp unlocks deferred Web BGM on first pointer interaction', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final playedTracks = <String>[];
+    final audio = AudioService(
+      waitForUserGestureBeforeBgm: true,
+      onPlayBgm: (assetPath, {required bool loop}) async {
+        playedTracks.add(assetPath);
+      },
+    )..setAvailableAssetsForTest({
+        'assets/audio/mp3/bgm/5.mp3',
+      });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Renders home immediately while still waiting for first user gesture
+    expect(find.text('Zetzy'), findsOneWidget);
+    expect(audio.isAwaitingUserGesture, isTrue);
+    expect(playedTracks, isEmpty);
+
+    // Tapping anywhere in the app unlocks audio playback cleanly
+    await tester.tap(find.text('Zetzy'));
+    await tester.pumpAndSettle();
+
+    expect(audio.isAwaitingUserGesture, isFalse);
+    expect(audio.isBgmPlaying, isTrue);
+    expect(playedTracks, equals(['audio/mp3/bgm/5.mp3']));
+  });
 }
 
 class _FakeLeaderboardSupabaseService extends _FakeAvailableSupabaseService {

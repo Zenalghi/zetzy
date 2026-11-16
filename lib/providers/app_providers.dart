@@ -61,15 +61,16 @@ class SettingsNotifier extends Notifier<AppSettings> {
   AppSettings build() {
     final repo = ref.watch(settingsRepoProvider);
     final loaded = repo.load();
-    _syncServices(loaded);
+    _syncServices(loaded, fromUserAction: false);
     return loaded;
   }
 
-  void _syncServices(AppSettings s) {
+  void _syncServices(AppSettings s, {bool fromUserAction = false}) {
     ref.read(audioServiceProvider).updatePreferences(
       sfxEnabled: s.sfxEnabled,
       bgmMode: s.bgmMode,
       manualBgmTrack: s.bgmTrack,
+      fromUserAction: fromUserAction,
     );
     ref.read(hapticServiceProvider)
       ..enabled = s.hapticsEnabled
@@ -79,7 +80,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   Future<void> _commit(AppSettings next) async {
     state = next;
-    _syncServices(next);
+    _syncServices(next, fromUserAction: true);
     await ref.read(settingsRepoProvider).save(next);
   }
 

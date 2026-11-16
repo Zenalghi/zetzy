@@ -1,4 +1,5 @@
 import 'package:cupertino_ui/cupertino_ui.dart' show GlobalCupertinoLocalizations;
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'
     show GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,12 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+  }
+
+  bool _handleHardwareKey(KeyEvent _) {
+    ref.read(audioServiceProvider).notifyUserInteraction();
+    return false;
   }
 
   @override
@@ -35,6 +42,7 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleHardwareKey);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -45,20 +53,25 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
     // Keep offline score sync listener alive across app lifetime
     ref.watch(scoreSyncControllerProvider);
 
-    return MaterialApp(
-      title: 'Zetzy',
-      debugShowCheckedModeBanner: false,
-      theme: ZetzyThemes.buildTheme(settings.themeMode),
-      locale: Locale(settings.localeCode),
-      supportedLocales: const [Locale('en'), Locale('id')],
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      initialRoute: AppRouter.home,
-      onGenerateRoute: AppRouter.onGenerateRoute,
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) =>
+          ref.read(audioServiceProvider).notifyUserInteraction(),
+      child: MaterialApp(
+        title: 'Zetzy',
+        debugShowCheckedModeBanner: false,
+        theme: ZetzyThemes.buildTheme(settings.themeMode),
+        locale: Locale(settings.localeCode),
+        supportedLocales: const [Locale('en'), Locale('id')],
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        initialRoute: AppRouter.home,
+        onGenerateRoute: AppRouter.onGenerateRoute,
+      ),
     );
   }
 }
