@@ -1,274 +1,234 @@
-Fitur **Ikon Platform di Leaderboard** sangat bisa dibuat dan justru menjadi nilai plus yang keren karena aplikasi Anda mendukung multi-platform (Android, Web, Windows, Linux). Setiap kali permainan selesai, aplikasi akan otomatis mendeteksi OS/Platform tempat game tersebut dimainkan dan menyimpannya ke dalam baris skor di database Supabase, bukan hanya di profil user. Dengan begitu, jika Anda main Snake lewat HP Android lalu besoknya main Minesweeper lewat PC Linux/Windows, ikon di Leaderboard akan akurat mengikuti perangkat yang dipakai saat mencetak rekor tersebut.
-
-Berikut adalah **Master Product Requirements Document (PRD)** lengkap yang telah dikompilasi dari seluruh 75 jawaban dan kustomisasi Anda, diikuti dengan **Daftar Lengkap Asset (PNG/SVG/WAV)** yang perlu Anda unduh.
-
----
-
 # MASTER PRODUCT REQUIREMENTS DOCUMENT (PRD)
 
 **Project Name:** Zetzy
-**Target Platforms:** Android, Web, Desktop (Windows & Linux)
-**Framework & Stack:** Flutter (Riverpod) + Drift (SQLite Local) + Supabase (Cloud Backend & Realtime)
+**Current Version:** Follow `pubspec.yaml` (`0.0.2+1`, ditampilkan di Profil sebagai `Zetzy v0.0.2`)
+**Target Platforms:** Android, Web, Desktop (Windows & Linux), serta siap ekspansi iOS & macOS
+**Framework & Stack:** Flutter (Riverpod) + Drift (SQLite Local) + Supabase (Cloud Backend, Auth, Storage, RPC & Realtime)
+
+Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.md](file:///Users/umardani/Documents/workspace/zetzy/docs/list-kustomisasi.md)) yang telah diperbarui agar selaras penuh dengan **fitur gameplay lanjutan, efek visual, pengaturan mid-game, sistem matchmaking/anti-cheat, serta daftar lengkap asset & SFX `.wav`** dalam implementasi **Zetzy** saat ini.
 
 ---
 
-## 1. Arsitektur UI/UX, Tema & Cross-Platform Adaptability
+## 1. Arsitektur UI/UX, Tema, Efek Visual & Pengaturan
 
-### 1.1 Gaya Visual & Tema (Answers: 1C, 2C, 3AD, 4D, 5C, 6B)
+### 1.1 Gaya Visual, Tema & Navigasi (Answers: 1C, 2C, 3AD, 4D, 5C, 6B)
 
-* **Visual Style:** **Tactile Modern Minimalist** — memadukan kebersihan desain datar ala Lichess/NYT Games (`3A`) dengan sentuhan kedalaman *Neumorphism/Glassmorphism* halus (`3D`) pada tombol, kartu, dan efek *blur overlay* saat game di-pause.
-* **Multi-Theme Engine (`4D`):** Mendukung pergantian *skin* secara instan:
-1. *OLED Midnight* (Hitam pekat `#0D0D0D`, hemat baterai).
-2. *Classic Wood & Slate* (Nuansa papan kayu hangat).
-3. *Nordic Frost* (Palet biru-abu dingin).
-4. *Dracula Neon* (Kontras tinggi ungu/sian).
+* **Visual Style:** **Tactile Modern Minimalist** — memadukan kebersihan desain datar ala Lichess/NYT Games (`3A`) dengan sentuhan kedalaman *Neumorphism/Glassmorphism* halus (`3D`) pada kartu (`TactileCard`), tombol keypad, dan *blur overlay* anti-cheat saat game dijeda.
+* **Multi-Theme Engine (`4D`):** Pergantian tema instan (bahkan saat match sedang berjalan):
+  1. **OLED Midnight** (Hitam pekat `#0D0D0D`, hemat baterai).
+  2. **Classic Wood & Slate** (Nuansa papan kayu hangat).
+  3. **Nordic Frost** (Palet biru-abu dingin terang).
+  4. **Dracula Neon** (Kontras tinggi ungu/sian).
+* **Bilingual (`5C`):** Mendukung **Bahasa Indonesia** dan **Bahasa Inggris** secara penuh (`flutter_localizations` + `AppLocalizations` ARB).
+* **Responsive Orientation (`1C`):** Mendukung *Auto-Rotate* (Portrait & Landscape) via `LayoutBuilder`:
+  * **Portrait (Mobile):** Papan di tengah, *status HUD* di atas, kontrol/keypad di bawah.
+  * **Landscape / Desktop / Web:** Papan di kiri/tengah secara proporsional; kontrol, statistik ringkas, notasi PGN catur, dan tombol aksi berada di *Sidebar* kanan.
+* **Navigasi Utama (`6B`):** *Bottom Navigation Bar* (Mobile) atau *Navigation Rail* (Desktop/Web) dengan 4 Tab: **Home (Play)**, **Leaderboard**, **Statistics**, dan **Profile**.
 
+### 1.2 Pengaturan Terstruktur, Quick Settings Mid-Game & Versi Aplikasi
 
-* **Bilingual (`5C`):** Mendukung Bahasa Indonesia dan Bahasa Inggris secara penuh (`flutter_localizations`).
-* **Responsive Orientation (`1C`):** Mendukung *Auto-Rotate* (Portrait & Landscape) dengan tata letak adaptif (`LayoutBuilder`):
-* **Portrait (Mobile):** Papan di tengah, *timer/stats* di atas, tombol kontrol/keypad di bawah.
-* **Landscape / Desktop / Web:** Papan di sisi kiri/tengah (proporsional), panel kontrol, riwayat langkah catur, dan *timer* berada di *Sidebar* kanan.
+* **Kartu Pengaturan Per-Game di Profile:** Menu Profil mengelompokkan opsi secara rapi ke dalam kartu khusus per game (**Sudoku**, **Chess**, **Minesweeper**, **Snake**), kartu **Practice Mode**, kartu **Preferensi Umum & Audio**, serta **Cloud & Danger Zone**.
+* **Mid-Game Quick Settings (`InGameSettingsSheet`):** Tombol gear ⚙️ di AppBar keempat game membuka *bottom sheet* khusus yang **hanya memuat pengaturan aman diubah di tengah permainan** (helper visual, opsi sentuh, tema, SFX, getaran, layar menyala), sambil mem-pause timer secara aman dan menyembunyikan opsi berisiko seperti *Practice Mode* atau *Reset Statistik*.
+* **Versi Aplikasi & Sinkronisasi CI/CD:** Versi aplikasi bersih tanpa build number (mis. `Zetzy v0.0.2`) ditampilkan secara halus di bagian paling bawah tab **Profile** menggunakan `package_info_plus` langsung dari `pubspec.yaml`. Workflow `.github/workflows/build-deploy.yml` memvalidasi kesesuaian Git tag `v*` terhadap `pubspec.yaml` sebelum membangun rilis Android, Web (GitHub Pages), Windows, dan Linux.
 
+### 1.3 Efek Kemenangan, Review Papan & Share Skor (Answers: 71A, 73A)
 
-* **Navigasi Utama (`6B`):** Menggunakan *Bottom Navigation Bar* (di Mobile) atau *Navigation Rail* (di Desktop/Web) dengan 4 Tab: **Home (Play)**, **Leaderboard**, **Statistics**, dan **Profile/Settings**.
+* **Confetti & Kartu Ringkasan (`71A`):** Kemenangan menampilkan efek partikel **Confetti** selama 3 detik bersama dialog hasil (waktu presisi milidetik, skor/ELO delta, status *New Record*, serta metrik khusus game).
+* **Post-Game Board Review (*View Board / View Result*):** Setelah game selesai (menang atau kalah), pemain dapat menutup dialog ringkasan sementara untuk menginspeksi papan akhir dan membuka kembali dialog hasil lewat tombol *View Result* (tersemat di setiap game sesuai mekaniknya).
+* **Share Score Card (`73A`):** Tombol bagikan merender kartu skor PNG berkualitas tinggi (`RepaintBoundary` → `share_plus` / clipboard fallback) lengkap dengan badge platform.
 
-### 1.2 Jawaban Khusus: Kontrol Minesweeper & Snake di Desktop/Web (Answers: 50A, 58C)
+### 1.4 Kontrol Adaptif Desktop & Web (Answers: 50A, 58C)
 
-* **Minesweeper Zoom & Pan di Desktop/Web (`50A`):**
-* **Mobile:** *Pinch-to-zoom* (2 jari) dan *drag* untuk menggeser papan besar.
-* **Desktop & Web:** Menggunakan `Listener` pada `InteractiveViewer` untuk mendeteksi **Mouse Scroll Wheel** (Zoom In/Out), **Klik Kanan + Drag** atau **Middle-Click + Drag** atau **Tahan Spasi + Drag** untuk menggeser papan (*panning*). Klik Kiri untuk membuka kotak, dan Klik Kanan langsung menancapkan Bendera (`🚩`).
-
-
-* **Kontrol Snake di Desktop/Web (`58C`):**
-* **Mobile:** Bisa pilih di Settings antara *Swipe Gesture*, *Virtual D-Pad*, atau *Split-Screen Tap* (Tap kiri/kanan layar untuk belok 90°).
-* **Desktop & Web:** Otomatis mengaktifkan `FocusNode` keyboard untuk mendeteksi tombol **WASD** dan **Arrow Keys (Panah)** tanpa perlu menekan tombol di layar.
-
-
+* **Minesweeper (`50A`):**
+  * **Mobile:** *Pinch-to-zoom* (2 jari) dan *drag* untuk menjelajahi papan besar.
+  * **Desktop & Web:** `Mouse Scroll Wheel` (Zoom), *Middle-click + Drag* atau *Spasi + Drag* untuk *panning*, *Klik Kiri* untuk aksi utama, dan *Klik Kanan* untuk aksi sekunder/chording.
+* **Snake (`58C`):**
+  * **Mobile:** Pilihan di pengaturan: **Swipe Gesture**, **Virtual D-Pad**, atau **Split-Screen Tap** (tap sisi kiri/kanan layar untuk belok 90°).
+  * **Desktop & Web:** Otomatis mendukung tombol **WASD** dan **Arrow Keys (Panah)** melalui `KeyboardListener`.
 
 ---
 
-## 2. Sistem Penyimpanan Lokal & Autentikasi Supabase
+## 2. Sistem Penyimpanan Lokal, Rewind Practice & Autentikasi Supabase
 
-### 2.1 Offline-First & Local Database (Answers: 7A, 8B, 9B, 10B)
+### 2.1 Offline-First, Auto-Save & Practice Rewind (Answers: 7A–10B, 29B)
 
 * **State Management:** `flutter_riverpod` dengan arsitektur *Feature-First*.
 * **Local SQLite (`Drift` - `8B`):**
-* Menyimpan **4 Slot Auto-Save terpisah** (`10B`)—masing-masing 1 slot aktif untuk Sudoku, Chess, Minesweeper, dan Snake.
-* Menyimpan `offline_score_queue` untuk menampung skor saat bermain tanpa internet (`9B`, `27A`), yang otomatis di-*push* ke Supabase saat koneksi kembali menyala.
-
-
+  * Menyimpan **4 Slot Auto-Save terpisah** (`10B`) — masing-masing 1 slot aktif per game (Sudoku, Chess, Minesweeper, Snake).
+  * Menyimpan antrean skor offline (`offline_score_queue` - `9B`, `27A`) untuk dikirim otomatis saat koneksi kembali tersedia.
+* **Practice Mode & Rewind on Loss (`29B`):**
+  * Mengaktifkan *Practice Mode* membuka latihan bebas tanpa mengirim skor ke Leaderboard Cloud maupun merusak rasio kemenangan Ranked.
+  * **In-Game Practice Undo:** Setiap game (Sudoku, Chess, Minesweeper, Snake) menyimpan riwayat snapshot langkah agar pemain bisa mundur saat berlatih.
+  * **Practice Rewind on Loss:** Dapat diatur di Profil (*On/Off* dan jumlah langkah mundur **1 / 2 / 3 langkah**); memunculkan tombol *"Rewind N & Continue"* langsung di dialog kalah agar pemain bisa memperbaiki kesalahan tepat sebelum titik fatal.
 
 ### 2.2 Autentikasi Tanpa Email & Keamanan Sesi (Answers: 11B–18A)
 
 * **Dummy Email Wrapper (`11B`, `12B`):**
-* Format Username: Huruf kecil, angka, dan underscore (`^[a-z0-9_]{3,16}$`).
-* Format Password: Minimal 8 karakter, kombinasi huruf dan angka.
-* Di balik layar, username `zain_99` diubah menjadi `zain_99@arcade.local` ke Supabase Auth.
-
-
-* **Ganti Username & Avatar (`14B`, `15C`):**
-* Username tampilan di tabel `public.profiles` dapat diubah kapan saja.
-* User dapat mengunggah foto profil ke **Supabase Storage** bucket `avatars` (otomatis dikompres ke ukuran 256x256 px WebP/PNG di sisi Flutter sebelum diunggah).
-
-
-* **Ganti Password Aman (`13B`):** Wajib memasukkan *Password Lama* (diverifikasi ulang via `signInWithPassword`), lalu *Password Baru* + *Konfirmasi*.
-* **Optional Recovery Phrase (`16B`):**
-* Pada halaman Pengaturan Keamanan, terdapat *toggle* **"Aktifkan Kode Pemulihan (Recovery Code)"**.
-* Jika diaktifkan, sistem men-generate kode rahasia (atau user membuat *Secret Passphrase* sendiri) yang disimpan dalam bentuk **Hash (`bcrypt` / `pgcrypto`)** di tabel `profiles`. Jika lupa password, user cukup memasukkan `Username` + `Recovery Phrase` untuk mereset password via Supabase RPC (`SECURITY DEFINER`) tanpa email sama sekali. Jika tidak diaktifkan, kolom bernilai `NULL` dan fitur lupa password tidak bisa dipakai.
-
-
-* **Single Active Session (`17B`):** Saat login di perangkat baru, aplikasi memanggil `supabase.auth.signOut(scope: SignOutScope.others)` sehingga perangkat lama otomatis ter-logout.
-* **Reset & Delete (`18A`):** Tersedia tombol *"Reset Semua Statistik"* dan *"Hapus Akun Permanen"* di menu Settings.
+  * Username: `^[a-z0-9_]{3,16}$` (huruf kecil, angka, *underscore*, 3–16 karakter).
+  * Password: minimal 8 karakter dengan kombinasi huruf dan angka.
+  * Username `zain_99` dipetakan internal ke `zain_99@arcade.local`.
+* **Ganti Username & Avatar (`14B`, `15C`):** Username dapat diubah di `public.profiles`. Foto profil dikompresi otomatis ke **256×256 px** di klien lalu diunggah ke bucket `avatars` Supabase Storage.
+* **Ganti Password Aman (`13B`):** Verifikasi ulang password lama via `signInWithPassword` sebelum update.
+* **Optional Recovery Phrase (`16B`):** Toggle opsional untuk menyimpan hash SHA-256 frasa pemulihan ke kolom `recovery_hash` dan mereset password tanpa email melalui Supabase RPC `reset_password_with_recovery` (`SECURITY DEFINER`).
+* **Single Active Session (`17B`):** Login di perangkat baru memanggil `signOut(scope: SignOutScope.others)`.
+* **Reset & Delete (`18A`):** Opsi *"Reset Semua Statistik"* dan *"Hapus Akun Permanen"* (memanggil RPC `delete_own_account`).
 
 ---
 
-## 3. Sistem 7 Tingkat Kesulitan, Timer & Platform Leaderboard
+## 3. Sistem 7 Tingkat Kesulitan, Timer, Statistik & Platform Leaderboard
 
-### 3.1 Label & Progresi Level (Answers: 19B, 29B, 74B)
+### 3.1 Label, Progresi Level & Sistem XP (Answers: 19B, 24B, 25B, 74B)
 
 * **7 Tingkatan Resmi (`74B`):**
-`1. Chill` | `2. Easy` | `3. Normal` | `4. High` | `5. PRO` | `6. Nightmare` | `7. Are U a God?`
-* **Progressive Unlock (`19B`):** Level 1–5 terbuka sejak awal. Menang di Level 5 (*PRO*) 1x akan membuka Level 6 (*Nightmare*). Menang di Level 6 1x akan membuka Level 7 (*Are U a God?*).
-* **Practice Mode (`29B`):** Di setiap tingkat kesulitan yang sudah terbuka, terdapat *toggle* **"Practice Mode"**. Dalam mode ini, pemain bebas berlatih (nyawa tak terbatas di Sudoku), namun skor dan waktu hanya ditampilkan di layar akhir dan **tidak dikirim ke database/leaderboard**.
+  `1. Chill` (10 XP) | `2. Easy` (25 XP) | `3. Normal` (50 XP) | `4. High` (100 XP) | `5. PRO` (175 XP) | `6. Nightmare` (300 XP) | `7. Are U a God?` (500 XP)
+* **Progressive Unlock (`19B`):** Level 1–5 terbuka dari awal per game; menang di Level 5 membuka Level 6 (*Nightmare*), dan menang di Level 6 membuka Level 7 (*Are U a God?*).
+* **Tab Statistics (`24B`, `25B`):** Menghitung **Player Level** (setiap 250 XP), total main, win rate, *win streak*, rata-rata durasi, dan ringkasan per game.
 
-### 3.2 Aturan Timer & Deteksi Platform di Leaderboard (Answers: 20B–27A, 72A)
+### 3.2 Timer, Anti-Cheat, Leaderboard Pagination & Skema Supabase (Answers: 20B–27A, 72A)
 
-* **Real-time Millisecond Timer (`20B`):** Format tampilan aktif `MM:SS.ms` (contoh: `02:14.85`) menggunakan font *Monospace*.
-* **Anti-Cheat Pause Blur (`21A`):** Begitu aplikasi masuk ke *background* (atau kehilangan fokus jendela di Desktop/Web), timer langsung berhenti seketika dan papan permainan tertutup *Glassmorphism Blur* sampai tombol "Resume" ditekan.
-* **Deteksi Platform untuk Ikon Leaderboard:**
-* Di Flutter, buat *helper* pendeteksi platform sebelum mengirim skor:
-* Jika `kIsWeb` -> `'web'` 🌐
-* Jika `Platform.isAndroid` -> `'android'` 🤖
-* Jika `Platform.isWindows` -> `'windows'` 🪟
-* Jika `Platform.isLinux` -> `'linux'` 🐧
-
-
-
-
-* **Skema Database Supabase Lengkap (Dengan Platform & Anti-Cheat `72A`):**
-
-```sql
--- 1. Tabel Profil Pengguna
-CREATE TABLE public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL CHECK (username ~ '^[a-z0-9_]{3,16}$'),
-  avatar_url TEXT,
-  chess_elo INT NOT NULL DEFAULT 1000, -- Untuk sistem ELO Catur (47B)
-  recovery_hash TEXT DEFAULT NULL, -- NULL jika user tidak mengaktifkan fitur Recovery (16B)
-  unlocked_levels JSONB NOT NULL DEFAULT '{"sudoku": 5, "chess": 5, "minesweeper": 5, "snake": 5}'::jsonb,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 2. Tabel Riwayat Skor & Leaderboard (Menyimpan Platform saat main)
-CREATE TABLE public.game_records (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  game_type TEXT NOT NULL CHECK (game_type IN ('sudoku', 'chess', 'minesweeper', 'snake')),
-  difficulty INT NOT NULL CHECK (difficulty BETWEEN 1 AND 7),
-  is_won BOOLEAN NOT NULL, -- Disimpan baik menang maupun kalah untuk Win Rate (22B, 65A)
-  score INT NOT NULL DEFAULT 0, -- Poin Snake / ELO Delta Chess / 3BV Minesweeper
-  duration_ms INT NOT NULL CHECK (duration_ms >= 3000), -- Anti-cheat dasar (72A): minimal 3 detik
-  platform TEXT NOT NULL CHECK (platform IN ('android', 'web', 'windows', 'linux', 'ios', 'macos')),
-  played_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Index untuk query Global Top 100 & Personal Best (23C)
-CREATE INDEX idx_leaderboard ON public.game_records (game_type, difficulty, is_won, score DESC, duration_ms ASC);
-
-```
+* **Real-time Millisecond Timer (`20B`):** Format monospace `MM:SS.ms`.
+* **Anti-Cheat Pause Blur (`21A`):** Otomatis menjeda timer dan menutup papan dengan *Glassmorphism Blur* (`AntiCheatPauseOverlay`) saat aplikasi berpindah ke *background* atau kehilangan fokus jendela.
+* **Deteksi Platform Multi-OS:** Mencatat `'android'`, `'web'`, `'windows'`, `'linux'`, `'ios'`, atau `'macos'` pada setiap rekor permainan.
+* **Leaderboard 3 Tab + Paginasi (`23C`, `47B`):** Tab **Global**, **My Best**, dan **Chess ELO**, memuat **20 data awal** lalu bertahap **+10 entri saat scroll** hingga maksimal **Top 100**.
+* **Skema Database Inti (`supabase-setup.md`):**
+  * `public.profiles`: profil, `avatar_url`, `chess_elo`, `recovery_hash`, `unlocked_levels` JSONB.
+  * `public.game_records`: rekor permainan, `score`, `duration_ms`, `platform`, dan kolom `metadata JSONB` (`mistakes`, `moves`, `mode`, `3bv`, dll.), dilindungi RLS anti-cheat (menolak Sudoku Lv 7 `< 10 detik` dan mewajibkan Catur Ranked `>= 4` half-moves serta validasi server RPC).
+  * `public.chess_match_queue` & RPC matchmaking/settlement Catur (`find_or_enqueue_chess_match`, `finish_ranked_chess_match`).
 
 ---
 
-## 4. Spesifikasi Mekanik Keempat Game
+## 4. Spesifikasi Mekanik, Fitur Lanjutan & Efek Keempat Game
 
 ### 4.1 Game 1: SUDOKU (Answers: 28C–37A)
 
-* **Input & Bantuan Visual:** Mendukung *Cell-First* maupun *Digit-First* (tekan/kunci angka di bawah untuk *rapid tap* - `28C`). Angka yang sama menyala otomatis (`32A`), tombol angka yang sudah terpakai 9x otomatis meredup (`33A`), dan pengisian angka otomatis menghapus *pencil notes* di baris/kolom/blok terkait (`31A`).
-* **Sistem Nyawa & Mode Practice (`29B`):**
-* *Mode Ranked:* Level 1 (*Chill*) = Tanpa batas nyawa; Level 2–3 = 5 Nyawa; Level 4–5 = 3 Nyawa; Level 6 (*Nightmare*) = 2 Nyawa; Level 7 (*Are U a God?*) = **1 Nyawa (Sudden Death)**.
-* *Mode Practice:* Nyawa tak terbatas di semua level, skor tidak masuk DB.
-
-
-* **Validasi Kesalahan (`30C`):** Level 1–4 langsung mengecek kunci jawaban (merah jika salah). Level 5–7 hanya mendeteksi konflik baris/kolom/kotak 3x3 (tidak memberi tahu apakah sesuai kunci jawaban sampai papan penuh).
-* **Hint & Undo (`34C`, `35B`):** Maksimal 3x Hint gratis per game. Tombol Undo hanya bisa membatalkan catatan (*notes*), tidak bisa membatalkan kesalahan nyawa.
-* **Generator (`36B`):** Level 1–6 dibuat secara *real-time* di *Background Isolate*, sedangkan Level 7 (*Are U a God?* - 17 petunjuk) mengambil dari kumpulan *Master Seed* yang ditransformasi/dirotasi secara matematis agar terbuka secara instan tanpa *loading*.
+* **Input Interaktif & Bantuan Visual (`28C`, `31A`–`33A`):**
+  * Mendukung *Cell-First* dan *Digit-First* (tekan lama angka keypad bawah untuk mengunci angka; ketuk ulang angka/sel terpilih untuk **deselect / batal pilih**; ketuk angka di keypad bawah saat belum ada sel dipilih untuk langsung **highlight seluruh angka sejenis** di papan).
+  * Penyorotan baris/kolom/blok 3×3 sejalan, angka sama menyala, tombol angka yang telah terisi 9× otomatis meredup, dan opsi *Auto-Clear Peer Notes*.
+* **Efek Animasi Completion Wave:** Saat sebuah penempatan melengkapi 1 baris, 1 kolom, atau 1 kotak 3×3 tanpa kesalahan, muncul **gelombang cahaya terarah** (propagasi step-by-step menyebar dari sel pemicu—menurun dari atas ke bawah jika sel selesai di baris atas, atau memancar ke dua arah jika sel selesai berada di tengah).
+* **Auto-Finish Endgame (Tombol Petir ⚡):**
+  * Dapat diaktifkan/dimatikan dan diatur ambangnya (**5** atau **7** kotak kosong tersisa) lewat Profile maupun Quick Settings mid-game.
+  * Berlaku di **semua tingkat kesulitan**: begitu sisa kotak kosong `<=` ambang batas dan tidak ada angka yang salah/konflik, muncul tombol **`Auto-Finish (N)`** dengan ikon petir ⚡ di sebelah kiri untuk menyelesaikan sisa kotak secara instan beserta efek gelombang menyeluruh dan suara petir/penyelesaian.
+* **Mistake-Free Streak & Accuracy HUD (Default: ON):**
+  * Menampilkan badge **Streak** beruntun tanpa salah & persentase **Accuracy (%)** secara langsung di status bar papan serta metrik **Best Streak** dan **Accuracy** di dialog hasil (*toggleable* di Profile / Quick Settings).
+* **Smart Candidate Notes (Default: OFF — Khusus Practice & Beginner Lv 1–2):**
+  * Jika diaktifkan di **Mode Practice** atau level **Chill/Easy (Lv 1–2)**, kandidat angka 1–9 yang valid otomatis terisi di awal papan, ditambah tombol cepat **Smart Notes** (tetap bisa di-Undo). Pada Ranked Lv 3–7 fitur ini terkunci nonaktif demi keadilan kompetisi.
+* **Sistem Nyawa, Validasi & Hint (`29B`, `30C`, `34C`, `35B`, `36B`):**
+  * *Ranked Lives:* Lv 1 = ∞; Lv 2–3 = 5 Nyawa; Lv 4–5 = 3 Nyawa; Lv 6 = 2 Nyawa; Lv 7 = **1 Nyawa (Sudden Death)**.
+  * *Validasi:* Lv 1–4 cek kunci jawaban langsung; Lv 5–7 hanya cek konflik baris/kolom/blok 3×3.
+  * *Hint & Undo:* Maksimal 3 Hint gratis; Undo Ranked hanya membatalkan *pencil notes*, sedangkan mode Practice mengizinkan Undo penuh (termasuk memulihkan *streak* & akurasi).
+  * *Post-Game Review:* Mode **Show Answer / Hide Answer** menampilkan koreksi angka benar vs kesalahan yang dicoret merah di papan akhir.
 
 ### 4.2 Game 2: CHESS / CATUR (Answers: 38C–47B)
 
-* **3 Mode Permainan (`38C`):**
-1. **Vs AI (Stockfish FFI - `46A`):** Menggunakan engine Stockfish C++ untuk Android/Desktop, dan `stockfish.js` (WebAssembly) saat dijalankan di Browser Web.
-2. **Pass & Play:** Main berdua gantian di 1 perangkat.
-3. **Online Multiplayer:** Menggunakan **Supabase Realtime Broadcast/Presence** (Bisa buat *Room Code* untuk menantang teman secara *real-time*).
-
-
-* **Kontrol & Aturan (`39A`–`45B`):** Bebas pilih warna bidak (`39A`), pilih kontrol waktu *Untimed / Bullet / Blitz / Rapid* (`40A`), metode klik *Tap-to-Move* (`41A`) dengan titik langkah legal selalu aktif (`42A`), dan *Auto-Queen* saat promosi pion dengan opsi ganti di Settings (`45B`).
-* **Aturan Undo (`43A`):** Boleh *Undo* langkah saat melawan AI di Level 1–4, namun **terkunci/dilarang** di Level 5, 6, dan 7.
-* **Informasi Layar & Sistem ELO (`44A`, `47B`):** Menampilkan bidak yang dimakan, selisih poin materi (`+3`), dan barisan notasi PGN. Leaderboard Catur diurutkan berdasarkan **Rating ELO pemain** (mengalahkan AI level tinggi atau pemain online akan menaikkan ELO).
+* **4 Mode Permainan (`38C`):**
+  1. **Vs AI (Pure-Dart Search Engine):** Menggunakan algoritma **Alpha-Beta Pruning + Quiescence Search + Piece-Square Tables** di *Background Isolate* (`ChessAiEngine`, estimasi rating 700–2400 ELO dari Lv 1 hingga Lv 7 — menjaga ukuran app tetap ringkas dan mulus di semua platform termasuk Web tanpa ketergantungan native FFI).
+  2. **Pass & Play:** Bermain berdua bergantian di 1 perangkat (unrated).
+  3. **Find Match (Ranked ELO Matchmaking):** Pencarian lawan otomatis berbasis antrean dengan rentang ELO yang melebar bertahap (`400..3500`), penyelesaian rating server-verified (`finish_ranked_chess_match`), dan proteksi anti-cheat (abort unrated bila berhenti sebelum 4 half-moves).
+  4. **Private Online (Room Code):** Buat atau gabung kode room 6 karakter via **Supabase Realtime Broadcast**.
+* **Kontrol, Efek Sentuh & Tema Bidak (`39A`–`45B`):**
+  * Pilih warna bidak (*White / Black / Random*), kontrol waktu (*Untimed*, *Bullet 1m*, *Blitz 3m*, *Blitz 5m*, *Rapid 10m*), opsi *Auto-Queen*, *Show Legal Move Hints*, dan *Show Board Coordinates*.
+  * Pilihan 3 set bidak SVG (`cburnett`, `cburnett-v2`, `tatiana`).
+  * **Accessible Board Flip Toggle:** Tombol 1-tap `Flip Board` tersemat langsung di AppBar permainan maupun panel kontrol; ditambah opsi **Auto-Flip in Pass & Play** (**Default: OFF**).
+  * **Touch Move Confirmation (Default: `Off`):** Opsi **`Off`**, **`Bullet/Blitz` (`fastOnly`)**, dan **`Always`**. Saat aktif, langkah yang dipilih ditandai di papan dan menunggu konfirmasi lewat tap ulang kotak tujuan atau bilah konfirmasi **Confirm / Cancel** di bawah/samping papan untuk mencegah salah sentuh (*slip*).
+* **Undo, Review & ELO (`43A`, `44A`, `47B`):**
+  * Undo di Vs AI hanya diizinkan pada Level 1–4 (terkunci di Level 5–7).
+  * **Post-Game Move Review Scrubber:** Setelah pertandingan selesai, pemain dapat menggeser riwayat langkah (awal, mundur 1 ply, maju 1 ply, akhir, atau ketuk langsung chip notasi SAN/PGN) lengkap dengan evaluasi bidak termakan & selisih materi.
 
 ### 4.3 Game 3: MINESWEEPER (Answers: 48C–57A)
 
-* **Kontrol Cepat & Chording (`48C`, `49A`):** Mendukung *Long-press* dan tombol *Toggle* (Gali ⛏️ / Bendera 🚩 / Tanda Tanya ❓ `53B`), serta fitur **Chording** (klik angka yang benderanya sudah lengkap untuk membuka seluruh kotak di sekelilingnya sekaligus).
-* **Generator & First-Click (`51B`, `52B`):** Klik pertama dijamin bukan ranjau. Level 1–4 menggunakan generator ramah logika deduksi, sedangkan Level 5–7 murni acak ekstrem.
-* **Fitur Perisai / Defuse (`54B`):** Khusus di Level 1 (*Chill*) dan Level 2 (*Easy*), pemain mendapat **1x Perisai Defuse** (kesempatan selamat saat tidak sengaja mengklik ranjau pertama kali). Di Level 3–7, menginjak ranjau langsung meledak (Game Over).
-* **Kondisi Menang & Statistik (`55A`, `56AB`):** Otomatis menang begitu seluruh kotak aman terbuka. Header menampilkan sisa ranjau & stopwatch, dan layar hasil menampilkan metrik **3BV (Bechtel's Board Benchmark Value)** & *3BV/s*.
+* **Kontrol Cepat, Chording & Tap-vs-Flag Swap (`48C`, `49A`):**
+  * Mendukung *Tap*, *Long-press*, *Quick Chord* (tap angka untuk membuka kotak sekitar saat jumlah bendera sesuai), serta segmen tool (`Dig ⛏️` / `Flag 🚩` / `Mark ❓`).
+  * **Swap Tap & Flag / One-Handed Mode (Default: OFF):** Tombol toggle cepat 1-tap (`1-Tap: Dig` ⇄ `1-Tap: Flag`) tepat di atas segmen tool dan di pengaturan; menukar tap singkat untuk menaruh/mencabut bendera dan tekan-tahan untuk menggali agar nyaman dimainkan satu tangan.
+* **Generator, Perisai Defuse & First-Click Safety (`51B`–`54B`):**
+  * Klik pertama selalu aman dan membuka ruang kosong (*flood-fill*).
+  * **Perisai Defuse Lv 1–2 (`54B`):** 1× kesempatan menyerap ledakan ranjau pertama tanpa kalah (`mine_defused.png` + suara perisai pecah).
+* **Reveal All Mines & Post-Game Review (`54A`, `55A`, `56AB`):**
+  * Baik saat **kalah maupun menang**, seluruh ranjau langsung dibuka di papan (membedakan ranjau meledak, ranjau tersingkap, *defused*, serta bendera salah), dan pemain tetap bisa meninjau/zoom-pan posisi kesalahan setelah dialog hasil ditutup (`View Board`).
+  * Menampilkan metrik **3BV** dan **3BV/s**.
 
 ### 4.4 Game 4: SNAKE (Answers: 58C–67A)
 
-* **Ukuran Grid & Aturan Tembok (`59AC`, `64B`):**
-* Ukuran grid menyesuaikan level (misal 15x15 di level bawah, hingga 25x25 di level tinggi).
-* Di Level 1 (*Chill*), tembok pinggir bisa ditembus (*wrap-around*). Di Level 2–7, tembok pinggir mematikan, ditambah rintangan di tengah papan.
-
-
-* **Rintangan Dinamis & Kecepatan Progresif (`60B`, `61B`):**
-* Makin panjang tubuh ular, kecepatannya bertambah secara bertahap (`61B`).
-* Khusus di Level 6 (*Nightmare*) dan Level 7 (*Are U a God?*), balok rintangan di dalam arena akan **berpindah posisi secara dinamis** setiap kali ular memakan 5 umpan (dengan indikator bayangan peringatan 2 detik sebelum balok muncul).
-
-
-* **Item Spesial & Starvation Timer (`62C`, `63C`):**
-* Selain apel biasa (+10 poin), muncul *Bonus Food* berwaktu, *Gunting* (memotong 3 segmen ekor agar lebih lega), dan *Racun/Debuff* (membalik kontrol sesaat di level atas).
-* Di Level 1–5 menggunakan Stopwatch *Survival Time* biasa. Di Level 6–7 aktif **Starvation Bar** (bar kelaparan hitung mundur yang ter-reset setiap kali makan apel; jika habis, ular mati kelaparan).
-
-
-* **Visual, Input Queue & Kondisi Menang (`65A`, `66B`, `67A`):**
-* Tubuh ular digambar menyambung mulus (*rounded smooth segments*) dengan mata menghadap arah gerak (`66B`) serta dilengkapi **2-Step Input Buffer Queue** (`67A`) agar belokan cepat tidak membuat ular menabrak lehernya sendiri.
-* Jika ular berhasil memenuhi 100% ruang grid, tercatat `is_won = true` (Beat the Game!). Jika menabrak sebelum penuh, tercatat `is_won = false`, namun **skor dan durasinya tetap masuk ke Leaderboard Snake** (`65A`).
-
-
+* **Arena, Tembok & Rintangan Dinamis (`59AC`, `60B`, `61B`, `64B`):**
+  * Ukuran grid proporsional terhadap level; Lv 1 (*Chill*) mendukung tembus tepi (*wrap-around*), sedangkan Lv 2–7 tembok pinggir mematikan + rintangan labirin progresif.
+  * Kecepatan naik bertahap seiring panjang ular; di Lv 6–7, blok rintangan berpindah posisi setiap 5 apel dengan peringatan 2 detik (*Ghost Wall*).
+* **Ghost Wall & Turn Guide Overlay (Default: ON):**
+  * **Ghost Wall Countdown:** Rintangan dinamis menampilkan animasi kotak menyusut (*countdown shrink*) & garis tepi oranye selama 2 detik sebelum mengeras menjadi tembok.
+  * **Ahead-of-Head Hazard Preview:** Memberi kilasan bar merah/kuning di sisi tembok atau sel rintangan/tubuh yang berjarak 1–2 langkah di jalur kepala ular saat kecepatan tinggi, plus titik jalur hantu ringan.
+  * **Queued Swipe Direction Chevrons:** Menampilkan *chevron* arah kepala dan antrean belokan 2 langkah (**2-Step Input Buffer Queue** `67A`) langsung pada kanvas papan agar kontrol *swipe* cepat di Lv 6–7 akurat terbaca.
+* **Item Spesial, Starvation Timer & Crash Inspector (`62C`, `63C`, `65A`):**
+  * Item: Apel (+10), Golden Bonus (+50 & isi ulang Starvation), Gunting (potong 3 segmen ekor), Racun (membalik kontrol sesaat).
+  * **Post-Game Crash Inspector:** Saat kalah, kotak titik tabrakan (`crashPoint`) ditandai silang merah eksplisit disertai alasan spesifik (*wall*, *obstacle*, *self*, *starvation*), dan skor tetap tercatat ke Leaderboard Snake (`65A`).
 
 ---
 
-## 5. Daftar Lengkap Asset (PNG / SVG / WAV / Font) yang Perlu Anda Unduh
+## 5. Daftar Lengkap Asset (PNG / SVG / WAV / Font)
 
-Agar Anda mudah menyiapkannya di dalam folder `assets/` proyek Flutter, berikut adalah daftar rincian file yang perlu Anda unduh (disarankan dari situs gratis berlisensi *CC0 / Public Domain* seperti **Kenney.nl**, **Lichess Open Source**, **Lucide Icons**, dan **Freesound.org**):
+Seluruh asset gambar, ikon platform, set bidak catur, dan font **sudah tersedia** di direktori `assets/` proyek ini; folder **`assets/audio/`** tinggal diisi file suara berikut.
 
-### A. Asset Gambar & Ikon (`assets/images/` & `assets/icons/`)
+### A. Asset Gambar & Ikon (Sudah Tersedia di `assets/`)
 
-*(Catatan: Untuk bidak catur dan ikon platform, format `.svg` sangat disarankan, tapi Anda juga bisa menggunakan `.png` resolusi minimal 256x256 px transparan).*
-
-1. **Ikon Platform untuk Leaderboard (6 File SVG/PNG):**
-* `ic_platform_android.svg` (Logo Robot Android)
-* `ic_platform_web.svg` (Ikon Globe / Browser)
-* `ic_platform_windows.svg` (Logo Jendela Windows)
-* `ic_platform_linux.svg` (Logo Pinguin Tux Linux)
-* `ic_platform_ios.svg` & `ic_platform_macos.svg` (Logo Apple - jaga-jaga untuk ekspansi)
-
-
-2. **Bidak Catur — 12 File (Unduh dari GitHub Lichess `cburnett` set):**
-* Putih: `wP.svg` (Pawn), `wN.svg` (Knight), `wB.svg` (Bishop), `wR.svg` (Rook), `wQ.svg` (Queen), `wK.svg` (King).
-* Hitam: `bP.svg`, `bN.svg`, `bB.svg`, `bR.svg`, `bQ.svg`, `bK.svg`.
-
-
-3. **Asset Minesweeper — 6 File PNG/SVG:**
-* `mine_normal.png` (Ranjau laut berduri hitam)
-* `mine_exploded.png` (Ranjau dengan latar merah menyala)
-* `mine_defused.png` (Ranjau dengan tanda silang hijau / perisai untuk fitur Defuse Level 1–2)
-* `flag.png` (Bendera merah `🚩`)
-* `question_mark.png` (Tanda tanya `❓`)
-* `shield_icon.png` (Ikon perisai aktif di pojok layar)
-
-
-4. **Asset Snake — 5 File PNG/SVG:**
-**(Badan dan kepala ular lebih bagus digambar langsung dengan kode `CustomPainter` agar pergerakannya mulus, jadi Anda hanya butuh sprite item):*
-* `food_apple.png` (Apel merah standar)
-* `food_golden.png` (Apel/Koin emas berkilau untuk Bonus Food)
-* `item_scissors.png` (Ikon gunting pemotong ekor)
-* `item_poison.png` (Botol racun ungu / tengkorak untuk debuff)
-* `wall_brick.png` (Tekstur kotak tembok rintangan)
-
-
-5. **Badge 7 Tingkat Kesulitan — 7 File PNG/SVG (Opsional agar menu keren):**
-* `badge_1_chill.png` (Ikon es/daun santai) s/d `badge_7_god.png` (Ikon petir/mahkota emas menyala).
-
-
+1. **App Launcher Icon:** `assets/images/ico.jpeg` (digunakan untuk Android, iOS, Web, Windows, macOS, dan ikon aplikasi).
+2. **Ikon Platform Leaderboard (`assets/icons/platforms/` — 6 File SVG):**
+   * `ic_platform_android.svg`, `ic_platform_web.svg`, `ic_platform_windows.svg`, `ic_platform_linux.svg`, `ic_platform_ios.svg`, `ic_platform_macos.svg`.
+3. **Bidak Catur (`assets/icons/chess/` — 3 Tema Lengkap × 12 File SVG):**
+   * Tersedia 3 set di folder `cburnett/`, `cburnett-v2/`, dan `tatiana/`:
+     * Putih: `wP.svg`, `wN.svg`, `wB.svg`, `wR.svg`, `wQ.svg`, `wK.svg`.
+     * Hitam: `bP.svg`, `bN.svg`, `bB.svg`, `bR.svg`, `bQ.svg`, `bK.svg`.
+4. **Asset Minesweeper (`assets/images/minesweeper/` — 6 File PNG):**
+   * `mine_normal.png`, `mine_exploded.png`, `mine_defused.png`, `flag.png`, `question_mark.png`, `shield_icon.png`.
+5. **Asset Snake (`assets/images/snake/` — 5 File PNG):**
+   * `food_apple.png`, `food_golden.png`, `item_scissors.png`, `item_poison.png`, `wall_brick.png`.
+6. **Badge 7 Tingkat Kesulitan (`assets/images/badge/` — 7 File PNG):**
+   * `1.png` (*Chill*) s/d `7.png` (*Are U a God?*).
 
 ### B. Asset Suara & Musik (`assets/audio/`)
 
-*(Gunakan format `.wav` atau `.ogg` pendek ukuran < 100 KB untuk SFX agar *zero-latency* saat diklik, dan `.mp3` atau `.ogg` *looping* untuk musik latar BGM).*
+*(Gunakan format `.wav` atau `.ogg` pendek ukuran `< 100 KB` agar zero-latency saat dipicu, dan `.mp3`/`.ogg` looping untuk musik latar. Seluruh enum `ZetzySfx` sudah siap di [audio_service.dart](file:///Users/umardani/Documents/workspace/zetzy/lib/core/services/audio_service.dart) — setelah menaruh file audio ke `assets/audio/`, jangan lupa tambahkan `- assets/audio/` pada bagian `flutter -> assets:` di [pubspec.yaml](file:///Users/umardani/Documents/workspace/zetzy/pubspec.yaml)).*
 
-| Nama File | Kegunaan di Dalam Game | Rekomendasi Karakter Suara |
-| --- | --- | --- |
-| **`sfx_ui_click.wav`** | Klik tombol menu & navigasi | Suara *pop* atau *tick* lembut |
-| **`sfx_sudoku_tap.wav`** | Mengisi angka / *pencil mark* di Sudoku | Suara ketukan pensil/kayu halus |
-| **`sfx_error_buzz.wav`** | Salah isi angka Sudoku / langkah ilegal | Suara *thud* rendah (tidak memekakkan telinga) |
-| **`sfx_chess_move.wav`** | Menggerakkan bidak catur ke kotak kosong | Suara gesekan/ketukan bidak kayu di papan |
-| **`sfx_chess_capture.wav`** | Memakan bidak lawan di catur | Suara hentakan kayu yang lebih tegas |
-| **`sfx_chess_check.wav`** | Peringatan Skak (*Check*) | Suara lonceng/denting pendek |
-| **`sfx_mine_dig.wav`** | Membuka kotak aman di Minesweeper | Suara pasir/ketukan ringan |
-| **`sfx_mine_flag.wav`** | Menancapkan / mencabut bendera | Suara kain berkibar / *snap* singkat |
-| **`sfx_mine_shield.wav`** | Perisai Defuse pecah menyelamatkan pemain | Suara kaca/energi perisai pecah |
-| **`sfx_mine_explode.wav`** | Menginjak ranjau / menabrak tembok Snake | Suara ledakan *arcade* 8-bit/modern |
-| **`sfx_snake_eat.wav`** | Ular memakan apel standar | Suara *crunch* atau *blip* naik nada |
-| **`sfx_snake_powerup.wav`** | Ular memakan Bonus Food / Gunting | Suara koin / *power-up* ceria |
-| **`sfx_game_win.wav`** | Menang permainan (Muncul bersama Confetti) | *Fanfare* kemenangan singkat (2–3 detik) |
-| **`bgm_chill_loop.mp3`** | Musik latar menu & bermain (`68B`) | *Lo-Fi Chill Beats* / *Ambient Synth* tanpa vokal |
+#### 1. Asset Suara Inti (13 SFX + 1 BGM)
 
-### C. Asset Font (`assets/fonts/`)
+| Nama File (`assets/audio/`) | Enum (`ZetzySfx`) | Pemicu Fitur / Efek di Game | Rekomendasi Karakter Suara |
+| --- | --- | --- | --- |
+| **`sfx_ui_click.wav`** | `uiClick` | Klik tombol menu, navigasi tab, & opsi umum | *Pop* / *tick* UI yang lembut & bersih |
+| **`sfx_sudoku_tap.wav`** | `sudokuTap` | Mengisi angka standar, *notes*, *Smart Notes*, & *Hint* Sudoku | Ketukan kayu/pensil halus dan renyah |
+| **`sfx_error_buzz.wav`** | `errorBuzz` | Salah isi angka / konflik di Sudoku & efek racun *Poison* Snake | *Thud* / *buzz* rendah singkat (tidak memekakkan) |
+| **`sfx_chess_move.wav`** | `chessMove` | Langkah bidak catur ke petak kosong | Gesekan / ketukan bidak kayu di papan catur |
+| **`sfx_chess_capture.wav`** | `chessCapture` | Memakan bidak lawan di Catur | Hentakan kayu yang lebih tegas & berbobot |
+| **`sfx_chess_check.wav`** | `chessCheck` | Peringatan Skak (*Check*) raja lawan | Lonceng / denting pendek bernada waspada |
+| **`sfx_mine_dig.wav`** | `mineDig` | Membuka kotak / area aman (*flood-fill*) Minesweeper | Ketukan pasir / klik renyah ringan |
+| **`sfx_mine_flag.wav`** | `mineFlag` | Menancapkan, mengganti ke `?`, atau mencabut bendera (termasuk mode *Tap-vs-Flag Swap*) | Kain berkibar / *snap* singkat |
+| **`sfx_mine_shield.wav`** | `mineShield` | Perisai *Defuse* Lv 1–2 menyelamatkan pemain dari ranjau | Suara energi/kaca perisai pecah pelindung |
+| **`sfx_mine_explode.wav`** | `mineExplode` | Menginjak ranjau di Minesweeper (serta *fallback* kalah umum) | Ledakan *arcade* modern padat (< 1 detik) |
+| **`sfx_snake_eat.wav`** | `snakeEat` | Ular memakan apel standar (`+10` poin) | *Crunch* atau *blip* ceria naik nada |
+| **`sfx_snake_powerup.wav`** | `snakePowerup` | Ular memakan *Golden Bonus* atau *Gunting* pemotong ekor | Efek koin / *power-up* berkilau |
+| **`sfx_game_win.wav`** | `gameWin` | Menang di game apa pun (bersamaan dengan animasi **Confetti**) | *Fanfare* kemenangan singkat (1.5–3 detik) |
+| **`bgm_chill_loop.mp3`** | `AudioService.bgmPath` | Musik latar opsional (bisa *mute* terpisah dari Spotify/SFX) | *Lo-Fi Chill Beats* / *Ambient Synth* tanpa vokal (seamless loop) |
 
-1. **`JetBrainsMono-Bold.ttf` & `JetBrainsMono-Regular.ttf`:** Wajib untuk semua komponen Timer (`MM:SS.ms`), angka papan Sudoku, dan angka indikator Minesweeper.
-2. **`PlusJakartaSans-Regular.ttf` & `PlusJakartaSans-Bold.ttf`:** Untuk seluruh teks UI, Leaderboard, dan tombol.
+#### 2. Asset Suara Efek & Fitur Tambahan (7 File `.wav` Baru)
+
+*(Semua efek baru berikut sudah memiliki **fallback otomatis** di kode ke SFX inti di atas, sehingga aplikasi tetap berbunyi normal walau baru sebagian `.wav` yang Anda isi, dan otomatis memutar suara khususnya segera setelah file di bawah tersedia di `assets/audio/`).*
+
+| Nama File (`assets/audio/`) | Enum (`ZetzySfx`) | Pemicu Fitur / Efek Baru | Fallback Otomatis | Rekomendasi Karakter Suara |
+| --- | --- | --- | --- | --- |
+| **`sfx_sudoku_line.wav`** | `sudokuLineComplete` | Animasi **Completion Wave** saat 1 baris, kolom, atau kotak 3×3 Sudoku terpenuhi | `sfx_sudoku_tap.wav` | *Chime* arpeggio naik 2–3 nada lembut (harmonis dengan efek cahaya gelombang) |
+| **`sfx_sudoku_autofill.wav`** | `sudokuAutoFinish` | Tombol petir ⚡ **Auto-Finish Endgame** mengisi sisa ≤5/≤7 kotak Sudoku | `sfx_game_win.wav` | Kilatan petir halus + *sparkle cascade* beruntun (~1 detik) |
+| **`sfx_mine_chord.wav`** | `mineChord` | Aksi cepat **Chording** (tap angka berbenderanya lengkap) di Minesweeper | `sfx_mine_dig.wav` | *Multi-tile sweep* / serangkaian ketukan terbuka cepat |
+| **`sfx_undo_rewind.wav`** | `undoRewind` | Aksi **Undo** (Notes Sudoku, Vs AI Catur) & **Practice Rewind** saat berlatih/kalah di ke-4 game | `sfx_ui_click.wav` | Efek *whoosh* mundur / *tape rewind* pendek nan halus |
+| **`sfx_match_found.wav`** | `chessMatchFound` | Lawan ditemukan pada mode **Online Find Match** ELO Catur | `sfx_chess_check.wav` | Dua ketukan notifikasi duel/gong lembut bertempo mantap |
+| **`sfx_snake_warning.wav`** | `snakeWarning` | Peringatan **Ghost Wall Preview** (2 detik sebelum rintangan dinamis Snake Lv 6–7 muncul) | *(Opsional / hening jika belum ada)* | *Sonar ping* / detak peringatan pelan agar tidak mengagetkan |
+| **`sfx_game_lose.wav`** | `gameLose` | Kekalahan non-ledakan: habis nyawa Sudoku, skakmat/timeout/resign Catur, atau tabrak/kelaparan Snake | `sfx_mine_explode.wav` | Nada turun singkat (*descending synth* / *game over tone* lembut) |
+
+### C. Asset Font (Sudah Tersedia di `assets/fonts/`)
+
+1. **`JetBrainsMono` (`assets/fonts/JetBrainsMono-2.304/`):** Untuk komponen Timer (`MM:SS.ms`), angka papan & keypad Sudoku, indeks Minesweeper, skor, dan versi aplikasi di Profil.
+2. **`PlusJakartaSans` (`assets/fonts/Plus_Jakarta_Sans/`):** Untuk seluruh teks UI, kartu profil, Leaderboard, dan tombol navigasi.
 
 ---
 
-## 6. Roadmap Pengerjaan Bertahap (Milestone Phasing - Answer: 75B)
+## 6. Roadmap & Status Implementasi (Answer: 75B)
 
-Berikut adalah pembaruan *Checklist* proyek Anda yang sudah disesuaikan dengan tahapan *Milestone* dari PRD di atas:
+* **Tahap 1 — Fondasi, Auth Supabase & Shell UI:** **Selesai** (Multi-theme, bilingual EN/ID, Drift offline-first + `offline_score_queue`, auth username `@arcade.local`, avatar 256×256, recovery phrase RPC, single-session, Profile per-game cards, Quick Settings mid-game, dan app version + CI/CD release).
+* **Tahap 2 — Snake & Minesweeper:** **Selesai** (Input queue 2-step, starvation & rintangan dinamis, Ghost Wall & Turn Guide overlay, crash inspector, Minesweeper 3BV, perisai defuse Lv 1–2, chording, reveal-all on end, dan Tap-vs-Flag Swap).
+* **Tahap 3 — Sudoku:** **Selesai** (Isolate generator Lv 1–6 + rotated master seed Lv 7, Cell/Digit-first + deselect/keypad highlight, completion wave animasi, Auto-Finish petir 5/7, Mistake-Free Streak & Accuracy HUD, Smart Candidate Notes khusus Practice/Lv 1–2, review solusi).
+* **Tahap 4 — Chess:** **Selesai** (Alpha-Beta + Quiescence Isolate AI Lv 1–7, Pass & Play, Private Room Code Realtime, Online Find Match expanding ELO matchmaking + anti-cheat RPC, Flip Board toggle + Auto-Flip Pass & Play, Touch Move Confirmation Off/Bullet-Blitz/Always, Move Review Scrubber, 3 tema SVG bidak).
+* **Tahap 5 — Polish, Pengisian Audio `.wav` & Rilis Multi-Platform:** **Aktif Berjalan** (Menunggu pengisian file `.wav`/`.mp3` pada `assets/audio/` + pencantuman `- assets/audio/` di `pubspec.yaml`, serta pengujian rilis berkala via GitHub Actions).

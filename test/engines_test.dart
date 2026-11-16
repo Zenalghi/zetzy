@@ -1520,5 +1520,48 @@ void main() {
 
       ctrl.dispose();
     });
+
+    test('AudioService defines 20 unique .wav SFX assets and resolves primary/fallback cleanly', () {
+      expect(ZetzySfx.values.length, equals(20));
+      final paths = ZetzySfx.values.map((s) => s.assetPath).toSet();
+      expect(paths.length, equals(20));
+      for (final p in paths) {
+        expect(p, startsWith('audio/sfx_'));
+        expect(p, endsWith('.wav'));
+      }
+
+      final audio = AudioService();
+      // Without loaded audio assets, resolution gracefully returns null
+      expect(
+        audio.resolveSfx(
+          ZetzySfx.sudokuLineComplete,
+          fallback: ZetzySfx.sudokuTap,
+        ),
+        isNull,
+      );
+
+      // With only core SFX bundled, effect falls back cleanly
+      audio.setAvailableAssetsForTest({'assets/audio/sfx_sudoku_tap.wav'});
+      expect(
+        audio.resolveSfx(
+          ZetzySfx.sudokuLineComplete,
+          fallback: ZetzySfx.sudokuTap,
+        ),
+        equals(ZetzySfx.sudokuTap),
+      );
+
+      // Once dedicated effect .wav is present, primary SFX takes priority
+      audio.setAvailableAssetsForTest({
+        'assets/audio/sfx_sudoku_tap.wav',
+        'assets/audio/sfx_sudoku_line.wav',
+      });
+      expect(
+        audio.resolveSfx(
+          ZetzySfx.sudokuLineComplete,
+          fallback: ZetzySfx.sudokuTap,
+        ),
+        equals(ZetzySfx.sudokuLineComplete),
+      );
+    });
   });
 }

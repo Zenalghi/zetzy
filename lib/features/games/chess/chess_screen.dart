@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
+import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/core/widgets/anti_cheat_pause_overlay.dart';
@@ -83,6 +84,9 @@ class _ChessScreenState extends ConsumerState<ChessScreen> {
 
   void _onMatchFound(MatchAssignment assignment) {
     if (!mounted) return;
+    ref
+        .read(audioServiceProvider)
+        .playSfx(ZetzySfx.chessMatchFound, fallback: ZetzySfx.chessCheck);
     setState(() => _selectedMode = ChessPlayMode.findMatch);
     _startMatch(assignment: assignment);
     final l10n = AppLocalizations.of(context);

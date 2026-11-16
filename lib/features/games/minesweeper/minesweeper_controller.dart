@@ -447,7 +447,7 @@ class MinesweeperController extends ChangeNotifier {
         _floodReveal(grid, nr, nc);
       }
     }
-    _audio.playSfx(ZetzySfx.mineDig);
+    _audio.playSfx(ZetzySfx.mineChord, fallback: ZetzySfx.mineDig);
     _haptics.light();
     _state = _state.copyWith(
       grid: grid,
@@ -495,6 +495,7 @@ class MinesweeperController extends ChangeNotifier {
       isWon: false,
       practiceHistoryCount: _practiceHistory.length,
     );
+    _audio.playSfx(ZetzySfx.undoRewind, fallback: ZetzySfx.uiClick);
     _haptics.selection();
     notifyListeners();
     if (chosen.hasStarted) {

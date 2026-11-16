@@ -6,17 +6,24 @@ import 'package:flutter/services.dart';
 enum ZetzySfx {
   uiClick('audio/sfx_ui_click.wav'),
   sudokuTap('audio/sfx_sudoku_tap.wav'),
+  sudokuLineComplete('audio/sfx_sudoku_line.wav'),
+  sudokuAutoFinish('audio/sfx_sudoku_autofill.wav'),
   errorBuzz('audio/sfx_error_buzz.wav'),
   chessMove('audio/sfx_chess_move.wav'),
   chessCapture('audio/sfx_chess_capture.wav'),
   chessCheck('audio/sfx_chess_check.wav'),
+  chessMatchFound('audio/sfx_match_found.wav'),
   mineDig('audio/sfx_mine_dig.wav'),
+  mineChord('audio/sfx_mine_chord.wav'),
   mineFlag('audio/sfx_mine_flag.wav'),
   mineShield('audio/sfx_mine_shield.wav'),
   mineExplode('audio/sfx_mine_explode.wav'),
   snakeEat('audio/sfx_snake_eat.wav'),
   snakePowerup('audio/sfx_snake_powerup.wav'),
-  gameWin('audio/sfx_game_win.wav');
+  snakeWarning('audio/sfx_snake_warning.wav'),
+  undoRewind('audio/sfx_undo_rewind.wav'),
+  gameWin('audio/sfx_game_win.wav'),
+  gameLose('audio/sfx_game_lose.wav');
 
   const ZetzySfx(this.assetPath);
   final String assetPath;
@@ -75,16 +82,33 @@ class AudioService {
     }
   }
 
-  Future<void> playSfx(ZetzySfx sfx) async {
+  @visibleForTesting
+  void setAvailableAssetsForTest(Set<String> assets) {
+    _availableAssets = assets;
+  }
+
+  /// Resolves the best available SFX asset, preferring [sfx] then [fallback].
+  ZetzySfx? resolveSfx(ZetzySfx sfx, {ZetzySfx? fallback}) {
+    if (_availableAssets.contains('assets/${sfx.assetPath}')) {
+      return sfx;
+    }
+    if (fallback != null &&
+        _availableAssets.contains('assets/${fallback.assetPath}')) {
+      return fallback;
+    }
+    return null;
+  }
+
+  Future<void> playSfx(ZetzySfx sfx, {ZetzySfx? fallback}) async {
     if (!_sfxEnabled) return;
-    final fullKey = 'assets/${sfx.assetPath}';
-    if (!_availableAssets.contains(fullKey)) return;
+    final resolved = resolveSfx(sfx, fallback: fallback);
+    if (resolved == null) return;
 
     try {
       _sfxPlayer ??= AudioPlayer()..setReleaseMode(ReleaseMode.stop);
-      await _sfxPlayer!.play(AssetSource(sfx.assetPath));
+      await _sfxPlayer!.play(AssetSource(resolved.assetPath));
     } catch (e) {
-      debugPrint('AudioService SFX skipped (${sfx.assetPath}): $e');
+      debugPrint('AudioService SFX skipped (${resolved.assetPath}): $e');
     }
   }
 

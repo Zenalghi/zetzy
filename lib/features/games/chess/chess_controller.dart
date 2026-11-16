@@ -848,6 +848,7 @@ class ChessController extends ChangeNotifier {
       clearPendingConfirm: true,
     );
     _recomputeMaterialAndCaptures();
+    _audio.playSfx(ZetzySfx.undoRewind, fallback: ZetzySfx.uiClick);
     _haptics.selection();
     notifyListeners();
   }
@@ -932,6 +933,7 @@ class ChessController extends ChangeNotifier {
       practiceHistoryCount: _practiceHistory.length,
     );
     _recomputeMaterialAndCaptures();
+    _audio.playSfx(ZetzySfx.undoRewind, fallback: ZetzySfx.uiClick);
     _haptics.selection();
     notifyListeners();
     _startTimer();
@@ -985,7 +987,10 @@ class ChessController extends ChangeNotifier {
 
     final playerWon =
         !abortedTooShort && !isDraw && winnerColour == _state.playerColor;
-    _audio.playSfx(playerWon ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
+    _audio.playSfx(
+      playerWon ? ZetzySfx.gameWin : ZetzySfx.gameLose,
+      fallback: playerWon ? null : ZetzySfx.mineExplode,
+    );
     _reviewGame = null;
     _state = _state.copyWith(
       isGameOver: true,

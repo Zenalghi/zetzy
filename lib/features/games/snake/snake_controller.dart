@@ -635,6 +635,7 @@ class SnakeController extends ChangeNotifier {
           nextApple,
         );
         nextWarnRem = 2000;
+        _audio.playSfx(ZetzySfx.snakeWarning);
       }
     }
 
@@ -751,6 +752,7 @@ class SnakeController extends ChangeNotifier {
       canPracticeUndo: _practiceHistory.isNotEmpty,
       queuedDirections: const [],
     );
+    _audio.playSfx(ZetzySfx.undoRewind, fallback: ZetzySfx.uiClick);
     _haptics.selection();
     notifyListeners();
     if (!pauseAfterRewind) {
@@ -883,7 +885,10 @@ class SnakeController extends ChangeNotifier {
   }) {
     _stopTimers();
     _inputQueue.clear();
-    _audio.playSfx(won ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
+    _audio.playSfx(
+      won ? ZetzySfx.gameWin : ZetzySfx.gameLose,
+      fallback: won ? null : ZetzySfx.mineExplode,
+    );
     if (won) {
       _haptics.medium();
     } else {

@@ -572,6 +572,7 @@ class SudokuController extends ChangeNotifier {
     var nextBestStreak = _state.bestStreak;
     var nextClean = _state.cleanPlacements;
     final nextTotal = _state.totalPlacements + 1;
+    var placedCleanly = false;
 
     if (_state.checksAnswerKeyImmediately) {
       if (digit != _state.solution[index]) {
@@ -589,7 +590,7 @@ class SudokuController extends ChangeNotifier {
         nextClean++;
         if (nextStreak > nextBestStreak) nextBestStreak = nextStreak;
         if (_autoClearNotes) _removePeerNotes(nextNotes, index, digit);
-        _audio.playSfx(ZetzySfx.sudokuTap);
+        placedCleanly = true;
         _haptics.light();
       }
     } else {
@@ -608,7 +609,7 @@ class SudokuController extends ChangeNotifier {
         nextClean++;
         if (nextStreak > nextBestStreak) nextBestStreak = nextStreak;
         if (_autoClearNotes) _removePeerNotes(nextNotes, index, digit);
-        _audio.playSfx(ZetzySfx.sudokuTap);
+        placedCleanly = true;
         _haptics.light();
       }
     }
@@ -638,6 +639,16 @@ class SudokuController extends ChangeNotifier {
     }
 
     _checkCompletion();
+    if (!_state.isGameOver && placedCleanly) {
+      if (waveSteps.isNotEmpty) {
+        _audio.playSfx(
+          ZetzySfx.sudokuLineComplete,
+          fallback: ZetzySfx.sudokuTap,
+        );
+      } else {
+        _audio.playSfx(ZetzySfx.sudokuTap);
+      }
+    }
   }
 
   void eraseSelected() {
@@ -688,6 +699,7 @@ class SudokuController extends ChangeNotifier {
       notes: previousNotes,
       canUndoNote: _notesUndoStack.isNotEmpty,
     );
+    _audio.playSfx(ZetzySfx.undoRewind, fallback: ZetzySfx.uiClick);
     _haptics.selection();
     notifyListeners();
   }
@@ -726,6 +738,7 @@ class SudokuController extends ChangeNotifier {
       cleanPlacements: snap.cleanPlacements,
       totalPlacements: snap.totalPlacements,
     );
+    _audio.playSfx(ZetzySfx.undoRewind, fallback: ZetzySfx.uiClick);
     _haptics.selection();
     notifyListeners();
     if (_timer == null) _startTimer();
@@ -788,7 +801,6 @@ class SudokuController extends ChangeNotifier {
       _removePeerNotes(nextNotes, target, digit);
     }
 
-    _audio.playSfx(ZetzySfx.sudokuTap);
     _haptics.medium();
 
     final waveSteps = nextErrors.contains(target)
@@ -806,6 +818,14 @@ class SudokuController extends ChangeNotifier {
       completionWaveSteps: waveSteps.isEmpty ? null : waveSteps,
     );
     _checkCompletion();
+    if (!_state.isGameOver) {
+      _audio.playSfx(
+        waveSteps.isNotEmpty
+            ? ZetzySfx.sudokuLineComplete
+            : ZetzySfx.sudokuTap,
+        fallback: ZetzySfx.sudokuTap,
+      );
+    }
   }
 
   /// Auto-fills remaining blank cells from the solution when eligible.
@@ -835,7 +855,7 @@ class SudokuController extends ChangeNotifier {
       completionWaveId: _state.completionWaveId + 1,
       completionWaveSteps: waveSteps,
     );
-    _endGame(won: true);
+    _endGame(won: true, winSfxOverride: ZetzySfx.sudokuAutoFinish);
   }
 
   Map<int, int> _computeCompletionWave(List<int> values, int originIdx) {
@@ -987,9 +1007,12 @@ class SudokuController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _endGame({required bool won}) {
+  void _endGame({required bool won, ZetzySfx? winSfxOverride}) {
     _stopTimer();
-    _audio.playSfx(won ? ZetzySfx.gameWin : ZetzySfx.mineExplode);
+    _audio.playSfx(
+      won ? (winSfxOverride ?? ZetzySfx.gameWin) : ZetzySfx.gameLose,
+      fallback: won ? ZetzySfx.gameWin : ZetzySfx.mineExplode,
+    );
     if (won) {
       _haptics.medium();
     } else {
