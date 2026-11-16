@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
+import 'package:zetzy/core/widgets/difficulty_badge.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 
 class DifficultySelection {
@@ -98,6 +99,79 @@ class _DifficultySelectorSheetState extends State<_DifficultySelectorSheet> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => showDifficultyBadgeInspectDialog(
+                    context: context,
+                    initialDifficulty: _selected,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: p.surfaceElevated,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: p.accent.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: DifficultyBadgeImage(
+                            key: ValueKey(_selected),
+                            difficulty: _selected,
+                            size: 56,
+                            showGlow: true,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.badgeSelectedPreview,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: p.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_selected.level}. ${_selected.localizedLabel(l10n)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '+${_selected.xpReward} XP',
+                                style: ZetzyThemes.monoStyle(
+                                  fontSize: 12,
+                                  color: p.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.zoom_in_rounded,
+                          size: 18,
+                          color: p.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Flexible(
                   child: ListView.separated(
@@ -137,18 +211,10 @@ class _DifficultySelectorSheetState extends State<_DifficultySelectorSheet> {
                           ),
                           child: Row(
                             children: [
-                              Opacity(
-                                opacity: isLocked ? 0.38 : 1,
-                                child: Image.asset(
-                                  diff.badgeAsset,
-                                  width: 32,
-                                  height: 32,
-                                  errorBuilder: (_, _, _) => CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: p.accent,
-                                    child: Text('${diff.level}'),
-                                  ),
-                                ),
+                              DifficultyBadgeImage(
+                                difficulty: diff,
+                                size: 38,
+                                locked: isLocked,
                               ),
                               const SizedBox(width: 12),
                               Expanded(

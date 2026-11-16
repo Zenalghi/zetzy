@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/app.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/routing/app_router.dart';
+import 'package:zetzy/core/widgets/difficulty_badge.dart';
 import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
@@ -1138,6 +1139,23 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    await scrollTo(find.text('Background Music (BGM)'));
+    expect(find.text('Background Music (BGM)'), findsOneWidget);
+    expect(find.text('Off'), findsOneWidget);
+    expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Manual'), findsOneWidget);
+    await tester.tap(find.text('Manual'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().bgmMode, equals(BgmMode.manual));
+    await scrollTo(find.text('Track 3'));
+    await tester.tap(find.text('Track 3'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().bgmTrack, equals('3.mp3'));
+    await scrollTo(find.text('Off'));
+    await tester.tap(find.text('Off'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().bgmMode, equals(BgmMode.off));
+
     await scrollTo(find.text('Vibration Strength'));
     expect(find.text('Vibration Strength'), findsOneWidget);
     expect(find.text('Light'), findsOneWidget);
@@ -1474,6 +1492,156 @@ void main() {
 
     expect(find.text('Confirm e4?'), findsNothing);
     expect(find.text('e4'), findsOneWidget);
+  });
+
+  testWidgets('ProfileScreen Rank Badges showcase enlarges crest modal with 4-game status and DifficultySelector previews tier', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final localStorage = LocalStorageService.forTesting(prefs: prefs);
+    await localStorage.saveLocalRecord(
+      GameRecord(
+        id: 'won-pro-1',
+        userId: 'guest',
+        username: 'guest',
+        gameType: GameType.sudoku,
+        difficulty: DifficultyLevel.pro.level,
+        isWon: true,
+        score: 420,
+        durationMs: 25000,
+        platform: 'android',
+        playedAt: DateTime(2026, 11, 16),
+      ),
+    );
+    final settingsRepo = SettingsRepository(prefs);
+    final supa = SupabaseService();
+    final audio = AudioService();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageProvider.overrideWithValue(localStorage),
+          settingsRepoProvider.overrideWithValue(settingsRepo),
+          supabaseServiceProvider.overrideWithValue(supa),
+          audioServiceProvider.overrideWithValue(audio),
+        ],
+        child: const ZetzyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify DifficultySelector shows live Selected Tier crest preview
+    await tester.tap(find.text('Sudoku'));
+    await tester.pumpAndSettle();
+    expect(find.text('Selected Tier'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is DifficultyBadgeImage && w.size == 56,
+      ),
+      findsOneWidget,
+    );
+    await tester.scrollUntilVisible(
+      find.text('5. PRO'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('5. PRO'));
+    await tester.pumpAndSettle();
+    expect(find.text('+175 XP'), findsWidgets);
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+
+    // Navigate to Profile -> verifies Account highest badge & 7-tier Rank Badges showcase
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Rank Badges'),
+      180,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Rank Badges'), findsOneWidget);
+    expect(find.text('1/7 Conquered'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('PRO'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.ensureVisible(find.text('PRO'));
+    await tester.pumpAndSettle();
+    expect(find.text('1/4 ✓'), findsOneWidget);
+
+    // Tap PRO crest to open crisp 160px Zoom Inspect Modal + 4 per-game chips
+    await tester.tap(find.text('PRO'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is DifficultyBadgeImage && w.size == 160,
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('5. PRO'), findsOneWidget);
+    expect(find.text('1× Won'), findsOneWidget);
+    expect(find.text('Sudoku'), findsOneWidget);
+    expect(find.text('Chess'), findsOneWidget);
+    expect(find.text('Minesweeper'), findsOneWidget);
+    expect(find.text('Snake'), findsOneWidget);
+
+    // Carousel next arrow previews 6. Nightmare
+    await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('6. Nightmare'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('WinResultDialog spotlights large crisp difficulty badge on victory', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ZetzyThemes.buildTheme(ZetzyThemeMode.oledMidnight),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () {
+                  showGameResultDialog(
+                    context: context,
+                    gameType: GameType.minesweeper,
+                    difficulty: DifficultyLevel.god,
+                    isWon: true,
+                    durationMs: 31200,
+                    score: 180,
+                    onPlayAgain: () {},
+                    onExit: () {},
+                  );
+                },
+                child: const Text('Show Win'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show Win'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 450));
+
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is DifficultyBadgeImage &&
+            w.difficulty == DifficultyLevel.god &&
+            w.size == 92,
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Victory!'), findsOneWidget);
   });
 }
 

@@ -10,6 +10,8 @@ import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/platform_detector.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
+import 'package:zetzy/core/widgets/difficulty_badge.dart';
+import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/widgets/platform_badge.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 
@@ -210,13 +212,17 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                           children: [
                             Row(
                               children: [
-                                Image.asset(
-                                  widget.difficulty.badgeAsset,
-                                  width: 28,
-                                  height: 28,
-                                  errorBuilder: (_, _, _) =>
-                                      Icon(widget.gameType.icon, color: p.accent),
-                                ),
+                                if (widget.isWon)
+                                  GameTypeIcon(
+                                    game: widget.gameType,
+                                    size: 22,
+                                    color: p.accent,
+                                  )
+                                else
+                                  DifficultyBadgeImage(
+                                    difficulty: widget.difficulty,
+                                    size: 28,
+                                  ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Zetzy • ${widget.gameType.localizedTitle(l10n)}',
@@ -232,16 +238,31 @@ class _GameResultDialogState extends State<_GameResultDialog> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Icon(
-                          widget.isWon
-                              ? Icons.emoji_events_rounded
-                              : (widget.isDraw
-                                    ? Icons.handshake_rounded
-                                    : Icons.sentiment_dissatisfied_rounded),
-                          size: 48,
-                          color: accentColor,
-                        ),
+                        const SizedBox(height: 14),
+                        if (widget.isWon)
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.78, end: 1.0),
+                            duration: const Duration(milliseconds: 380),
+                            curve: Curves.easeOutBack,
+                            builder: (_, scale, child) => Transform.scale(
+                              scale: scale,
+                              child: child,
+                            ),
+                            child: DifficultyBadgeImage(
+                              difficulty: widget.difficulty,
+                              size: 92,
+                              showGlow: true,
+                              glowColor: accentColor,
+                            ),
+                          )
+                        else
+                          Icon(
+                            widget.isDraw
+                                ? Icons.handshake_rounded
+                                : Icons.sentiment_dissatisfied_rounded,
+                            size: 48,
+                            color: accentColor,
+                          ),
                         const SizedBox(height: 8),
                         Text(
                           title,

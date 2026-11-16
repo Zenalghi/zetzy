@@ -365,6 +365,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
                                 d.badgeAsset,
                                 width: 18,
                                 height: 18,
+                                filterQuality: FilterQuality.none,
                                 errorBuilder: (_, _, _) => const SizedBox(),
                               ),
                               label: Text('${d.level}. ${d.localizedLabel(l10n)}'),

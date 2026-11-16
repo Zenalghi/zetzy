@@ -34,7 +34,8 @@ Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.m
 
 ### 1.3 Efek Kemenangan, Review Papan & Share Skor (Answers: 71A, 73A)
 
-* **Confetti & Kartu Ringkasan (`71A`):** Kemenangan menampilkan efek partikel **Confetti** selama 3 detik bersama dialog hasil (waktu presisi milidetik, skor/ELO delta, status *New Record*, serta metrik khusus game).
+* **Confetti & Hero Badge Spotlight (`71A`):** Kemenangan menampilkan efek partikel **Confetti** selama 3 detik serta menyorot medali **Badge Tier** resolusi pixel-art tajam (`92 px`, `FilterQuality.none`) sebagai ikon utama dialog hasil.
+* **Rank Badges Showcase (7 Tier) & Modal Perbesar (`Profile` & `Difficulty Selector`):** Tab **Profile** menampilkan kartu **Koleksi Badge** (7 tier *Chill* s/d *Are U a God?*) beserta badge tertinggi di header akun; mengetuk badge mana pun membuka modal perbesar **`160 px`** dengan navigasi antar-tier serta status penaklukan di ke-4 game. Sheet pemilih difficulty juga menampilkan *live preview* badge `56 px` dari tier yang dipilih.
 * **Post-Game Board Review (*View Board / View Result*):** Setelah game selesai (menang atau kalah), pemain dapat menutup dialog ringkasan sementara untuk menginspeksi papan akhir dan membuka kembali dialog hasil lewat tombol *View Result* (tersemat di setiap game sesuai mekaniknya).
 * **Share Score Card (`73A`):** Tombol bagikan merender kartu skor PNG berkualitas tinggi (`RepaintBoundary` → `share_plus` / clipboard fallback) lengkap dengan badge platform.
 
@@ -182,42 +183,40 @@ Seluruh asset gambar, ikon platform, set bidak catur, dan font **sudah tersedia*
 6. **Badge 7 Tingkat Kesulitan (`assets/images/badge/` — 7 File PNG):**
    * `1.png` (*Chill*) s/d `7.png` (*Are U a God?*).
 
-### B. Asset Suara & Musik (`assets/audio/`)
+### B. Asset Suara & Musik (`assets/audio/mp3/` & `assets/audio/mp3/bgm/`)
 
-*(Gunakan format `.wav` atau `.ogg` pendek ukuran `< 100 KB` agar zero-latency saat dipicu, dan `.mp3`/`.ogg` looping untuk musik latar. Seluruh enum `ZetzySfx` sudah siap di [audio_service.dart](file:///Users/umardani/Documents/workspace/zetzy/lib/core/services/audio_service.dart) — setelah menaruh file audio ke `assets/audio/`, jangan lupa tambahkan `- assets/audio/` pada bagian `flutter -> assets:` di [pubspec.yaml](file:///Users/umardani/Documents/workspace/zetzy/pubspec.yaml)).*
+*(Saat ini sudah terpasang dalam format `.mp3` bernomor variasi di `assets/audio/mp3/` dan 8 trek musik latar di `assets/audio/mp3/bgm/`, serta terdaftar di `pubspec.yaml`. `AudioService` otomatis mendeteksi semua variasi yang tersedia (`1..N`) dan memutarnya secara acak tanpa pengulangan berurutan; BGM mendukung mode **`Off`**, **`Auto` (Default — weighted shuffle dengan peluang `3×` lebih sering untuk `5.mp3`)**, dan **`Manual` (loop trek pilihan 1–8)**).*
 
-#### 1. Asset Suara Inti (13 SFX + 1 BGM)
+#### 1. Asset Suara Inti (13 Prefix SFX + 8 Trek BGM)
 
-| Nama File (`assets/audio/`) | Enum (`ZetzySfx`) | Pemicu Fitur / Efek di Game | Rekomendasi Karakter Suara |
+| Prefix File (`assets/audio/mp3/`) | Variasi Terpasang | Pemicu Fitur / Efek di Game |
+| --- | --- | --- |
+| **`sfx_ui_click`** | `1–2.mp3` | Klik tombol menu, navigasi tab, & opsi umum |
+| **`sfx_sudoku_tap`** | `1–4.mp3` | Mengisi angka standar, *notes*, *Smart Notes*, & *Hint* Sudoku |
+| **`sfx_error_buzz`** | `1–4.mp3` | Salah isi angka / konflik di Sudoku & efek racun *Poison* Snake |
+| **`sfx_chess_move`** | `1–4.mp3` | Langkah bidak catur ke petak kosong |
+| **`sfx_chess_capture`** | `1–4.mp3` | Memakan bidak lawan di Catur |
+| **`sfx_chess_check`** | `1–4.mp3` | Peringatan Skak (*Check*) raja lawan |
+| **`sfx_mine_dig`** | `1–4.mp3` | Membuka kotak / area aman (*flood-fill*) Minesweeper |
+| **`sfx_mine_flag`** | `1–3.mp3` | Menancapkan, mengganti ke `?`, atau mencabut bendera |
+| **`sfx_mine_shield`** | `1–3.mp3` | Perisai *Defuse* Lv 1–2 menyelamatkan pemain dari ranjau |
+| **`sfx_mine_explode`** | `1–3.mp3` | Menginjak ranjau di Minesweeper (serta *fallback* kalah umum) |
+| **`sfx_snake_eat`** | `1–3.mp3` | Ular memakan apel standar (`+10` poin) |
+| **`sfx_snake_powerup`** | `1–3.mp3` | Ular memakan *Golden Bonus* atau *Gunting* pemotong ekor |
+| **`sfx_game_win`** | `1–4.mp3` | Menang di game apa pun (bersamaan dengan animasi **Confetti**) |
+| **`bgm/1.mp3` – `bgm/8.mp3`** | `8 trek` | Musik latar: Mode **Off / Auto (Default, `5.mp3` 3× bobot) / Manual** |
+
+#### 2. Asset Suara Efek & Fitur Tambahan (7 Prefix Terpasang)
+
+| Prefix File (`assets/audio/mp3/`) | Variasi Terpasang | Pemicu Fitur / Efek Baru | Fallback Otomatis |
 | --- | --- | --- | --- |
-| **`sfx_ui_click.wav`** | `uiClick` | Klik tombol menu, navigasi tab, & opsi umum | *Pop* / *tick* UI yang lembut & bersih |
-| **`sfx_sudoku_tap.wav`** | `sudokuTap` | Mengisi angka standar, *notes*, *Smart Notes*, & *Hint* Sudoku | Ketukan kayu/pensil halus dan renyah |
-| **`sfx_error_buzz.wav`** | `errorBuzz` | Salah isi angka / konflik di Sudoku & efek racun *Poison* Snake | *Thud* / *buzz* rendah singkat (tidak memekakkan) |
-| **`sfx_chess_move.wav`** | `chessMove` | Langkah bidak catur ke petak kosong | Gesekan / ketukan bidak kayu di papan catur |
-| **`sfx_chess_capture.wav`** | `chessCapture` | Memakan bidak lawan di Catur | Hentakan kayu yang lebih tegas & berbobot |
-| **`sfx_chess_check.wav`** | `chessCheck` | Peringatan Skak (*Check*) raja lawan | Lonceng / denting pendek bernada waspada |
-| **`sfx_mine_dig.wav`** | `mineDig` | Membuka kotak / area aman (*flood-fill*) Minesweeper | Ketukan pasir / klik renyah ringan |
-| **`sfx_mine_flag.wav`** | `mineFlag` | Menancapkan, mengganti ke `?`, atau mencabut bendera (termasuk mode *Tap-vs-Flag Swap*) | Kain berkibar / *snap* singkat |
-| **`sfx_mine_shield.wav`** | `mineShield` | Perisai *Defuse* Lv 1–2 menyelamatkan pemain dari ranjau | Suara energi/kaca perisai pecah pelindung |
-| **`sfx_mine_explode.wav`** | `mineExplode` | Menginjak ranjau di Minesweeper (serta *fallback* kalah umum) | Ledakan *arcade* modern padat (< 1 detik) |
-| **`sfx_snake_eat.wav`** | `snakeEat` | Ular memakan apel standar (`+10` poin) | *Crunch* atau *blip* ceria naik nada |
-| **`sfx_snake_powerup.wav`** | `snakePowerup` | Ular memakan *Golden Bonus* atau *Gunting* pemotong ekor | Efek koin / *power-up* berkilau |
-| **`sfx_game_win.wav`** | `gameWin` | Menang di game apa pun (bersamaan dengan animasi **Confetti**) | *Fanfare* kemenangan singkat (1.5–3 detik) |
-| **`bgm_chill_loop.mp3`** | `AudioService.bgmPath` | Musik latar opsional (bisa *mute* terpisah dari Spotify/SFX) | *Lo-Fi Chill Beats* / *Ambient Synth* tanpa vokal (seamless loop) |
-
-#### 2. Asset Suara Efek & Fitur Tambahan (7 File `.wav` Baru)
-
-*(Semua efek baru berikut sudah memiliki **fallback otomatis** di kode ke SFX inti di atas, sehingga aplikasi tetap berbunyi normal walau baru sebagian `.wav` yang Anda isi, dan otomatis memutar suara khususnya segera setelah file di bawah tersedia di `assets/audio/`).*
-
-| Nama File (`assets/audio/`) | Enum (`ZetzySfx`) | Pemicu Fitur / Efek Baru | Fallback Otomatis | Rekomendasi Karakter Suara |
-| --- | --- | --- | --- | --- |
-| **`sfx_sudoku_line.wav`** | `sudokuLineComplete` | Animasi **Completion Wave** saat 1 baris, kolom, atau kotak 3×3 Sudoku terpenuhi | `sfx_sudoku_tap.wav` | *Chime* arpeggio naik 2–3 nada lembut (harmonis dengan efek cahaya gelombang) |
-| **`sfx_sudoku_autofill.wav`** | `sudokuAutoFinish` | Tombol petir ⚡ **Auto-Finish Endgame** mengisi sisa ≤5/≤7 kotak Sudoku | `sfx_game_win.wav` | Kilatan petir halus + *sparkle cascade* beruntun (~1 detik) |
-| **`sfx_mine_chord.wav`** | `mineChord` | Aksi cepat **Chording** (tap angka berbenderanya lengkap) di Minesweeper | `sfx_mine_dig.wav` | *Multi-tile sweep* / serangkaian ketukan terbuka cepat |
-| **`sfx_undo_rewind.wav`** | `undoRewind` | Aksi **Undo** (Notes Sudoku, Vs AI Catur) & **Practice Rewind** saat berlatih/kalah di ke-4 game | `sfx_ui_click.wav` | Efek *whoosh* mundur / *tape rewind* pendek nan halus |
-| **`sfx_match_found.wav`** | `chessMatchFound` | Lawan ditemukan pada mode **Online Find Match** ELO Catur | `sfx_chess_check.wav` | Dua ketukan notifikasi duel/gong lembut bertempo mantap |
-| **`sfx_snake_warning.wav`** | `snakeWarning` | Peringatan **Ghost Wall Preview** (2 detik sebelum rintangan dinamis Snake Lv 6–7 muncul) | *(Opsional / hening jika belum ada)* | *Sonar ping* / detak peringatan pelan agar tidak mengagetkan |
-| **`sfx_game_lose.wav`** | `gameLose` | Kekalahan non-ledakan: habis nyawa Sudoku, skakmat/timeout/resign Catur, atau tabrak/kelaparan Snake | `sfx_mine_explode.wav` | Nada turun singkat (*descending synth* / *game over tone* lembut) |
+| **`sfx_sudoku_line`** | `1–4.mp3` | Animasi **Completion Wave** saat 1 baris, kolom, atau kotak 3×3 Sudoku terpenuhi | `sfx_sudoku_tap` |
+| **`sfx_sudoku_autofill`** | `1–3.mp3` | Tombol petir ⚡ **Auto-Finish Endgame** mengisi sisa ≤5/≤7 kotak Sudoku | `sfx_game_win` |
+| **`sfx_mine_chord`** | `1–4.mp3` | Aksi cepat **Chording** (tap angka berbenderanya lengkap) di Minesweeper | `sfx_mine_dig` |
+| **`sfx_undo_rewind`** | `1.mp3` | Aksi **Undo** (Notes Sudoku, Vs AI Catur) & **Practice Rewind** di ke-4 game | `sfx_ui_click` |
+| **`sfx_match_found`** | `1–4.mp3` | Lawan ditemukan pada mode **Online Find Match** ELO Catur | `sfx_chess_check` |
+| **`sfx_snake_warning`** | `1–4.mp3` | Peringatan **Ghost Wall Preview** (2 detik sebelum rintangan dinamis Snake Lv 6–7 muncul) | *(Opsional)* |
+| **`sfx_game_lose`** | `1–4.mp3` | Kekalahan non-ledakan: habis nyawa Sudoku, skakmat/timeout/resign Catur, atau tabrak/kelaparan Snake | `sfx_mine_explode` |
 
 ### C. Asset Font (Sudah Tersedia di `assets/fonts/`)
 

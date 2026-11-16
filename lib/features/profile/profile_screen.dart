@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
+import 'package:zetzy/core/widgets/difficulty_badge.dart';
 import 'package:zetzy/core/widgets/game_type_icon.dart';
 import 'package:zetzy/core/widgets/in_game_settings_sheet.dart';
 import 'package:zetzy/core/widgets/tactile_card.dart';
@@ -261,6 +262,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final supa = ref.watch(supabaseServiceProvider);
     final hasAudio = ref.watch(audioServiceProvider).hasAudioAssets;
     final appVersionAsync = ref.watch(appVersionProvider);
+    final localRecords = ref.watch(localRecordsProvider).value ?? const [];
+    final badgeSummary = BadgeProgressSummary.fromData(
+      user: user,
+      records: localRecords,
+    );
+    final highestBadge = badgeSummary.highestConqueredTier;
 
     return SafeArea(
       child: Center(
@@ -356,6 +363,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ],
                           ),
                         ),
+                        if (highestBadge != null) ...[
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => showDifficultyBadgeInspectDialog(
+                              context: context,
+                              initialDifficulty: highestBadge,
+                              summary: badgeSummary,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: DifficultyBadgeImage(
+                                difficulty: highestBadge,
+                                size: 44,
+                                showGlow: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         if (!user.isGuest)
                           IconButton(
                             tooltip: l10n.profileUploadAvatar,
@@ -523,6 +549,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 14),
+              DifficultyBadgeShowcaseCard(summary: badgeSummary),
+              const SizedBox(height: 14),
               // Audio & Device Feedback
               TactileCard(
                 child: Column(
@@ -541,6 +569,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       p,
                       l10n,
                       hasAudio: hasAudio,
+                      audioService: ref.watch(audioServiceProvider),
                     ),
                   ],
                 ),
