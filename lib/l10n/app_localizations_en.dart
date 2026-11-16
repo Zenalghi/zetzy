@@ -873,4 +873,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSnakeAssistOverlayDesc =>
       'Show obstacle warning preview and swipe direction arrows.';
+
+  @override
+  String get settingsHapticIntensity => 'Vibration Strength';
+
+  @override
+  String get hapticLight => 'Light';
+
+  @override
+  String get hapticMedium => 'Medium';
+
+  @override
+  String get hapticStrong => 'Strong';
 }

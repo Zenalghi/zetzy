@@ -421,5 +421,10 @@
   },
 
   "settingsSnakeAssistOverlay": "Ghost Wall & Turn Guide",
-  "settingsSnakeAssistOverlayDesc": "Show obstacle warning preview and swipe direction arrows."
+  "settingsSnakeAssistOverlayDesc": "Show obstacle warning preview and swipe direction arrows.",
+
+  "settingsHapticIntensity": "Vibration Strength",
+  "hapticLight": "Light",
+  "hapticMedium": "Medium",
+  "hapticStrong": "Strong"
 }

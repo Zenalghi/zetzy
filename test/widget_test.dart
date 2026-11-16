@@ -1138,6 +1138,15 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    await scrollTo(find.text('Vibration Strength'));
+    expect(find.text('Vibration Strength'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('Strong'), findsOneWidget);
+    await tester.tap(find.text('Strong'));
+    await tester.pumpAndSettle();
+    expect(settingsRepo.load().hapticIntensity, equals(HapticIntensity.strong));
+
     await scrollTo(find.text('Auto-Finish Endgame'));
     expect(find.text('Auto-Finish Endgame'), findsOneWidget);
     expect(find.text('5 Cells'), findsOneWidget);

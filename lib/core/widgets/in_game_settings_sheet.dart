@@ -44,6 +44,42 @@ abstract final class GameSettingsControls {
       onChanged: ctrl.setHaptics,
       title: Text(l10n.settingsHaptics),
     ),
+    if (settings.hapticsEnabled) ...[
+      const SizedBox(height: 2),
+      Text(
+        l10n.settingsHapticIntensity,
+        style: TextStyle(fontSize: 12, color: p.textSecondary),
+      ),
+      const SizedBox(height: 8),
+      SegmentedButton<HapticIntensity>(
+        selected: {settings.hapticIntensity},
+        onSelectionChanged: (sel) => ctrl.setHapticIntensity(sel.first),
+        segments: [
+          ButtonSegment(
+            value: HapticIntensity.light,
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(l10n.hapticLight, softWrap: false, maxLines: 1),
+            ),
+          ),
+          ButtonSegment(
+            value: HapticIntensity.medium,
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(l10n.hapticMedium, softWrap: false, maxLines: 1),
+            ),
+          ),
+          ButtonSegment(
+            value: HapticIntensity.strong,
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(l10n.hapticStrong, softWrap: false, maxLines: 1),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+    ],
     SwitchListTile.adaptive(
       contentPadding: EdgeInsets.zero,
       value: settings.wakelockEnabled,

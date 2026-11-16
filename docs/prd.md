@@ -27,8 +27,9 @@ Dokumen ini merupakan kompilasi **75 keputusan dasar** (dari [list-kustomisasi.m
 
 ### 1.2 Pengaturan Terstruktur, Quick Settings Mid-Game & Versi Aplikasi
 
-* **Kartu Pengaturan Per-Game di Profile:** Menu Profil mengelompokkan opsi secara rapi ke dalam kartu khusus per game (**Sudoku**, **Chess**, **Minesweeper**, **Snake**), kartu **Practice Mode**, kartu **Preferensi Umum & Audio**, serta **Cloud & Danger Zone**.
-* **Mid-Game Quick Settings (`InGameSettingsSheet`):** Tombol gear ⚙️ di AppBar keempat game membuka *bottom sheet* khusus yang **hanya memuat pengaturan aman diubah di tengah permainan** (helper visual, opsi sentuh, tema, SFX, getaran, layar menyala), sambil mem-pause timer secara aman dan menyembunyikan opsi berisiko seperti *Practice Mode* atau *Reset Statistik*.
+* **Kartu Pengaturan Per-Game di Profile:** Menu Profil mengelompokkan opsi secara rapi ke dalam kartu khusus per game (**Sudoku**, **Chess**, **Minesweeper**, **Snake**), kartu **Practice Mode**, kartu **Preferensi Umum, Audio & Getaran**, serta **Cloud & Danger Zone**.
+* **Getaran (Haptic Feedback) Terkontrol (`69A`):** Selain toggle On/Off, pengguna dapat mengatur **Kekuatan Getaran** (`Light` / `Medium` / `Strong` — default: **Medium**) langsung di Profil maupun Quick Settings mid-game. Di Android menggunakan *MethodChannel* native (`Vibrator` + `VibrationEffect` dengan durasi 12–145 ms & amplitudo 80–255) agar getaran terasa mantap dan jelas di motor getar HP, serta *fallback* adaptif untuk iOS/Web.
+* **Mid-Game Quick Settings (`InGameSettingsSheet`):** Tombol gear ⚙️ di AppBar keempat game membuka *bottom sheet* khusus yang **hanya memuat pengaturan aman diubah di tengah permainan** (helper visual, opsi sentuh, tema, SFX, getaran & kekuatannya, layar menyala), sambil mem-pause timer secara aman dan menyembunyikan opsi berisiko seperti *Practice Mode* atau *Reset Statistik*.
 * **Versi Aplikasi & Sinkronisasi CI/CD:** Versi aplikasi bersih tanpa build number (mis. `Zetzy v0.0.2`) ditampilkan secara halus di bagian paling bawah tab **Profile** menggunakan `package_info_plus` langsung dari `pubspec.yaml`. Workflow `.github/workflows/build-deploy.yml` memvalidasi kesesuaian Git tag `v*` terhadap `pubspec.yaml` sebelum membangun rilis Android, Web (GitHub Pages), Windows, dan Linux.
 
 ### 1.3 Efek Kemenangan, Review Papan & Share Skor (Answers: 71A, 73A)

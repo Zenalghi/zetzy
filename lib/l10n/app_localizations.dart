@@ -1652,6 +1652,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show obstacle warning preview and swipe direction arrows.'**
   String get settingsSnakeAssistOverlayDesc;
+
+  /// No description provided for @settingsHapticIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibration Strength'**
+  String get settingsHapticIntensity;
+
+  /// No description provided for @hapticLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get hapticLight;
+
+  /// No description provided for @hapticMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get hapticMedium;
+
+  /// No description provided for @hapticStrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Strong'**
+  String get hapticStrong;
 }
 
 class _AppLocalizationsDelegate

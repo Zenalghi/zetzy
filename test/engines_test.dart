@@ -1,6 +1,7 @@
 import 'package:bishop/bishop.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1562,6 +1563,65 @@ void main() {
         ),
         equals(ZetzySfx.sudokuLineComplete),
       );
+    });
+
+    test('SettingsRepository persists hapticIntensity and HapticService scales Android pulses', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = SettingsRepository(prefs);
+
+      expect(repo.load().hapticIntensity, equals(HapticIntensity.medium));
+      await repo.save(
+        repo.load().copyWith(hapticIntensity: HapticIntensity.strong),
+      );
+      expect(repo.load().hapticIntensity, equals(HapticIntensity.strong));
+
+      final lightSpec = HapticService.specFor(
+        HapticIntensity.light,
+        HapticPulseKind.medium,
+      );
+      final mediumSpec = HapticService.specFor(
+        HapticIntensity.medium,
+        HapticPulseKind.medium,
+      );
+      final strongSpec = HapticService.specFor(
+        HapticIntensity.strong,
+        HapticPulseKind.medium,
+      );
+      expect(lightSpec.durationMs, lessThan(mediumSpec.durationMs));
+      expect(mediumSpec.durationMs, lessThan(strongSpec.durationMs));
+      expect(lightSpec.amplitude, lessThan(mediumSpec.amplitude));
+
+      final calls = <MethodCall>[];
+      const channel = MethodChannel('zetzy/haptics');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return true;
+          });
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        final haptics = HapticService()
+          ..enabled = true
+          ..intensity = HapticIntensity.strong;
+        haptics.heavy();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(calls.length, equals(1));
+        expect(calls.first.method, equals('vibrate'));
+        final args = Map<String, dynamic>.from(calls.first.arguments as Map);
+        expect(args['durationMs'], equals(145));
+        expect(args['amplitude'], equals(255));
+
+        haptics.enabled = false;
+        haptics.medium();
+        await Future<void>.delayed(Duration.zero);
+        expect(calls.length, equals(1));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      }
     });
   });
 }

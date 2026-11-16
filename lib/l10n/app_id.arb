@@ -353,5 +353,10 @@
   },
 
   "settingsSnakeAssistOverlay": "Bayangan Dinding & Arah Swipe",
-  "settingsSnakeAssistOverlayDesc": "Tampilkan pratinjau rintangan & panah arah belokan."
+  "settingsSnakeAssistOverlayDesc": "Tampilkan pratinjau rintangan & panah arah belokan.",
+
+  "settingsHapticIntensity": "Kekuatan Getaran",
+  "hapticLight": "Ringan",
+  "hapticMedium": "Sedang",
+  "hapticStrong": "Kuat"
 }

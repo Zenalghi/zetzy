@@ -11,6 +11,7 @@ class AppSettings {
     this.sfxEnabled = true,
     this.bgmEnabled = false,
     this.hapticsEnabled = true,
+    this.hapticIntensity = HapticIntensity.medium,
     this.wakelockEnabled = true,
     this.snakeControlMode = SnakeControlMode.swipe,
     this.snakeShowGridLines = true,
@@ -45,6 +46,7 @@ class AppSettings {
   final bool sfxEnabled;
   final bool bgmEnabled;
   final bool hapticsEnabled;
+  final HapticIntensity hapticIntensity;
   final bool wakelockEnabled;
   final SnakeControlMode snakeControlMode;
   final bool snakeShowGridLines;
@@ -74,6 +76,7 @@ class AppSettings {
     bool? sfxEnabled,
     bool? bgmEnabled,
     bool? hapticsEnabled,
+    HapticIntensity? hapticIntensity,
     bool? wakelockEnabled,
     SnakeControlMode? snakeControlMode,
     bool? snakeShowGridLines,
@@ -105,6 +108,7 @@ class AppSettings {
       sfxEnabled: sfxEnabled ?? this.sfxEnabled,
       bgmEnabled: bgmEnabled ?? this.bgmEnabled,
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+      hapticIntensity: hapticIntensity ?? this.hapticIntensity,
       wakelockEnabled: wakelockEnabled ?? this.wakelockEnabled,
       snakeControlMode: snakeControlMode ?? this.snakeControlMode,
       snakeShowGridLines: snakeShowGridLines ?? this.snakeShowGridLines,
@@ -147,6 +151,7 @@ class SettingsRepository {
   static const _kSfx = 'zetzy_sfx';
   static const _kBgm = 'zetzy_bgm';
   static const _kHaptics = 'zetzy_haptics';
+  static const _kHapticIntensity = 'zetzy_haptic_intensity';
   static const _kWakelock = 'zetzy_wakelock';
   static const _kSnakeCtrl = 'zetzy_snake_ctrl';
   static const _kSnakeGrid = 'zetzy_snake_grid';
@@ -197,6 +202,10 @@ class SettingsRepository {
       sfxEnabled: _prefs.getBool(_kSfx) ?? true,
       bgmEnabled: _prefs.getBool(_kBgm) ?? false,
       hapticsEnabled: _prefs.getBool(_kHaptics) ?? true,
+      hapticIntensity: HapticIntensity.values.firstWhere(
+        (m) => m.name == _prefs.getString(_kHapticIntensity),
+        orElse: () => HapticIntensity.medium,
+      ),
       wakelockEnabled: _prefs.getBool(_kWakelock) ?? true,
       snakeControlMode: SnakeControlMode.values.firstWhere(
         (m) => m.name == _prefs.getString(_kSnakeCtrl),
@@ -244,6 +253,7 @@ class SettingsRepository {
       _prefs.setBool(_kSfx, s.sfxEnabled),
       _prefs.setBool(_kBgm, s.bgmEnabled),
       _prefs.setBool(_kHaptics, s.hapticsEnabled),
+      _prefs.setString(_kHapticIntensity, s.hapticIntensity.name),
       _prefs.setBool(_kWakelock, s.wakelockEnabled),
       _prefs.setString(_kSnakeCtrl, s.snakeControlMode.name),
       _prefs.setBool(_kSnakeGrid, s.snakeShowGridLines),

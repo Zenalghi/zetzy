@@ -70,7 +70,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
       sfxEnabled: s.sfxEnabled,
       bgmEnabled: s.bgmEnabled,
     );
-    ref.read(hapticServiceProvider).enabled = s.hapticsEnabled;
+    ref.read(hapticServiceProvider)
+      ..enabled = s.hapticsEnabled
+      ..intensity = s.hapticIntensity;
     ref.read(wakelockServiceProvider).updateSetting(s.wakelockEnabled);
   }
 
@@ -92,8 +94,19 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setBgm(bool enabled) =>
       _commit(state.copyWith(bgmEnabled: enabled));
 
-  Future<void> setHaptics(bool enabled) =>
-      _commit(state.copyWith(hapticsEnabled: enabled));
+  Future<void> setHaptics(bool enabled) async {
+    await _commit(state.copyWith(hapticsEnabled: enabled));
+    if (enabled) {
+      ref.read(hapticServiceProvider).medium();
+    }
+  }
+
+  Future<void> setHapticIntensity(HapticIntensity intensity) async {
+    await _commit(state.copyWith(hapticIntensity: intensity));
+    if (state.hapticsEnabled) {
+      ref.read(hapticServiceProvider).medium();
+    }
+  }
 
   Future<void> setWakelock(bool enabled) =>
       _commit(state.copyWith(wakelockEnabled: enabled));

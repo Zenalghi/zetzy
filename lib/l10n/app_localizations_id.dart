@@ -866,4 +866,16 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get settingsSnakeAssistOverlayDesc =>
       'Tampilkan pratinjau rintangan & panah arah belokan.';
+
+  @override
+  String get settingsHapticIntensity => 'Kekuatan Getaran';
+
+  @override
+  String get hapticLight => 'Ringan';
+
+  @override
+  String get hapticMedium => 'Sedang';
+
+  @override
+  String get hapticStrong => 'Kuat';
 }

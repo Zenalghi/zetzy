@@ -82,6 +82,9 @@ enum SnakeControlMode { swipe, dpad, splitTap }
 /// Controls when Chess asks for a second tap/confirm before submitting a move.
 enum ChessMoveConfirmMode { off, fastOnly, always }
 
+/// Controls vibration duration and amplitude for in-game haptic feedback.
+enum HapticIntensity { light, medium, strong }
+
 /// Available SVG chess piece themes bundled in assets/icons/chess/.
 enum ChessPieceSet {
   cburnett('cburnett', 'Cburnett'),
