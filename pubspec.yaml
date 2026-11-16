@@ -31,6 +31,7 @@ dependencies:
   share_plus: ^13.3.1
   crypto: ^3.0.6
   package_info_plus: ^10.2.2
+  flutter_dynamic_icon_plus: ^1.6.0
 
   cupertino_ui: ^1.1.6
   material_ui: ^1.11.0

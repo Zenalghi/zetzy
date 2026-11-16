@@ -11,7 +11,9 @@ import 'package:zetzy/core/constants/app_constants.dart';
 import 'package:zetzy/core/constants/supabase_schema.dart';
 import 'package:zetzy/core/services/audio_service.dart';
 import 'package:zetzy/core/services/avatar_picker_service.dart';
+import 'package:zetzy/core/services/dynamic_icon_service.dart';
 import 'package:zetzy/core/services/haptic_service.dart';
+import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/core/utils/avatar_compressor.dart';
 import 'package:zetzy/core/utils/time_formatter.dart';
 import 'package:zetzy/data/local/local_storage_service.dart';
@@ -1856,6 +1858,67 @@ void main() {
       expect(adminProfile.isAdmin, isTrue);
       expect(adminProfile.syncedSettingsJson?['locale_code'], equals('id'));
       expect(adminProfile.syncedStats?.totalXp, equals(500));
+    });
+  });
+
+  group('DynamicIconService Easter Egg Resolver', () {
+    test('forces abyssal_cyan0 during 23:00-05:30 and restores theme icon outside', () {
+      expect(
+        DynamicIconService.isNightEasterEggWindow(DateTime(2026, 11, 17, 22, 59)),
+        isFalse,
+      );
+      expect(
+        DynamicIconService.isNightEasterEggWindow(DateTime(2026, 11, 17, 23, 0)),
+        isTrue,
+      );
+      expect(
+        DynamicIconService.isNightEasterEggWindow(DateTime(2026, 11, 17, 2, 15)),
+        isTrue,
+      );
+      expect(
+        DynamicIconService.isNightEasterEggWindow(DateTime(2026, 11, 17, 5, 29)),
+        isTrue,
+      );
+      expect(
+        DynamicIconService.isNightEasterEggWindow(DateTime(2026, 11, 17, 5, 30)),
+        isFalse,
+      );
+
+      final night = DateTime(2026, 11, 17, 23, 30);
+      expect(
+        DynamicIconService.resolveLauncherIconName(
+          themeMode: ZetzyThemeMode.warmParchment,
+          abyssalAlterEgo: false,
+          now: night,
+        ),
+        equals('abyssal_cyan0'),
+      );
+
+      final day = DateTime(2026, 11, 17, 9, 0);
+      expect(
+        DynamicIconService.resolveLauncherIconName(
+          themeMode: ZetzyThemeMode.warmParchment,
+          abyssalAlterEgo: false,
+          now: day,
+        ),
+        isNull,
+      );
+      expect(
+        DynamicIconService.resolveLauncherIconName(
+          themeMode: ZetzyThemeMode.oledMidnight,
+          abyssalAlterEgo: false,
+          now: day,
+        ),
+        equals('oled_midnight'),
+      );
+      expect(
+        DynamicIconService.resolveLauncherIconName(
+          themeMode: ZetzyThemeMode.abyssalCyan,
+          abyssalAlterEgo: true,
+          now: day,
+        ),
+        equals('abyssal_cyan1'),
+      );
     });
   });
 }

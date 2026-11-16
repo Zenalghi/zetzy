@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zetzy/core/routing/app_router.dart';
+import 'package:zetzy/core/services/dynamic_icon_service.dart';
 import 'package:zetzy/core/theme/zetzy_theme.dart';
 import 'package:zetzy/l10n/app_localizations.dart';
 import 'package:zetzy/providers/app_providers.dart';
@@ -23,6 +24,16 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_handleHardwareKey);
+    Future.microtask(_syncDynamicIcon);
+  }
+
+  void _syncDynamicIcon() {
+    if (!mounted) return;
+    final settings = ref.read(settingsProvider);
+    DynamicIconService.instance.syncLauncherIcon(
+      themeMode: settings.themeMode,
+      abyssalAlterEgo: settings.abyssalCyanAlterEgo,
+    );
   }
 
   bool _handleHardwareKey(KeyEvent _) {
@@ -37,6 +48,7 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       ref.read(audioServiceProvider).handleAppLifecycleState(isForeground);
+      _syncDynamicIcon();
     }
   }
 
@@ -50,6 +62,13 @@ class _ZetzyAppState extends ConsumerState<ZetzyApp>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    ref.listen(
+      settingsProvider.select((s) => (s.themeMode, s.abyssalCyanAlterEgo)),
+      (_, next) => DynamicIconService.instance.syncLauncherIcon(
+        themeMode: next.$1,
+        abyssalAlterEgo: next.$2,
+      ),
+    );
     // Keep offline score sync listener alive across app lifetime
     ref.watch(scoreSyncControllerProvider);
 
