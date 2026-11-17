@@ -68,6 +68,7 @@ class AudioService {
 
   bool _initialized = false;
   bool _sfxEnabled = true;
+  int _uiClickTheme = 1;
   BgmMode _bgmMode = BgmMode.auto;
   String _manualBgmTrack = favoriteBgmFilename;
   String _favoriteBgmTrack = favoriteBgmFilename;
@@ -90,6 +91,7 @@ class AudioService {
   String? get currentBgmAsset => _currentBgmAsset;
   BgmMode get bgmMode => _bgmMode;
   String get favoriteBgmTrack => _favoriteBgmTrack;
+  int get uiClickTheme => _uiClickTheme;
 
   @visibleForTesting
   bool get isAwaitingUserGesture => _awaitingUserGesture;
@@ -102,11 +104,13 @@ class AudioService {
     required BgmMode bgmMode,
     String manualBgmTrack = favoriteBgmFilename,
     String favoriteBgmTrack = favoriteBgmFilename,
+    int uiClickTheme = 1,
   }) async {
     _sfxEnabled = sfxEnabled;
     _bgmMode = bgmMode;
     _manualBgmTrack = manualBgmTrack;
     _favoriteBgmTrack = favoriteBgmTrack;
+    _uiClickTheme = uiClickTheme.clamp(1, 4);
     if (_initialized) return;
     _initialized = true;
 
@@ -155,9 +159,13 @@ class AudioService {
     required BgmMode bgmMode,
     required String manualBgmTrack,
     String? favoriteBgmTrack,
+    int? uiClickTheme,
     bool fromUserAction = false,
   }) {
     _sfxEnabled = sfxEnabled;
+    if (uiClickTheme != null) {
+      _uiClickTheme = uiClickTheme.clamp(1, 4);
+    }
     final prevMode = _bgmMode;
     final prevTrack = _manualBgmTrack;
     _bgmMode = bgmMode;
@@ -237,7 +245,7 @@ class AudioService {
     final sfxMap = <ZetzySfx, List<String>>{};
     for (final sfx in ZetzySfx.values) {
       final matcher = RegExp(
-        '^${RegExp.escape(sfx.prefix)}\\d*\\.(mp3|wav|ogg|m4a)\$',
+        '^${RegExp.escape(sfx.prefix)}(?:\\d+[a-z]?)?\\.(mp3|wav|ogg|m4a)\$',
         caseSensitive: false,
       );
       final matches = <String>[];
@@ -317,6 +325,18 @@ class AudioService {
       variants = _sfxVariants[fallback] ?? const <String>[];
     }
     if (variants.isEmpty) return null;
+    if (resolvedKey == ZetzySfx.uiClick) {
+      final packPattern = RegExp(
+        '^${RegExp.escape(ZetzySfx.uiClick.prefix)}$_uiClickTheme[a-z]\\.',
+        caseSensitive: false,
+      );
+      final themedPool = variants
+          .where((v) => packPattern.hasMatch(v.split('/').last))
+          .toList(growable: false);
+      if (themedPool.isNotEmpty) {
+        variants = themedPool;
+      }
+    }
     if (variants.length == 1) {
       _lastPlayedSfx[resolvedKey] = variants.first;
       return variants.first;

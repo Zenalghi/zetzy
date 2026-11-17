@@ -64,8 +64,8 @@ Naming rule: `<prefix><1..N>.mp3`. `AudioService` picks a random variation witho
 
 | Prefix | Files Present | Trigger |
 | :--- | :--- | :--- |
-| `sfx_ui_click` | `1–2.mp3` | Navigation & UI taps |
-| `sfx_sudoku_tap` | `1–4.mp3` | Digit placement / notes / hint |
+| `sfx_ui_click` | `1{a–d}..4{a–d}.mp3` | Navigation & UI taps (4 hidden sound packs `1–4` cycled by re-tapping the active theme; random `a–d` within pack) |
+| `sfx_sudoku_tap` | `1–6.mp3` | Digit placement / notes / hint (randomized without back-to-back repeats) |
 | `sfx_sudoku_line` | `1–4.mp3` | Row / column / box completion |
 | `sfx_sudoku_autofill` | `1–3.mp3` | Auto-Finish sequence |
 | `sfx_error_buzz` | `1–4.mp3` | Invalid Sudoku input / Snake poison |

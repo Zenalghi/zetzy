@@ -1921,4 +1921,43 @@ void main() {
       );
     });
   });
+
+  group('AudioService Sudoku Tap 1-6 & UI Click Theme Loop', () {
+    test('discovers sfx_sudoku_tap1..6 and loops ui_click1a..4d packs by active theme', () {
+      final audio = AudioService();
+      audio.setAvailableAssetsForTest({
+        for (var i = 1; i <= 6; i++) 'assets/audio/mp3/sfx_sudoku_tap$i.mp3',
+        for (var theme = 1; theme <= 4; theme++)
+          for (final sub in ['a', 'b', 'c', 'd'])
+            'assets/audio/mp3/sfx_ui_click$theme$sub.mp3',
+      });
+
+      expect(audio.variantsFor(ZetzySfx.sudokuTap), hasLength(6));
+      expect(audio.variantsFor(ZetzySfx.uiClick), hasLength(16));
+
+      String? prevTap;
+      for (var i = 0; i < 12; i++) {
+        final picked = audio.pickSfxAsset(ZetzySfx.sudokuTap);
+        expect(picked, isNotNull);
+        expect(picked, isNot(equals(prevTap)));
+        prevTap = picked;
+      }
+
+      for (var theme = 1; theme <= 4; theme++) {
+        audio.updatePreferences(
+          sfxEnabled: true,
+          bgmMode: BgmMode.off,
+          manualBgmTrack: '5.mp3',
+          uiClickTheme: theme,
+        );
+        String? prevClick;
+        for (var i = 0; i < 6; i++) {
+          final picked = audio.pickSfxAsset(ZetzySfx.uiClick);
+          expect(picked, startsWith('audio/mp3/sfx_ui_click$theme'));
+          expect(picked, isNot(equals(prevClick)));
+          prevClick = picked;
+        }
+      }
+    });
+  });
 }

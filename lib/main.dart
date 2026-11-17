@@ -25,6 +25,7 @@ Future<void> main() async {
     bgmMode: initialSettings.bgmMode,
     manualBgmTrack: initialSettings.bgmTrack,
     favoriteBgmTrack: initialSettings.favoriteBgmTrack,
+    uiClickTheme: initialSettings.uiClickTheme,
   );
 
   runApp(

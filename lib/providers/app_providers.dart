@@ -72,6 +72,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
       bgmMode: s.bgmMode,
       manualBgmTrack: s.bgmTrack,
       favoriteBgmTrack: s.favoriteBgmTrack,
+      uiClickTheme: s.uiClickTheme,
       fromUserAction: fromUserAction,
     );
     ref.read(hapticServiceProvider)
@@ -114,21 +115,34 @@ class SettingsNotifier extends Notifier<AppSettings> {
     }
   }
 
-  Future<void> setTheme(ZetzyThemeMode mode) {
+  Future<void> setTheme(ZetzyThemeMode mode) async {
+    final sameTheme = state.themeMode == mode;
+    final nextClickTheme = sameTheme
+        ? (state.uiClickTheme % 4) + 1
+        : state.uiClickTheme;
+
     if (mode == ZetzyThemeMode.abyssalCyan) {
-      final nextAlter = state.themeMode == ZetzyThemeMode.abyssalCyan
-          ? !state.abyssalCyanAlterEgo
-          : false;
-      return _commit(
+      final nextAlter = sameTheme ? !state.abyssalCyanAlterEgo : false;
+      await _commit(
         state.copyWith(
           themeMode: ZetzyThemeMode.abyssalCyan,
           abyssalCyanAlterEgo: nextAlter,
+          uiClickTheme: nextClickTheme,
+        ),
+      );
+    } else {
+      await _commit(
+        state.copyWith(
+          themeMode: mode,
+          abyssalCyanAlterEgo: false,
+          uiClickTheme: nextClickTheme,
         ),
       );
     }
-    return _commit(
-      state.copyWith(themeMode: mode, abyssalCyanAlterEgo: false),
-    );
+
+    if (sameTheme) {
+      unawaited(ref.read(audioServiceProvider).playSfx(ZetzySfx.uiClick));
+    }
   }
 
   Future<void> setLocale(String code) =>

@@ -10,6 +10,7 @@ class AppSettings {
     this.abyssalCyanAlterEgo = false,
     this.localeCode = 'en',
     this.sfxEnabled = true,
+    this.uiClickTheme = 1,
     this.bgmMode = BgmMode.auto,
     this.bgmTrack = '5.mp3',
     this.favoriteBgmTrack = '5.mp3',
@@ -48,6 +49,7 @@ class AppSettings {
   final bool abyssalCyanAlterEgo;
   final String localeCode;
   final bool sfxEnabled;
+  final int uiClickTheme;
   final BgmMode bgmMode;
   final String bgmTrack;
   final String favoriteBgmTrack;
@@ -83,6 +85,7 @@ class AppSettings {
     bool? abyssalCyanAlterEgo,
     String? localeCode,
     bool? sfxEnabled,
+    int? uiClickTheme,
     BgmMode? bgmMode,
     String? bgmTrack,
     String? favoriteBgmTrack,
@@ -119,6 +122,7 @@ class AppSettings {
       abyssalCyanAlterEgo: abyssalCyanAlterEgo ?? this.abyssalCyanAlterEgo,
       localeCode: localeCode ?? this.localeCode,
       sfxEnabled: sfxEnabled ?? this.sfxEnabled,
+      uiClickTheme: (uiClickTheme ?? this.uiClickTheme).clamp(1, 4),
       bgmMode:
           bgmMode ??
           (bgmEnabled == null
@@ -166,6 +170,7 @@ class AppSettings {
     'abyssal_alter_ego': abyssalCyanAlterEgo,
     'locale_code': localeCode,
     'sfx_enabled': sfxEnabled,
+    'ui_click_theme': uiClickTheme,
     'bgm_mode': bgmMode.name,
     'bgm_track': bgmTrack,
     'favorite_bgm_track': favoriteBgmTrack,
@@ -208,6 +213,7 @@ class AppSettings {
       abyssalCyanAlterEgo: json['abyssal_alter_ego'] as bool?,
       localeCode: json['locale_code']?.toString(),
       sfxEnabled: json['sfx_enabled'] as bool?,
+      uiClickTheme: (json['ui_click_theme'] as num?)?.toInt(),
       bgmMode: enumByName(BgmMode.values, 'bgm_mode', bgmMode),
       bgmTrack: json['bgm_track']?.toString(),
       favoriteBgmTrack: json['favorite_bgm_track']?.toString(),
@@ -263,6 +269,7 @@ class SettingsRepository {
   static const _kAbyssalAlterEgo = 'zetzy_abyssal_alter_ego';
   static const _kLocale = 'zetzy_locale';
   static const _kSfx = 'zetzy_sfx';
+  static const _kUiClickTheme = 'zetzy_ui_click_theme';
   static const _kBgm = 'zetzy_bgm';
   static const _kBgmMode = 'zetzy_bgm_mode';
   static const _kBgmTrack = 'zetzy_bgm_track';
@@ -318,6 +325,7 @@ class SettingsRepository {
       abyssalCyanAlterEgo: _prefs.getBool(_kAbyssalAlterEgo) ?? false,
       localeCode: _prefs.getString(_kLocale) ?? 'en',
       sfxEnabled: _prefs.getBool(_kSfx) ?? true,
+      uiClickTheme: (_prefs.getInt(_kUiClickTheme) ?? 1).clamp(1, 4),
       bgmMode: BgmMode.values.firstWhere(
         (m) => m.name == _prefs.getString(_kBgmMode),
         orElse: () => BgmMode.auto,
@@ -375,6 +383,7 @@ class SettingsRepository {
       _prefs.setBool(_kAbyssalAlterEgo, s.abyssalCyanAlterEgo),
       _prefs.setString(_kLocale, s.localeCode),
       _prefs.setBool(_kSfx, s.sfxEnabled),
+      _prefs.setInt(_kUiClickTheme, s.uiClickTheme),
       _prefs.setBool(_kBgm, s.bgmEnabled),
       _prefs.setString(_kBgmMode, s.bgmMode.name),
       _prefs.setString(_kBgmTrack, s.bgmTrack),
